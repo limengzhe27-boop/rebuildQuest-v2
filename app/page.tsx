@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Region = "海外" | "国内";
 type Status = "收集中" | "草稿" | "已结束";
@@ -112,6 +113,7 @@ function formatNumber(value: number) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [region, setRegion] = useState<Region>("海外");
   const [activeGroup, setActiveGroup] = useState("全部问卷");
   const [query, setQuery] = useState("");
@@ -122,6 +124,20 @@ export default function Home() {
   const [toast, setToast] = useState("");
   const [newName, setNewName] = useState("");
   const [newLanguages, setNewLanguages] = useState(["EN"]);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("joydata-survey-drafts");
+    if (!saved) return;
+    try {
+      const drafts = JSON.parse(saved) as Survey[];
+      setSurveys((current) => {
+        const ids = new Set(current.map((item) => item.id));
+        return [...drafts.filter((item) => !ids.has(item.id)), ...current];
+      });
+    } catch {
+      window.localStorage.removeItem("joydata-survey-drafts");
+    }
+  }, []);
 
   const visible = useMemo(() => {
     return surveys.filter((survey) => {
@@ -300,7 +316,7 @@ export default function Home() {
                 <button className="secondary-button" onClick={() => notify("已进入模板中心")}>
                   ▦ 模板中心
                 </button>
-                <button className="primary-button" onClick={() => setShowCreate(true)}>
+                <button className="primary-button" onClick={() => router.push("/survey/new")}>
                   ＋ 创建问卷
                 </button>
               </div>
