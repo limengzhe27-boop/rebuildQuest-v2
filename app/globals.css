@@ -743,6 +743,25 @@ input:focus-visible {
   font-weight: 600;
 }
 
+.filter-count {
+  display: inline-grid;
+  min-width: 17px;
+  height: 17px;
+  margin-left: 5px;
+  padding: 0 5px;
+  place-items: center;
+  border-radius: 9px;
+  background: #e7ebf2;
+  color: #7c8799;
+  font-size: 9px;
+  line-height: 17px;
+}
+
+.filter-tabs button.active .filter-count {
+  background: #e8f0ff;
+  color: #2e6fdf;
+}
+
 .filter-button,
 .icon-button {
   height: 34px;

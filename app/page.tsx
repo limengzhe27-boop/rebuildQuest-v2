@@ -168,15 +168,27 @@ export default function Home() {
     });
   }, [activeGroup, query, region, status, surveys, trashedIds]);
 
-  const metrics = useMemo(() => {
-    const current = surveys.filter((item) => item.region === region);
-    const responses = current.reduce((sum, item) => sum + item.responses, 0);
-    const collecting = current.filter((item) => item.status === "收集中").length;
-    const active = current.filter((item) => item.responses > 0);
-    const completion =
-      active.reduce((sum, item) => sum + item.completion, 0) / (active.length || 1);
-    return { responses, collecting, completion };
-  }, [region, surveys]);
+  const statusCounts = useMemo(() => {
+    const current = surveys.filter((survey) => {
+      const isTrashed = trashedIds.includes(survey.id);
+      const byTrash = activeGroup === "回收站" ? isTrashed : !isTrashed;
+      const byGroup =
+        activeGroup === "全部问卷" ||
+        (activeGroup === "我创建的" && survey.owner === "李孟哲") ||
+        (activeGroup === "与我协作" && survey.owner !== "李孟哲") ||
+        (activeGroup === "草稿" && survey.status === "草稿") ||
+        activeGroup === "回收站" ||
+        survey.group.includes(activeGroup);
+      return byTrash && byGroup && survey.region === region;
+    });
+
+    return {
+      全部: current.length,
+      收集中: current.filter((item) => item.status === "收集中").length,
+      草稿: current.filter((item) => item.status === "草稿").length,
+      已结束: current.filter((item) => item.status === "已结束").length,
+    };
+  }, [activeGroup, region, surveys, trashedIds]);
 
   function notify(message: string) {
     setToast(message);
@@ -398,41 +410,6 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="metric-grid">
-              <article className="metric-card">
-                <div className="metric-icon blue">▤</div>
-                <div>
-                  <p>当前问卷</p>
-                  <strong>{surveys.filter((item) => item.region === region).length}</strong>
-                  <small><i className="green-dot" /> {metrics.collecting} 份正在收集</small>
-                </div>
-              </article>
-              <article className="metric-card">
-                <div className="metric-icon violet">↗</div>
-                <div>
-                  <p>近 30 天回收</p>
-                  <strong>{formatNumber(metrics.responses)}</strong>
-                  <small className="up">↑ 12.8% 较上月</small>
-                </div>
-              </article>
-              <article className="metric-card">
-                <div className="metric-icon amber">✓</div>
-                <div>
-                  <p>平均完成率</p>
-                  <strong>{metrics.completion.toFixed(1)}%</strong>
-                  <small>整体填写质量良好</small>
-                </div>
-              </article>
-              <article className="metric-card language-card">
-                <div className="metric-icon cyan">文</div>
-                <div>
-                  <p>覆盖语言</p>
-                  <strong>{region === "海外" ? "7" : "1"}</strong>
-                  <small>{region === "海外" ? "英语、繁中、泰语等" : "简体中文"}</small>
-                </div>
-              </article>
-            </div>
-
             <section className="survey-panel">
               <div className="panel-toolbar">
                 <div className="search-box">
@@ -452,6 +429,7 @@ export default function Home() {
                       onClick={() => setStatus(item)}
                     >
                       {item}
+                      <span className="filter-count">{statusCounts[item]}</span>
                     </button>
                   ))}
                 </div>
