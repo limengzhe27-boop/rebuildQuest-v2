@@ -30,7 +30,7 @@ export function SurveyNav({
           key={key}
           className={active === key ? "active" : ""}
           onClick={() => {
-            if (key === "edit" || key === "languages") {
+            if (key === "edit" || key === "languages" || key === "publish") {
               router.push(`/survey/${surveyId}/${key}`);
             } else {
               onNotice?.(`${label}将在后续阶段开放`);
@@ -44,4 +44,3 @@ export function SurveyNav({
     </nav>
   );
 }
-
