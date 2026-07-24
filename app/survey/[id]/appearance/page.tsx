@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { SurveyNav } from "../survey-nav";
+import { useSurveyTitle } from "@/lib/use-survey-title";
 
 type Appearance = { theme:string; primary:string; radius:number; density:"compact"|"comfortable"; progress:boolean; questionNumber:boolean; cover:boolean; logo:boolean; background:"plain"|"soft"|"dark" };
 const defaults: Appearance = { theme:"RO3 先锋",primary:"#356FE6",radius:10,density:"comfortable",progress:true,questionNumber:true,cover:true,logo:true,background:"soft" };
@@ -11,12 +12,13 @@ const themes=[["RO3 先锋","#356FE6","soft"],["JoyData 简洁","#2F73F5","plain
 export default function AppearancePage(){
   const router=useRouter();const params=useParams<{id:string}>();const surveyId=params.id;
   const [config,setConfig]=useState<Appearance>(defaults);const [device,setDevice]=useState<"mobile"|"desktop">("mobile");const [notice,setNotice]=useState("");
+  const surveyTitle=useSurveyTitle(surveyId);
   useEffect(()=>{const saved=window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`);if(saved)setConfig(JSON.parse(saved))},[surveyId]);
   useEffect(()=>window.localStorage.setItem(`joydata-survey-appearance-${surveyId}`,JSON.stringify(config)),[config,surveyId]);
   function update(patch:Partial<Appearance>){setConfig(current=>({...current,...patch}))}
   function flash(message:string){setNotice(message);window.setTimeout(()=>setNotice(""),2200)}
   return <main className="appearance-page">
-    <header className="editor-topbar"><button className="editor-back" onClick={()=>router.push("/")}>‹</button><div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>RO3 先锋测试玩家体验调研</strong><small><i className="saved"/>外观设置自动保存</small></div></div><SurveyNav surveyId={surveyId} active="appearance" onNotice={flash}/><div className="editor-actions"><button className="secondary-button" onClick={()=>setConfig(defaults)}>恢复默认</button><button className="primary-button" onClick={()=>router.push("/s/ro3-global-beta")}>玩家端预览</button></div></header>
+    <header className="editor-topbar"><button className="editor-back" onClick={()=>router.push("/")}>‹</button><div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="saved"/>外观设置自动保存</small></div></div><SurveyNav surveyId={surveyId} active="appearance" onNotice={flash}/><div className="editor-actions"><button className="secondary-button" onClick={()=>setConfig(defaults)}>恢复默认</button><button className="primary-button" onClick={()=>router.push(`/s/ro3-global-beta?surveyId=${surveyId}`)}>玩家端预览</button></div></header>
     <div className="appearance-layout">
       <aside className="appearance-settings">
         <header><strong>外观与品牌</strong><small>不影响问卷内容和逻辑</small></header>
@@ -30,7 +32,7 @@ export default function AppearancePage(){
         <div className={`survey-device ${device} ${config.density}`}>
           <div className="player-mini-page">
             {config.progress&&<div className="mini-progress"><i/></div>}
-            <header>{config.logo&&<span>RO3 · PLAYER RESEARCH</span>}{config.cover&&<><h1>RO3 先锋测试玩家体验调研</h1><p>感谢您参与本次先锋测试。问卷预计需要 3–5 分钟完成。</p></>}</header>
+            <header>{config.logo&&<span>RO3 · PLAYER RESEARCH</span>}{config.cover&&<><h1>{surveyTitle}</h1><p>感谢您参与本次先锋测试。问卷预计需要 3–5 分钟完成。</p></>}</header>
             <main><small>{config.questionNumber&&"01 / 03"} · 单选题</small><h2>您对本次先锋测试的整体体验如何？<b>*</b></h2><p>请选择最符合您感受的一项</p>{["非常满意","满意","一般","不满意","非常不满意"].map((item,index)=><button key={item} className={index===0?"selected":""}><i>{index===0?"●":"○"}</i>{item}</button>)}<footer><span>已自动保存</span><button>下一题 →</button></footer></main>
           </div>
         </div>

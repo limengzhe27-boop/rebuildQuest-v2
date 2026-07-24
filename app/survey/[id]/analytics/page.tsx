@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { SurveyNav } from "../survey-nav";
+import { useSurveyTitle } from "@/lib/use-survey-title";
 
 const trend = [312, 428, 506, 621, 708, 834, 927, 1086, 1218, 1286];
 const countries = [["美国", 2486, 29.5], ["泰国", 1769, 21], ["中国台湾", 1138, 13.5], ["菲律宾", 842, 10], ["德国", 598, 7.1]];
@@ -12,6 +13,7 @@ export default function AnalyticsPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const surveyId = params.id;
+  const surveyTitle = useSurveyTitle(surveyId);
   const [range, setRange] = useState("近 7 天");
   const [segment, setSegment] = useState("全部玩家");
   const [tab, setTab] = useState<"overview" | "questions">("overview");
@@ -26,7 +28,7 @@ export default function AnalyticsPage() {
   return <main className="insights-page analytics-page">
     <header className="editor-topbar">
       <button className="editor-back" onClick={() => router.push("/")}>‹</button>
-      <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>RO3 先锋测试玩家体验调研</strong><small><i className="live-dot" />数据更新于 2 分钟前</small></div></div>
+      <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="live-dot" />数据更新于 2 分钟前</small></div></div>
       <SurveyNav surveyId={surveyId} active="analytics" onNotice={flash} />
       <div className="editor-actions"><button className="secondary-button" onClick={() => flash("报告链接已复制，仅项目成员可访问")}>⌁ 分享报告</button><button className="primary-button" onClick={() => flash("分析报告正在生成 PDF")}>⇩ 导出报告</button></div>
     </header>

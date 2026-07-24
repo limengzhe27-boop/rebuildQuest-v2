@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultQuestions, loadQuestions, Question } from "@/lib/survey-builder";
 import { SurveyNav } from "../survey-nav";
+import { useSurveyTitle } from "@/lib/use-survey-title";
 
 const localeMeta = [
   { code: "EN", name: "English", native: "英语", progress: 100, status: "源语言" },
@@ -27,6 +28,7 @@ const preset: Record<string, Record<string, string>> = {
 export default function LanguagesPage() {
   const params = useParams<{ id: string }>();
   const surveyId = params.id;
+  const surveyTitle = useSurveyTitle(surveyId);
   const router = useRouter();
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [activeLocale, setActiveLocale] = useState("繁中");
@@ -96,7 +98,7 @@ export default function LanguagesPage() {
         <button className="editor-back" onClick={() => router.push("/")}>‹</button>
         <div className="editor-title">
           <span className="survey-doc-icon">文</span>
-          <div><strong>RO3 先锋测试玩家体验调研</strong><small><i className="saved" /> 多语言内容已同步</small></div>
+          <div><strong>{surveyTitle}</strong><small><i className="saved" /> 多语言内容已同步</small></div>
         </div>
         <SurveyNav surveyId={surveyId} active="languages" onNotice={flash} />
         <div className="editor-actions">
@@ -203,4 +205,3 @@ export default function LanguagesPage() {
     </main>
   );
 }
-

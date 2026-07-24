@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { SurveyNav } from "../survey-nav";
+import { useSurveyTitle } from "@/lib/use-survey-title";
 
 type Rule = {
   id: string;
@@ -23,6 +24,7 @@ export default function LogicPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const surveyId = params.id;
+  const surveyTitle = useSurveyTitle(surveyId);
   const [rules, setRules] = useState(initialRules);
   const [selectedId, setSelectedId] = useState(initialRules[0].id);
   const [notice, setNotice] = useState("");
@@ -56,9 +58,9 @@ export default function LogicPage() {
   return <main className="logic-page">
     <header className="editor-topbar">
       <button className="editor-back" onClick={() => router.push("/")}>‹</button>
-      <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>RO3 先锋测试玩家体验调研</strong><small><i className="saved" />逻辑规则自动保存</small></div></div>
+        <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="saved" />逻辑规则自动保存</small></div></div>
       <SurveyNav surveyId={surveyId} active="logic" onNotice={flash} />
-      <div className="editor-actions"><button className="secondary-button" onClick={() => flash("检查完成，未发现循环或断点")}>✓ 检查逻辑</button><button className="primary-button" onClick={() => router.push(`/s/ro3-global-beta`)}>运行测试</button></div>
+      <div className="editor-actions"><button className="secondary-button" onClick={() => flash("检查完成，未发现循环或断点")}>✓ 检查逻辑</button><button className="primary-button" onClick={() => router.push(`/s/ro3-global-beta?surveyId=${surveyId}`)}>运行测试</button></div>
     </header>
     <div className="logic-layout">
       <aside className="logic-sidebar">

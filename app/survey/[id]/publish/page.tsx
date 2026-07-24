@@ -11,6 +11,7 @@ import {
   Region,
 } from "@/lib/survey-publication";
 import { SurveyNav } from "../survey-nav";
+import { useSurveyTitle } from "@/lib/use-survey-title";
 
 type Collaborator = {
   id: string;
@@ -43,6 +44,7 @@ export default function PublishPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const surveyId = params.id;
+  const surveyTitle = useSurveyTitle(surveyId);
   const [publications, setPublications] = useState<Publication[]>(defaultPublications);
   const [selectedId, setSelectedId] = useState(defaultPublications[0].id);
   const [section, setSection] = useState<"delivery" | "limits" | "completion">("delivery");
@@ -144,7 +146,7 @@ export default function PublishPage() {
         <button className="editor-back" onClick={() => router.push("/")}>‹</button>
         <div className="editor-title">
           <span className="survey-doc-icon">▤</span>
-          <div><strong>RO3 先锋测试玩家体验调研</strong><small><i className="saved" />发布配置自动保存</small></div>
+          <div><strong>{surveyTitle}</strong><small><i className="saved" />发布配置自动保存</small></div>
         </div>
         <SurveyNav surveyId={surveyId} active="publish" onNotice={flash} />
         <div className="editor-actions">
@@ -342,7 +344,7 @@ export default function PublishPage() {
             <span>⌾</span>
             <p><strong>数据边界已锁定</strong><small>{selected.region === "global" ? "本实例答卷只存储在海外区域。" : "本实例答卷只存储在境内区域。"}</small></p>
           </div>
-          <button className="preview-player-button" onClick={() => router.push(`/s/${selected.slug}`)}>▣ 预览玩家端</button>
+          <button className="preview-player-button" onClick={() => router.push(`/s/${selected.slug}?surveyId=${surveyId}`)}>▣ 预览玩家端</button>
         </aside>
       </div>
 

@@ -4,11 +4,13 @@ import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { responseStatusLabel, SurveyResponse, surveyResponses } from "@/lib/survey-responses";
 import { SurveyNav } from "../survey-nav";
+import { useSurveyTitle } from "@/lib/use-survey-title";
 
 export default function ResponsesPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const surveyId = params.id;
+  const surveyTitle = useSurveyTitle(surveyId);
   const [query, setQuery] = useState("");
   const [locale, setLocale] = useState("all");
   const [status, setStatus] = useState("all");
@@ -34,7 +36,7 @@ export default function ResponsesPage() {
     <main className="insights-page">
       <header className="editor-topbar">
         <button className="editor-back" onClick={() => router.push("/")}>‹</button>
-        <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>RO3 先锋测试玩家体验调研</strong><small><i className="live-dot" />海外玩家正式投放 · 回收中</small></div></div>
+        <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="live-dot" />海外玩家正式投放 · 回收中</small></div></div>
         <SurveyNav surveyId={surveyId} active="responses" onNotice={flash} />
         <div className="editor-actions"><button className="secondary-button" onClick={() => flash("已生成脱敏导出任务，可在消息中心查看进度")}>⇩ 导出答卷</button><button className="primary-button" onClick={() => router.push(`/survey/${surveyId}/analytics`)}>查看分析</button></div>
       </header>

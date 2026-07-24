@@ -11,6 +11,7 @@ import {
   questionLabels,
 } from "@/lib/survey-builder";
 import { SurveyNav } from "../survey-nav";
+import { useSurveyTitle } from "@/lib/use-survey-title";
 
 const palette: { title: string; items: { type: QuestionType; icon: string }[] }[] = [
   {
@@ -38,6 +39,7 @@ export default function SurveyEditorPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const surveyId = params.id;
+  const surveyTitle = useSurveyTitle(surveyId);
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [selectedId, setSelectedId] = useState(defaultQuestions[0].id);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
@@ -143,7 +145,7 @@ export default function SurveyEditorPage() {
         <div className="editor-title">
           <span className="survey-doc-icon">▤</span>
           <div>
-            <strong>RO3 先锋测试玩家体验调研</strong>
+            <strong>{surveyTitle}</strong>
             <small>
               <i className={saveState === "saved" ? "saved" : ""} />
               {saveState === "saved" ? "所有更改已保存" : "正在自动保存…"}
@@ -201,7 +203,7 @@ export default function SurveyEditorPage() {
             <div className="survey-canvas">
               <header className="survey-cover">
                 <span>RO3 · PLAYER RESEARCH</span>
-                <h1>RO3 先锋测试玩家体验调研</h1>
+                <h1>{surveyTitle}</h1>
                 <p>感谢您参与本次先锋测试。问卷预计需要 3–5 分钟完成，您的反馈将帮助我们持续优化游戏体验。</p>
                 <div><i /> 当前语言：English（默认）<button onClick={() => router.push(`/survey/${surveyId}/languages`)}>管理语言</button></div>
               </header>
@@ -327,7 +329,7 @@ export default function SurveyEditorPage() {
                 </section>
               )}
               <section className="property-advanced">
-                <button onClick={() => flash("已打开显示逻辑")}>分支与显示逻辑 <span>›</span></button>
+                <button onClick={() => router.push(`/survey/${surveyId}/logic`)}>分支与显示逻辑 <span>›</span></button>
                 <button onClick={() => flash("已打开校验规则")}>校验与错误提示 <span>›</span></button>
                 <button onClick={() => router.push(`/survey/${surveyId}/languages`)}>多语言翻译 <span>›</span></button>
               </section>
@@ -345,7 +347,7 @@ export default function SurveyEditorPage() {
             <div className="phone-frame">
               <div className="phone-screen">
                 <span className="preview-brand">RO3 · PLAYER RESEARCH</span>
-                <h2>先锋测试玩家体验调研</h2>
+                <h2>{surveyTitle}</h2>
                 <p>感谢您参与本次测试，您的反馈非常重要。</p>
                 {questions.slice(0, 2).map((question, index) => (
                   <div className="phone-question" key={question.id}>
@@ -363,4 +365,3 @@ export default function SurveyEditorPage() {
     </main>
   );
 }
-
