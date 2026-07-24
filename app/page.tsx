@@ -610,7 +610,7 @@ export default function Home() {
             </div>
             <div className="drawer-actions">
               <button className="secondary-button" onClick={() => notify("已复制问卷链接")}>复制链接</button>
-              <button className="primary-button" onClick={() => notify("进入问卷编辑器")}>进入编辑器 →</button>
+              <button className="primary-button" onClick={() => router.push(`/survey/${selected.id}/edit`)}>进入编辑器 →</button>
             </div>
           </aside>
         </div>

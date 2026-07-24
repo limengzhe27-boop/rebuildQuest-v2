@@ -98,7 +98,7 @@ export default function NewSurveyPage() {
     } catch {
       window.localStorage.setItem(key, JSON.stringify([draft]));
     }
-    router.push("/");
+    router.push(`/survey/${draft.id}/edit`);
   }
 
   return (
