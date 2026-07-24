@@ -2,6 +2,7 @@
 @import "./publish.css";
 @import "./analytics.css";
 @import "./experience.css";
+@import "./templates.css";
 
 :root {
   --blue: #2f73f5;

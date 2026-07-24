@@ -121,6 +121,9 @@ export default function Home() {
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<Survey | null>(null);
   const [surveys, setSurveys] = useState(seedSurveys);
+  const [trashedIds, setTrashedIds] = useState<number[]>([]);
+  const [menuSurvey, setMenuSurvey] = useState<Survey | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Survey | null>(null);
   const [toast, setToast] = useState("");
   const [newName, setNewName] = useState("");
   const [newLanguages, setNewLanguages] = useState(["EN"]);
@@ -139,17 +142,31 @@ export default function Home() {
     }
   }, []);
 
+  useEffect(() => {
+    const saved = window.localStorage.getItem("joydata-survey-trash");
+    if (saved) setTrashedIds(JSON.parse(saved));
+  }, []);
+
   const visible = useMemo(() => {
     return surveys.filter((survey) => {
+      const isTrashed = trashedIds.includes(survey.id);
+      const byTrash = activeGroup === "回收站" ? isTrashed : !isTrashed;
       const byRegion = survey.region === region;
       const byStatus = status === "全部" || survey.status === status;
+      const byGroup =
+        activeGroup === "全部问卷" ||
+        (activeGroup === "我创建的" && survey.owner === "李孟哲") ||
+        (activeGroup === "与我协作" && survey.owner !== "李孟哲") ||
+        (activeGroup === "草稿" && survey.status === "草稿") ||
+        activeGroup === "回收站" ||
+        survey.group.includes(activeGroup);
       const byQuery =
         !query ||
         survey.name.toLowerCase().includes(query.toLowerCase()) ||
         survey.game.toLowerCase().includes(query.toLowerCase());
-      return byRegion && byStatus && byQuery;
+      return byTrash && byRegion && byStatus && byGroup && byQuery;
     });
-  }, [query, region, status, surveys]);
+  }, [activeGroup, query, region, status, surveys, trashedIds]);
 
   const metrics = useMemo(() => {
     const current = surveys.filter((item) => item.region === region);
@@ -197,6 +214,40 @@ export default function Home() {
     setNewName("");
     setNewLanguages(["EN"]);
     notify("问卷草稿已创建");
+  }
+
+  function duplicateSurvey(survey: Survey) {
+    const copy: Survey = {
+      ...survey,
+      id: Date.now(),
+      name: `${survey.name}（副本）`,
+      status: "草稿",
+      responses: 0,
+      completion: 0,
+      updated: "刚刚",
+      owner: "李孟哲",
+    };
+    setSurveys((current) => [copy, ...current]);
+    setMenuSurvey(null);
+    notify("已复制为新的问卷草稿");
+  }
+
+  function moveToTrash(survey: Survey) {
+    const next = [...trashedIds, survey.id];
+    setTrashedIds(next);
+    window.localStorage.setItem("joydata-survey-trash", JSON.stringify(next));
+    setConfirmDelete(null);
+    setMenuSurvey(null);
+    setSelected(null);
+    notify("已移入回收站，可在 30 天内恢复");
+  }
+
+  function restoreSurvey(survey: Survey) {
+    const next = trashedIds.filter((id) => id !== survey.id);
+    setTrashedIds(next);
+    window.localStorage.setItem("joydata-survey-trash", JSON.stringify(next));
+    setMenuSurvey(null);
+    notify("问卷已恢复");
   }
 
   return (
@@ -290,7 +341,7 @@ export default function Home() {
                 <em>2</em>
               </button>
               <p className="sidebar-label">资源</p>
-              <button onClick={() => notify("模板中心已打开")}>
+              <button onClick={() => router.push("/survey/templates")}>
                 <span className="folder-icon">▦</span>
                 <span>模板中心</span>
               </button>
@@ -313,7 +364,7 @@ export default function Home() {
                 <p>创建、发布并分析面向全球玩家的多语言问卷。</p>
               </div>
               <div className="heading-actions">
-                <button className="secondary-button" onClick={() => notify("已进入模板中心")}>
+                <button className="secondary-button" onClick={() => router.push("/survey/templates")}>
                   ▦ 模板中心
                 </button>
                 <button className="primary-button" onClick={() => router.push("/survey/new")}>
@@ -464,11 +515,27 @@ export default function Home() {
                           aria-label={`${survey.name}的更多操作`}
                           onClick={(event) => {
                             event.stopPropagation();
-                            notify("已打开问卷操作菜单");
+                            setMenuSurvey(menuSurvey?.id === survey.id ? null : survey);
                           }}
                         >
                           •••
                         </button>
+                        {menuSurvey?.id === survey.id && (
+                          <div className="survey-operation-menu" onClick={(event) => event.stopPropagation()}>
+                            {activeGroup === "回收站" ? (
+                              <button onClick={() => restoreSurvey(survey)}>↺ 恢复问卷</button>
+                            ) : (
+                              <>
+                                <button onClick={() => router.push(`/survey/${survey.id}/edit`)}>✎ 进入编辑器</button>
+                                <button onClick={() => duplicateSurvey(survey)}>⧉ 复制问卷</button>
+                                <button onClick={() => notify("移动分组面板已打开")}>▱ 移动到分组</button>
+                                <button onClick={() => notify("协作权限面板已打开")}>♙ 协作权限</button>
+                                <i />
+                                <button className="danger" onClick={() => { setConfirmDelete(survey); setMenuSurvey(null); }}>⌫ 移入回收站</button>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
@@ -476,7 +543,12 @@ export default function Home() {
                   <div className="empty-state">
                     <div>⌕</div>
                     <strong>没有找到相关问卷</strong>
-                    <p>调整搜索条件或创建一份新问卷。</p>
+                    <p>{activeGroup === "回收站" ? "回收站中暂无问卷。" : "调整搜索条件或创建一份新问卷。"}</p>
+                    {(query || status !== "全部") && (
+                      <button className="secondary-button" onClick={() => { setQuery(""); setStatus("全部"); }}>
+                        清除筛选
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -613,6 +685,20 @@ export default function Home() {
               <button className="primary-button" onClick={() => router.push(`/survey/${selected.id}/edit`)}>进入编辑器 →</button>
             </div>
           </aside>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="modal-backdrop" onMouseDown={() => setConfirmDelete(null)}>
+          <section className="delete-confirm-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <span>⌫</span>
+            <h2>将问卷移入回收站？</h2>
+            <p>“{confirmDelete.name}”将停止回收并移入回收站，30 天内可以恢复。</p>
+            <div>
+              <button className="secondary-button" onClick={() => setConfirmDelete(null)}>取消</button>
+              <button className="danger-button" onClick={() => moveToTrash(confirmDelete)}>移入回收站</button>
+            </div>
+          </section>
         </div>
       )}
 
