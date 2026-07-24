@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { responseStatusLabel, SurveyResponse, surveyResponses } from "@/lib/survey-responses";
+import { LiveSurveyResponse, runtimeLocales } from "@/lib/survey-runtime";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
@@ -17,11 +18,57 @@ export default function ResponsesPage() {
   const [selected, setSelected] = useState<SurveyResponse | null>(surveyResponses[0]);
   const [checked, setChecked] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
+  const [liveResponses, setLiveResponses] = useState<SurveyResponse[]>([]);
 
-  const rows = useMemo(() => surveyResponses.filter((item) => {
+  useEffect(() => {
+    const stored = window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`);
+    if (!stored) return;
+
+    try {
+      const parsed = JSON.parse(stored) as LiveSurveyResponse[];
+      const mapped = parsed.map((item): SurveyResponse => {
+        const durationMinutes = Math.floor(item.durationSeconds / 60);
+        const durationSeconds = item.durationSeconds % 60;
+        const submittedAt = new Date(item.submittedAt);
+        const satisfaction = item.answers.welcome;
+        const feedback = item.answers.feedback;
+        const nps = item.answers.nps;
+
+        return {
+          id: item.id,
+          submittedAt: submittedAt.toLocaleString("zh-CN", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+          }).replaceAll("/", "-"),
+          playerId: "Anonymous",
+          country: "未知",
+          locale: runtimeLocales[item.locale],
+          channel: item.source || "直接访问",
+          device: "Web",
+          duration: `${String(durationMinutes).padStart(2, "0")}:${String(durationSeconds).padStart(2, "0")}`,
+          status: item.status,
+          satisfaction: Array.isArray(satisfaction) ? satisfaction.join("、") : String(satisfaction ?? "—"),
+          nps: typeof nps === "number" ? nps : Number(nps ?? 0),
+          feedback: Array.isArray(feedback) ? feedback.join("、") : String(feedback ?? ""),
+        };
+      });
+      setLiveResponses(mapped);
+      if (mapped[0]) setSelected(mapped[0]);
+    } catch {
+      setLiveResponses([]);
+    }
+  }, [surveyId]);
+
+  const allResponses = useMemo(() => [...liveResponses, ...surveyResponses], [liveResponses]);
+  const rows = useMemo(() => allResponses.filter((item) => {
     const matchedQuery = `${item.id}${item.playerId}${item.country}${item.channel}`.toLowerCase().includes(query.toLowerCase());
     return matchedQuery && (locale === "all" || item.locale === locale) && (status === "all" || item.status === status);
-  }), [query, locale, status]);
+  }), [allResponses, query, locale, status]);
 
   function flash(message: string) {
     setNotice(message);
@@ -42,7 +89,7 @@ export default function ResponsesPage() {
       </header>
 
       <section className="response-summary-strip">
-        <div><span className="metric-icon blue">▤</span><p><small>已提交答卷</small><strong>8,421</strong><em>今日 +1,286</em></p></div>
+        <div><span className="metric-icon blue">▤</span><p><small>已提交答卷</small><strong>{(8421 + liveResponses.length).toLocaleString()}</strong><em>{liveResponses.length > 0 ? `本机体验 +${liveResponses.length}` : "今日 +1,286"}</em></p></div>
         <div><span className="metric-icon green">✓</span><p><small>有效答卷率</small><strong>96.8%</strong><em>较昨日 +1.2%</em></p></div>
         <div><span className="metric-icon orange">◷</span><p><small>平均填写时长</small><strong>3m 42s</strong><em>中位数 3m 18s</em></p></div>
         <div><span className="metric-icon violet">◎</span><p><small>完成率</small><strong>82.4%</strong><em>进入问卷 10,220</em></p></div>
@@ -72,7 +119,7 @@ export default function ResponsesPage() {
               </tr>)}
             </tbody>
           </table>
-          <footer className="table-pagination"><span>第 1–{rows.length} 条，共 8,421 条</span><div><button disabled>‹</button><button className="active">1</button><button>2</button><button>3</button><button>…</button><button>703</button><button>›</button></div><select><option>20 条/页</option><option>50 条/页</option></select></footer>
+          <footer className="table-pagination"><span>第 1–{rows.length} 条，共 {(8421 + liveResponses.length).toLocaleString()} 条</span><div><button disabled>‹</button><button className="active">1</button><button>2</button><button>3</button><button>…</button><button>703</button><button>›</button></div><select><option>20 条/页</option><option>50 条/页</option></select></footer>
         </section>
 
         {selected && <aside className="response-detail">
