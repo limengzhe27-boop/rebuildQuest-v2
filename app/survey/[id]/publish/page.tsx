@@ -51,6 +51,8 @@ export default function PublishPage() {
   const [notice, setNotice] = useState("");
   const [showPermission, setShowPermission] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const [stopReason, setStopReason] = useState("调研目标已完成");
   const [collaborators, setCollaborators] = useState(defaultCollaborators);
   const hydrated = useRef(false);
 
@@ -119,17 +121,26 @@ export default function PublishPage() {
       return;
     }
     if (selected.status === "active") {
-      updateSelected({ status: "stopped" });
-      flash("已停止回收，新答卷将不再进入");
+      setShowStopConfirm(true);
       return;
     }
     setShowConfirm(true);
   }
 
   function confirmPublish() {
-    updateSelected({ status: "active" });
+    updateSelected({ status: "active", stoppedAt: undefined, stopReason: undefined });
     setShowConfirm(false);
     flash("发布成功，投放链接已生效");
+  }
+
+  function confirmStop() {
+    updateSelected({
+      status: "stopped",
+      stoppedAt: "2026-07-24 17:26",
+      stopReason,
+    });
+    setShowStopConfirm(false);
+    flash("已手动结束收集，问卷链接将显示结束页");
   }
 
   function copyLink() {
@@ -211,6 +222,17 @@ export default function PublishPage() {
             </div>
           </div>
 
+          {selected.status === "stopped" && (
+            <div className="collection-ended-banner">
+              <span>■</span>
+              <p>
+                <strong>问卷收集已结束</strong>
+                <small>{selected.stoppedAt || "2026-07-24 17:26"} · {selected.stopReason || "手动结束"}。现有答卷仍可查看和导出。</small>
+              </p>
+              <button onClick={() => setShowConfirm(true)}>重新开启收集</button>
+            </div>
+          )}
+
           <div className="publish-section-tabs">
             <button className={section === "delivery" ? "active" : ""} onClick={() => setSection("delivery")}>投放与语言</button>
             <button className={section === "limits" ? "active" : ""} onClick={() => setSection("limits")}>回收限制</button>
@@ -272,12 +294,28 @@ export default function PublishPage() {
           {section === "limits" && (
             <div className="publish-config-stack">
               <section className="config-card">
-                <header><div><strong>回收时间与数量</strong><small>达到任一条件后自动停止接收新答卷</small></div></header>
-                <div className="limit-form">
+                <header><div><strong>自动结束条件</strong><small>满足任一已启用条件后，系统自动结束收集</small></div><span className="auto-stop-tag">OR 任一满足</span></header>
+                <div className="collection-condition-list">
+                  <article>
+                    <div className="condition-icon">◷</div>
+                    <p><strong>定时结束</strong><small>到达指定时间后自动停止接收新玩家</small></p>
+                    <input type="datetime-local" disabled={!selected.scheduleEnabled} value={selected.endAt} onChange={(event) => updateSelected({ endAt: event.target.value })} />
+                    <button className={`mini-switch ${selected.scheduleEnabled ? "on" : ""}`} onClick={() => updateSelected({ scheduleEnabled: !selected.scheduleEnabled })}><i /></button>
+                  </article>
+                  <article>
+                    <div className="condition-icon">▤</div>
+                    <p><strong>达到答卷数量</strong><small>有效提交达到上限后自动结束</small></p>
+                    <div className="condition-number"><input type="number" disabled={!selected.quotaEnabled} value={selected.totalLimit} onChange={(event) => updateSelected({ totalLimit: Number(event.target.value) })} /><span>份</span></div>
+                    <button className={`mini-switch ${selected.quotaEnabled ? "on" : ""}`} onClick={() => updateSelected({ quotaEnabled: !selected.quotaEnabled })}><i /></button>
+                  </article>
+                </div>
+                <div className="collection-start-row">
                   <label><span>开始时间</span><input type="datetime-local" value={selected.startAt} onChange={(event) => updateSelected({ startAt: event.target.value })} /></label>
-                  <label><span>结束时间</span><input type="datetime-local" value={selected.endAt} onChange={(event) => updateSelected({ endAt: event.target.value })} /></label>
-                  <label><span>最多回收答卷</span><div><input type="number" value={selected.totalLimit} onChange={(event) => updateSelected({ totalLimit: Number(event.target.value) })} /><em>份</em></div></label>
                   <label><span>每个账号最多提交</span><div><input type="number" value={selected.perAccountLimit} onChange={(event) => updateSelected({ perAccountLimit: Number(event.target.value) })} /><em>次</em></div></label>
+                </div>
+                <div className="inflight-policy">
+                  <span>⌛</span><p><strong>在途答卷处理</strong><small>结束时，已开始填写的玩家仍可在宽限期内提交。</small></p>
+                  <select value={selected.graceMinutes} onChange={(event) => updateSelected({ graceMinutes: Number(event.target.value) })}><option value={0}>立即结束</option><option value={10}>宽限 10 分钟</option><option value={30}>宽限 30 分钟</option><option value={60}>宽限 1 小时</option></select>
                 </div>
               </section>
               <section className="config-card">
@@ -313,6 +351,11 @@ export default function PublishPage() {
                   <label className="large-config-field"><span>跳转地址</span><input placeholder="https://" value={selected.redirectUrl} onChange={(event) => updateSelected({ redirectUrl: event.target.value })} /></label>
                 )}
                 <div className="completion-preview"><span>✓</span><strong>{selected.completionMessage || "提交成功"}</strong><small>玩家填写完成后看到的效果</small></div>
+                <label className="large-config-field closed-message-field">
+                  <span>问卷结束提示语</span>
+                  <textarea value={selected.closedMessage} onChange={(event) => updateSelected({ closedMessage: event.target.value })} />
+                  <small>手动结束、定时结束或达到上限后，玩家打开链接会看到此内容。</small>
+                </label>
               </section>
               <section className="config-card">
                 <header><div><strong>数据通知 Webhook</strong><small>收到答卷后通知业务系统，不跨区域传输答卷正文</small></div><button className={`mini-switch ${selected.webhookEnabled ? "on" : ""}`} onClick={() => updateSelected({ webhookEnabled: !selected.webhookEnabled })}><i /></button></header>
@@ -387,6 +430,24 @@ export default function PublishPage() {
             <p>发布后链接立即生效，新答卷只会写入{selected.region === "global" ? "海外" : "境内"}数据集群。数据区域发布后不可修改。</p>
             <div><span>访问方式</span><strong>{accessModes.find((item) => item.key === selected.accessMode)?.title}</strong><span>默认语言</span><strong>{selected.defaultLocale}</strong><span>回收上限</span><strong>{selected.totalLimit.toLocaleString()} 份</strong></div>
             <footer><button className="secondary-button" onClick={() => setShowConfirm(false)}>取消</button><button className="primary-button" onClick={confirmPublish}>确认发布</button></footer>
+          </section>
+        </div>
+      )}
+
+      {showStopConfirm && (
+        <div className="preview-backdrop" onMouseDown={() => setShowStopConfirm(false)}>
+          <section className="stop-collection-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <span className="stop-collection-icon">■</span>
+            <h2>确认手动结束问卷收集？</h2>
+            <p>结束后新玩家无法开始填写；已开始填写的玩家可在 {selected.graceMinutes} 分钟宽限期内提交。</p>
+            <div className="stop-summary">
+              <div><span>已回收</span><strong>8,421 份</strong></div>
+              <div><span>进行中</span><strong>37 份</strong></div>
+              <div><span>计划结束</span><strong>{selected.endAt.replace("T", " ")}</strong></div>
+            </div>
+            <label><span>结束原因</span><select value={stopReason} onChange={(event) => setStopReason(event.target.value)}><option>调研目标已完成</option><option>已达到所需样本量</option><option>发现问卷配置问题</option><option>项目计划调整</option><option>其他原因</option></select></label>
+            <div className="stop-warning"><span>!</span><p><strong>玩家链接将立即显示结束页</strong><small>后续可以重新开启，历史答卷和链接不会删除。</small></p></div>
+            <footer><button className="secondary-button" onClick={() => setShowStopConfirm(false)}>取消</button><button className="stop-confirm-button" onClick={confirmStop}>确认结束收集</button></footer>
           </section>
         </div>
       )}

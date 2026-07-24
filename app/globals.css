@@ -3,6 +3,7 @@
 @import "./analytics.css";
 @import "./experience.css";
 @import "./templates.css";
+@import "./collection.css";
 
 :root {
   --blue: #2f73f5;
