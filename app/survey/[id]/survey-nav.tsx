@@ -33,6 +33,8 @@ export function SurveyNav({
             if (
               key === "edit" ||
               key === "languages" ||
+              key === "logic" ||
+              key === "appearance" ||
               key === "publish" ||
               key === "responses" ||
               key === "analytics"

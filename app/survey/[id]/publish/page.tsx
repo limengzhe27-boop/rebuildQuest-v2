@@ -342,7 +342,7 @@ export default function PublishPage() {
             <span>⌾</span>
             <p><strong>数据边界已锁定</strong><small>{selected.region === "global" ? "本实例答卷只存储在海外区域。" : "本实例答卷只存储在境内区域。"}</small></p>
           </div>
-          <button className="preview-player-button" onClick={() => flash("玩家端发布预览已生成")}>▣ 预览玩家端</button>
+          <button className="preview-player-button" onClick={() => router.push(`/s/${selected.slug}`)}>▣ 预览玩家端</button>
         </aside>
       </div>
 
