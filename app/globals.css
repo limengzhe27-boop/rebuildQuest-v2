@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./publish.css";
+@import "./analytics.css";
 
 :root {
   --blue: #2f73f5;
