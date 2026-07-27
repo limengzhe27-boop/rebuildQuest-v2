@@ -8,8 +8,8 @@ const tabs = [
   ["logic", "逻辑"],
   ["appearance", "外观"],
   ["publish", "发布与回收"],
-  ["responses", "答卷数据"],
-  ["analytics", "分析"],
+  ["analytics", "数据看板"],
+  ["responses", "答卷明细"],
 ];
 
 export function SurveyNav({

@@ -85,7 +85,7 @@ export default function ResponsesPage() {
         <button className="editor-back" onClick={() => router.push("/")}>‹</button>
         <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="live-dot" />海外玩家正式投放 · 回收中</small></div></div>
         <SurveyNav surveyId={surveyId} active="responses" onNotice={flash} />
-        <div className="editor-actions"><button className="secondary-button" onClick={() => flash("已生成脱敏导出任务，可在消息中心查看进度")}>⇩ 导出答卷</button><button className="primary-button" onClick={() => router.push(`/survey/${surveyId}/analytics`)}>查看分析</button></div>
+        <div className="editor-actions"><button className="secondary-button" onClick={() => flash("已生成脱敏导出任务，可在消息中心查看进度")}>⇩ 导出答卷</button><button className="primary-button" onClick={() => router.push(`/survey/${surveyId}/analytics`)}>返回数据看板</button></div>
       </header>
 
       <section className="response-summary-strip">

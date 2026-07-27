@@ -543,6 +543,7 @@ export default function Home() {
                               <button onClick={() => restoreSurvey(survey)}>↺ 恢复问卷</button>
                             ) : (
                               <>
+                                <button onClick={() => router.push(`/survey/${survey.id}/analytics`)}>▥ 查看数据看板</button>
                                 <button onClick={() => router.push(`/survey/${survey.id}/edit`)}>✎ 进入编辑器</button>
                                 <button onClick={() => duplicateSurvey(survey)}>⧉ 复制问卷</button>
                                 <button onClick={() => notify("移动分组面板已打开")}>▱ 移动到分组</button>
@@ -698,7 +699,8 @@ export default function Home() {
             </div>
             <div className="drawer-actions">
               <button className="secondary-button" onClick={() => notify("已复制问卷链接")}>复制链接</button>
-              <button className="primary-button" onClick={() => router.push(`/survey/${selected.id}/edit`)}>进入编辑器 →</button>
+              <button className="secondary-button" onClick={() => router.push(`/survey/${selected.id}/edit`)}>进入编辑器</button>
+              <button className="primary-button" onClick={() => router.push(`/survey/${selected.id}/analytics`)}>查看数据看板 →</button>
             </div>
           </aside>
         </div>

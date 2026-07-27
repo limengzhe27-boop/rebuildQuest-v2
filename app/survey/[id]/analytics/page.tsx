@@ -30,11 +30,11 @@ export default function AnalyticsPage() {
       <button className="editor-back" onClick={() => router.push("/")}>‹</button>
       <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="live-dot" />数据更新于 2 分钟前</small></div></div>
       <SurveyNav surveyId={surveyId} active="analytics" onNotice={flash} />
-      <div className="editor-actions"><button className="secondary-button" onClick={() => flash("报告链接已复制，仅项目成员可访问")}>⌁ 分享报告</button><button className="primary-button" onClick={() => flash("分析报告正在生成 PDF")}>⇩ 导出报告</button></div>
+      <div className="editor-actions"><button className="secondary-button" onClick={() => router.push(`/survey/${surveyId}/responses`)}>查看答卷明细</button><button className="primary-button" onClick={() => flash("数据看板报告正在生成 PDF")}>⇩ 导出报告</button></div>
     </header>
 
     <div className="analytics-toolbar">
-      <div className="analysis-tabs"><button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>概览</button><button className={tab === "questions" ? "active" : ""} onClick={() => setTab("questions")}>逐题分析</button></div>
+      <div className="analysis-tabs"><button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>总体概览</button><button className={tab === "questions" ? "active" : ""} onClick={() => setTab("questions")}>逐题统计</button></div>
       <div><select value={segment} onChange={(event) => setSegment(event.target.value)}><option>全部玩家</option><option>English 玩家</option><option>繁中玩家</option><option>泰语玩家</option><option>NPS 推荐者</option></select><select value={range} onChange={(event) => setRange(event.target.value)}><option>今日</option><option>近 7 天</option><option>近 30 天</option><option>自定义</option></select><button onClick={() => flash("筛选视图已保存")}>☆ 保存视图</button></div>
     </div>
 
