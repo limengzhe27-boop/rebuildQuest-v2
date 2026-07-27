@@ -89,6 +89,8 @@ export default function SurveyEditorPage() {
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
   const [preview, setPreview] = useState(false);
   const [logicQuestionId, setLogicQuestionId] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const hydrated = useRef(false);
 
@@ -175,6 +177,21 @@ export default function SurveyEditorPage() {
     });
   }
 
+  function reorderQuestion(sourceId: string, targetId: string) {
+    if (sourceId === targetId) return;
+    setQuestions((current) => {
+      const sourceIndex = current.findIndex((item) => item.id === sourceId);
+      const targetIndex = current.findIndex((item) => item.id === targetId);
+      if (sourceIndex < 0 || targetIndex < 0) return current;
+      const next = [...current];
+      const [moved] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+    setSelectedId(sourceId);
+    flash("题目顺序已更新");
+  }
+
   function updateOption(index: number, value: string) {
     const currentQuestion = questions.find((question) => question.id === selectedId);
     if (!currentQuestion?.options) return;
@@ -258,10 +275,41 @@ export default function SurveyEditorPage() {
                   <article
                     id={`question-${question.id}`}
                     key={question.id}
-                    className={`question-card ${selectedId === question.id ? "selected" : ""}`}
+                    className={`question-card ${selectedId === question.id ? "selected" : ""} ${draggingId === question.id ? "dragging" : ""} ${dragOverId === question.id && draggingId !== question.id ? "drag-over" : ""}`}
                     onClick={() => setSelectedId(question.id)}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "move";
+                      setDragOverId(question.id);
+                    }}
+                    onDragLeave={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragOverId(null);
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const sourceId = event.dataTransfer.getData("text/plain") || draggingId;
+                      if (sourceId) reorderQuestion(sourceId, question.id);
+                      setDraggingId(null);
+                      setDragOverId(null);
+                    }}
                   >
-                    <div className="drag-handle">⠿</div>
+                    <div
+                      className="drag-handle"
+                      draggable
+                      title="拖动调整题目顺序"
+                      aria-label={`拖动第 ${index + 1} 题调整顺序`}
+                      onClick={(event) => event.stopPropagation()}
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", question.id);
+                        setDraggingId(question.id);
+                        setSelectedId(question.id);
+                      }}
+                      onDragEnd={() => {
+                        setDraggingId(null);
+                        setDragOverId(null);
+                      }}
+                    >⠿</div>
                     <div className="question-index">{String(index + 1).padStart(2, "0")}</div>
                     <div className="question-content">
                       <div className="inline-question-meta"><span className="question-type">{questionLabels[question.type]}</span><label><input type="checkbox" checked={question.required} onChange={(event) => { event.stopPropagation(); updateQuestion(question.id, { required: event.target.checked }); }} /> 必填</label></div>

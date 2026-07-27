@@ -6,15 +6,15 @@ const tabs = [
   ["edit", "编辑器"],
   ["languages", "多语言"],
   ["appearance", "外观"],
-  ["publish", "发布与回收"],
-  ["analytics", "数据看板"],
+  ["settings", "设置"],
+  ["publish", "发布"],
+  ["analytics", "答案统计"],
   ["responses", "答卷明细"],
-];
+] as const;
 
 export function SurveyNav({
   surveyId,
   active,
-  onNotice,
 }: {
   surveyId: string;
   active: string;
@@ -28,20 +28,7 @@ export function SurveyNav({
         <button
           key={key}
           className={active === key ? "active" : ""}
-          onClick={() => {
-            if (
-              key === "edit" ||
-              key === "languages" ||
-              key === "appearance" ||
-              key === "publish" ||
-              key === "responses" ||
-              key === "analytics"
-            ) {
-              router.push(`/survey/${surveyId}/${key}`);
-            } else {
-              onNotice?.(`${label}将在后续阶段开放`);
-            }
-          }}
+          onClick={() => router.push(`/survey/${surveyId}/${key}`)}
         >
           {label}
           {key === "languages" && <em>3</em>}

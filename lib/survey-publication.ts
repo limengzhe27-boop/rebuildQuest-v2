@@ -69,7 +69,7 @@ export const defaultPublications: Publication[] = [
     name: "国内测试服投放",
     region: "china",
     status: "draft",
-    accessMode: "assigned",
+    accessMode: "public",
     defaultLocale: "zh-CN",
     browserMatch: false,
     allowLanguageSwitch: false,
@@ -97,15 +97,34 @@ export const defaultPublications: Publication[] = [
 export function loadPublications(surveyId: string): Publication[] {
   if (typeof window === "undefined") return defaultPublications;
   try {
+    const drafts = JSON.parse(
+      window.localStorage.getItem("joydata-survey-drafts") || "[]",
+    ) as { id: string | number; region?: "海外" | "国内" }[];
+    const draft = drafts.find((item) => String(item.id) === String(surveyId));
+    const workspaceRegion: Region =
+      ["4", "5"].includes(String(surveyId)) || draft?.region === "国内"
+        ? "china"
+        : "global";
     const saved = window.localStorage.getItem(`joydata-survey-publications-${surveyId}`);
-    if (!saved) return defaultPublications;
+    if (!saved) {
+      return defaultPublications
+        .filter((item) => item.region === workspaceRegion)
+        .map((item) => ({ ...item }));
+    }
     const parsed = JSON.parse(saved) as Publication[];
-    return parsed.map((item) => ({
-      ...defaultPublications.find((preset) => preset.region === item.region),
-      ...item,
-    }));
+    const inWorkspace = parsed.filter((item) => item.region === workspaceRegion);
+    const source = inWorkspace.length
+      ? inWorkspace
+      : defaultPublications.filter((item) => item.region === workspaceRegion);
+    return source.map((item) => ({
+        ...defaultPublications.find((preset) => preset.region === item.region),
+        ...item,
+      }));
   } catch {
-    return defaultPublications;
+    const fallbackRegion: Region = ["4", "5"].includes(String(surveyId)) ? "china" : "global";
+    return defaultPublications
+      .filter((item) => item.region === fallbackRegion)
+      .map((item) => ({ ...item }));
   }
 }
 
