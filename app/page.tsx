@@ -99,7 +99,6 @@ const navItems = [
 const quickGroups = [
   ["全部问卷", 12],
   ["我创建的", 5],
-  ["与我协作", 3],
   ["草稿", 2],
   ["回收站", 1],
 ];
@@ -170,7 +169,6 @@ export default function Home() {
       const byView =
         activeGroup === "全部问卷" ||
         (activeGroup === "我创建的" && survey.owner === "李孟哲") ||
-        (activeGroup === "与我协作" && survey.owner !== "李孟哲") ||
         (activeGroup === "草稿" && survey.status === "草稿") ||
         activeGroup === "回收站";
       const byProject = !activeProjectGroup || survey.group === activeProjectGroup;
@@ -207,7 +205,6 @@ export default function Home() {
       const byView =
         activeGroup === "全部问卷" ||
         (activeGroup === "我创建的" && survey.owner === "李孟哲") ||
-        (activeGroup === "与我协作" && survey.owner !== "李孟哲") ||
         (activeGroup === "草稿" && survey.status === "草稿") ||
         activeGroup === "回收站";
       const byProject = !activeProjectGroup || survey.group === activeProjectGroup;

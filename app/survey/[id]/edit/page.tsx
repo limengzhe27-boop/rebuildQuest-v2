@@ -15,21 +15,65 @@ import { useSurveyTitle } from "@/lib/use-survey-title";
 
 const palette: { title: string; items: { type: QuestionType; icon: string }[] }[] = [
   {
-    title: "常用题型",
+    title: "基础组件",
     items: [
-      { type: "single", icon: "◉" },
-      { type: "multiple", icon: "☑" },
       { type: "text", icon: "T" },
+      { type: "textarea", icon: "≡" },
+      { type: "date", icon: "◫" },
       { type: "rating", icon: "★" },
-      { type: "nps", icon: "10" },
-      { type: "matrix", icon: "▦" },
+      { type: "file", icon: "⇧" },
+      { type: "imageUpload", icon: "▧" },
+      { type: "sort", icon: "↕" },
     ],
   },
   {
-    title: "更多题型",
+    title: "选择组件",
     items: [
-      { type: "sort", icon: "↕" },
+      { type: "dropdown", icon: "⌄" },
+      { type: "cascade", icon: "⌘" },
+      { type: "single", icon: "◉" },
+      { type: "multiple", icon: "☑" },
       { type: "image", icon: "▧" },
+    ],
+  },
+  {
+    title: "进阶组件",
+    items: [
+      { type: "city", icon: "⌘" },
+      { type: "provinceCity", icon: "▦" },
+      { type: "location", icon: "⌖" },
+      { type: "nps", icon: "10" },
+      { type: "ocr", icon: "T" },
+      { type: "random", icon: "№" },
+      { type: "product", icon: "□" },
+    ],
+  },
+  {
+    title: "预约组件",
+    items: [
+      { type: "appointmentDate", icon: "◫" },
+      { type: "appointmentSlot", icon: "◴" },
+    ],
+  },
+  {
+    title: "矩阵组件",
+    items: [
+      { type: "matrixFill", icon: "▦" },
+      { type: "matrixSelect", icon: "▤" },
+      { type: "matrixScale", icon: "◌" },
+      { type: "matrix", icon: "☷" },
+      { type: "matrixDropdown", icon: "≡" },
+      { type: "tableSelect", icon: "▦" },
+    ],
+  },
+  {
+    title: "排版组件",
+    items: [
+      { type: "pageBreak", icon: "↪" },
+      { type: "divider", icon: "━" },
+      { type: "button", icon: "BT" },
+      { type: "imageDisplay", icon: "▧" },
+      { type: "carousel", icon: "▱" },
       { type: "description", icon: "¶" },
     ],
   },
@@ -222,14 +266,14 @@ export default function SurveyEditorPage() {
                       <span className="question-type">{questionLabels[question.type]}</span>
                       <h2>{question.required && <b>*</b>}{question.title}</h2>
                       {question.description && <p>{question.description}</p>}
-                      {(question.type === "single" || question.type === "multiple") && (
+                      {(["single", "multiple", "dropdown", "cascade"] as QuestionType[]).includes(question.type) && (
                         <div className="choice-preview">
                           {question.options?.map((option) => (
                             <span key={option}><i>{question.type === "multiple" ? "□" : "○"}</i>{option}</span>
                           ))}
                         </div>
                       )}
-                      {question.type === "text" && <div className="text-preview">请输入您的回答</div>}
+                      {(["text", "textarea", "date", "file", "imageUpload", "city", "provinceCity", "location", "ocr", "random", "product", "appointmentDate", "appointmentSlot"] as QuestionType[]).includes(question.type) && <div className="text-preview">{question.type === "date" || question.type === "appointmentDate" ? "请选择日期" : question.type === "appointmentSlot" ? "请选择预约时段" : "请输入您的回答"}</div>}
                       {(question.type === "nps" || question.type === "rating") && (
                         <div className="score-preview">
                           {Array.from(
@@ -238,7 +282,7 @@ export default function SurveyEditorPage() {
                           ).map((score) => <span key={score}>{score}</span>)}
                         </div>
                       )}
-                      {question.type === "matrix" && (
+                      {(["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixDropdown", "tableSelect"] as QuestionType[]).includes(question.type) && (
                         <div className="matrix-preview">
                           <span />
                           {["不满意", "一般", "满意"].map((item) => <b key={item}>{item}</b>)}
@@ -254,6 +298,7 @@ export default function SurveyEditorPage() {
                         <div className="image-choice-preview">{question.options?.map((item) => <span key={item}><i>▧</i>{item}</span>)}</div>
                       )}
                       {question.type === "description" && <div className="description-preview">这是一段用于说明背景和填写要求的文字。</div>}
+                      {(["pageBreak", "divider", "button", "imageDisplay", "carousel"] as QuestionType[]).includes(question.type) && <div className="description-preview">{questionLabels[question.type]}将展示在问卷中，用于组织内容与补充说明。</div>}
                     </div>
                     {selectedId === question.id && (
                       <div className="question-actions">

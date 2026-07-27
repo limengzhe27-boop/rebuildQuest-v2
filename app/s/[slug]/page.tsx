@@ -333,7 +333,7 @@ function QuestionInput({
   onChange: (value: string | string[] | number) => void;
   placeholder: string;
 }) {
-  if (question.type === "single" || question.type === "image" || question.type === "sort") {
+  if (["single", "image", "sort", "dropdown", "cascade", "matrixSelect", "tableSelect"].includes(question.type)) {
     return <div className="player-options">{question.options?.map((option, index) => {
       const sourceValue = defaultQuestions.find((item) => item.id === question.id)?.options?.[index] || option;
       return <button key={option} className={value === sourceValue ? "selected" : ""} onClick={() => onChange(sourceValue)}><i>{value === sourceValue ? "●" : "○"}</i>{option}</button>;

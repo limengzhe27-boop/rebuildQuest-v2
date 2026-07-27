@@ -2,11 +2,35 @@ export type QuestionType =
   | "single"
   | "multiple"
   | "text"
+  | "textarea"
+  | "date"
   | "rating"
+  | "file"
+  | "imageUpload"
   | "nps"
+  | "dropdown"
+  | "cascade"
+  | "city"
+  | "provinceCity"
+  | "location"
+  | "ocr"
+  | "random"
+  | "product"
+  | "appointmentDate"
+  | "appointmentSlot"
   | "matrix"
+  | "matrixFill"
+  | "matrixSelect"
+  | "matrixScale"
+  | "matrixDropdown"
+  | "tableSelect"
   | "sort"
   | "image"
+  | "pageBreak"
+  | "divider"
+  | "button"
+  | "imageDisplay"
+  | "carousel"
   | "description";
 
 export type Question = {
@@ -24,11 +48,35 @@ export const questionLabels: Record<QuestionType, string> = {
   single: "单选题",
   multiple: "多选题",
   text: "文本题",
+  textarea: "多行文本",
+  date: "日期时间",
   rating: "评分题",
+  file: "文件上传",
+  imageUpload: "图片上传",
   nps: "NPS",
+  dropdown: "下拉选择",
+  cascade: "级联选择",
+  city: "省市联动",
+  provinceCity: "全球省市联动",
+  location: "地理位置",
+  ocr: "文字识别",
+  random: "随机编号",
+  product: "商品",
+  appointmentDate: "预约日期",
+  appointmentSlot: "预约时段",
   matrix: "矩阵题",
+  matrixFill: "矩阵填空",
+  matrixSelect: "矩阵选择",
+  matrixScale: "矩阵量表",
+  matrixDropdown: "矩阵下拉",
+  tableSelect: "表格选择",
   sort: "排序题",
   image: "图片选择",
+  pageBreak: "分页组件",
+  divider: "分割线",
+  button: "按钮组件",
+  imageDisplay: "图片展示",
+  carousel: "图片轮播",
   description: "说明文字",
 };
 
@@ -68,12 +116,12 @@ export function createQuestion(type: QuestionType): Question {
     description: "",
     required: false,
   };
-  if (type === "single" || type === "multiple" || type === "sort" || type === "image") {
+  if (["single", "multiple", "sort", "image", "dropdown", "cascade", "matrixSelect", "tableSelect"].includes(type)) {
     return { ...common, options: ["选项 1", "选项 2", "选项 3"] };
   }
   if (type === "rating") return { ...common, min: 1, max: 5 };
   if (type === "nps") return { ...common, min: 0, max: 10 };
-  if (type === "matrix") return { ...common, options: ["维度 1", "维度 2", "维度 3"] };
+  if (["matrix", "matrixFill", "matrixScale", "matrixDropdown"].includes(type)) return { ...common, options: ["维度 1", "维度 2", "维度 3"] };
   return common;
 }
 
@@ -86,4 +134,3 @@ export function loadQuestions(surveyId: string): Question[] {
     return defaultQuestions;
   }
 }
-
