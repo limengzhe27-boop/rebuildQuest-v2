@@ -4,7 +4,7 @@ import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type Region = "海外" | "国内";
-type CreationMode = "blank" | "template" | "copy";
+type CreationMode = "blank" | "template";
 
 const steps = [
   { number: 1, title: "基础信息", caption: "名称与项目" },
@@ -53,6 +53,7 @@ function NewSurveyWizard() {
   const [languages, setLanguages] = useState(template?.languages || ["EN", "繁中"]);
   const [defaultLanguage, setDefaultLanguage] = useState("EN");
   const [mode, setMode] = useState<CreationMode>(template ? "template" : "blank");
+  const [internalNote, setInternalNote] = useState("");
   const [error, setError] = useState("");
 
   const availableLanguages = useMemo(
@@ -114,6 +115,7 @@ function NewSurveyWizard() {
       owner: "李孟哲",
       defaultLanguage,
       creationMode: mode,
+      note: internalNote.trim(),
       createdAt: new Date().toISOString(),
     };
     const key = "joydata-survey-drafts";
@@ -225,7 +227,12 @@ function NewSurveyWizard() {
                   </label>
                   <label className="wizard-field full">
                     <span>内部备注</span>
-                    <textarea placeholder="选填：记录调研背景、目标玩家或负责人信息。" />
+                    <textarea
+                      value={internalNote}
+                      onChange={(event) => setInternalNote(event.target.value)}
+                      placeholder="选填：记录调研背景、目标玩家或负责人信息。"
+                    />
+                    <small>创建后可在“设置 → 基础信息”中查看和修改，仅后台成员可见。</small>
                   </label>
                 </div>
               </div>
@@ -358,14 +365,6 @@ function NewSurveyWizard() {
                     <div><strong>从模板创建</strong><p>{template ? `已选「${template.label}」` : "前往模板中心选择满意度、招募、版本反馈等标准模板。"}</p></div>
                     <i>{mode === "template" ? "✓" : ""}</i>
                   </button>
-                  <button
-                    className={mode === "copy" ? "selected" : ""}
-                    onClick={() => setMode("copy")}
-                  >
-                    <span>⧉</span>
-                    <div><strong>复制已有问卷</strong><p>复用题目、逻辑、翻译和主题，不复制答卷。</p></div>
-                    <i>{mode === "copy" ? "✓" : ""}</i>
-                  </button>
                 </div>
                 <div className="creation-summary">
                   <h3>创建信息确认</h3>
@@ -376,6 +375,7 @@ function NewSurveyWizard() {
                   <div><span>工作空间</span><strong>{region}</strong></div>
                   <div><span>问卷语言</span><strong>{languages.join("、")}</strong></div>
                   <div><span>默认语言</span><strong>{defaultLanguage}</strong></div>
+                  {internalNote.trim() && <div><span>内部备注</span><strong>{internalNote.trim()}</strong></div>}
                 </div>
               </div>
             )}

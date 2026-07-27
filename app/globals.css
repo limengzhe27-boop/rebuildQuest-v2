@@ -6548,3 +6548,41 @@ input:focus-visible {
   background: #fff;
   color: #5f6c80;
 }
+.survey-basic-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.survey-basic-grid > div {
+  min-height: 78px;
+  padding: 16px;
+  border: 1px solid #e7ebf2;
+  border-radius: 10px;
+  background: #f8faff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.survey-basic-grid span {
+  color: #7b879c;
+  font-size: 12px;
+}
+
+.survey-basic-grid strong {
+  color: #18243b;
+  font-size: 15px;
+}
+
+.field-help {
+  color: #8995a8;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+@media (max-width: 900px) {
+  .survey-basic-grid {
+    grid-template-columns: 1fr;
+  }
+}

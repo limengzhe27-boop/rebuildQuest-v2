@@ -120,7 +120,6 @@ export default function PublishPage() {
         </div>
         <SurveyNav surveyId={surveyId} active="publish" />
         <div className="editor-actions">
-          <button className="secondary-button" onClick={() => router.push(`/s/${selected.slug}?surveyId=${surveyId}`)}>▣ 预览</button>
           <button
             className={selected.status === "active" ? "stop-button" : "primary-button"}
             onClick={() => selected.status === "active" ? setShowStopConfirm(true) : setShowConfirm(true)}

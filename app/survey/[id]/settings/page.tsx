@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultPublications, loadPublications, Publication } from "@/lib/survey-publication";
 import { loadQuestions, Question } from "@/lib/survey-builder";
@@ -13,24 +13,56 @@ export default function SurveySettingsPage() {
   const surveyId = params.id;
   const surveyTitle = useSurveyTitle(surveyId);
   const [publications, setPublications] = useState<Publication[]>(defaultPublications);
-  const [section, setSection] = useState<"submission" | "collection" | "access">("submission");
+  const [section, setSection] = useState<"basic" | "submission" | "collection" | "access">("basic");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [autoSave, setAutoSave] = useState(true);
+  const [internalNote, setInternalNote] = useState("");
+  const [surveyMeta, setSurveyMeta] = useState({
+    game: "RO3",
+    group: "3.6版本先锋测试",
+    region: "海外工作区",
+  });
   const [notice, setNotice] = useState("");
-  const hydrated = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     setPublications(loadPublications(surveyId));
     setQuestions(loadQuestions(surveyId));
     setAutoSave(window.localStorage.getItem(`joydata-survey-autosave-${surveyId}`) !== "false");
-    hydrated.current = true;
+    try {
+      const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
+      const draft = drafts.find((item: { id?: number | string }) => String(item.id) === surveyId);
+      setSurveyMeta({
+        game: draft?.game || "RO3",
+        group: draft?.group || "3.6版本先锋测试",
+        region: draft?.region ? `${draft.region}工作区` : "海外工作区",
+      });
+      setInternalNote(
+        window.localStorage.getItem(`joydata-survey-note-${surveyId}`)
+          ?? draft?.note
+          ?? (surveyId === "1" ? "面向 RO3 先锋测试玩家，了解整体体验、推荐意愿与改进方向。" : ""),
+      );
+    } catch {
+      setInternalNote(window.localStorage.getItem(`joydata-survey-note-${surveyId}`) || "");
+    }
+    setHydrated(true);
   }, [surveyId]);
 
   useEffect(() => {
-    if (!hydrated.current) return;
+    if (!hydrated) return;
     window.localStorage.setItem(`joydata-survey-publications-${surveyId}`, JSON.stringify(publications));
     window.localStorage.setItem(`joydata-survey-autosave-${surveyId}`, String(autoSave));
-  }, [publications, autoSave, surveyId]);
+    window.localStorage.setItem(`joydata-survey-note-${surveyId}`, internalNote);
+    try {
+      const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
+      const nextDrafts = drafts.map((item: { id?: number | string }) =>
+        String(item.id) === surveyId ? { ...item, note: internalNote } : item,
+      );
+      window.localStorage.setItem("joydata-survey-drafts", JSON.stringify(nextDrafts));
+    } catch {
+      // The dedicated note key above remains available even if legacy draft data is invalid.
+    }
+  }, [publications, autoSave, internalNote, surveyId, hydrated]);
 
   const selected = publications[0];
 
@@ -85,7 +117,6 @@ export default function SurveySettingsPage() {
         </div>
         <SurveyNav surveyId={surveyId} active="settings" />
         <div className="editor-actions">
-          <button className="secondary-button" onClick={() => router.push(`/s/${selected.slug}?surveyId=${surveyId}`)}>▣ 预览</button>
           <button className="primary-button" onClick={() => flash("设置已保存")}>保存设置</button>
         </div>
       </header>
@@ -104,12 +135,47 @@ export default function SurveySettingsPage() {
           </header>
 
           <div className="publish-section-tabs settings-tabs">
+            <button className={section === "basic" ? "active" : ""} onClick={() => setSection("basic")}>基础信息</button>
             <button className={section === "submission" ? "active" : ""} onClick={() => setSection("submission")}>提交设置</button>
             <button className={section === "collection" ? "active" : ""} onClick={() => setSection("collection")}>收集规则</button>
             <button className={section === "access" ? "active" : ""} onClick={() => setSection("access")}>访问与身份</button>
           </div>
 
-          {section === "submission" ? (
+          {section === "basic" ? (
+            <div className="publish-config-stack">
+              <section className="config-card">
+                <header>
+                  <div>
+                    <strong>问卷归属</strong>
+                    <small>创建时确定的项目、分组和工作区，用于后台管理与筛选</small>
+                  </div>
+                </header>
+                <div className="survey-basic-grid">
+                  <div><span>所属项目</span><strong>{surveyMeta.game}</strong></div>
+                  <div><span>项目分组</span><strong>{surveyMeta.group}</strong></div>
+                  <div><span>工作区</span><strong>{surveyMeta.region}</strong></div>
+                </div>
+              </section>
+
+              <section className="config-card">
+                <header>
+                  <div>
+                    <strong>内部备注</strong>
+                    <small>记录调研背景、目标玩家、负责人或补充说明；仅后台成员可见</small>
+                  </div>
+                </header>
+                <label className="large-config-field">
+                  <span>备注内容</span>
+                  <textarea
+                    value={internalNote}
+                    onChange={(event) => setInternalNote(event.target.value)}
+                    placeholder="例如：面向 RO3 先锋测试玩家，用于版本上线前体验评估。"
+                  />
+                  <small className="field-help">该内容不会出现在玩家填写页、分享页或导出的答卷中。</small>
+                </label>
+              </section>
+            </div>
+          ) : section === "submission" ? (
             <div className="publish-config-stack">
               <section className="config-card">
                 <header><div><strong>提交成功后</strong><small>设置玩家完成问卷后看到的内容或跳转页面</small></div></header>
