@@ -96,6 +96,8 @@ const navItems = [
   ["▱", "数据"],
 ];
 
+const defaultTemplateCategories = ["版本测试", "满意度", "用户洞察", "运营活动", "服务体验", "招募筛选", "其他"];
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat("zh-CN").format(value);
 }
@@ -122,12 +124,19 @@ export default function Home() {
   const [trashedIds, setTrashedIds] = useState<number[]>([]);
   const [menuSurvey, setMenuSurvey] = useState<Survey | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Survey | null>(null);
+  const [templateSurvey, setTemplateSurvey] = useState<Survey | null>(null);
+  const [templateCategories, setTemplateCategories] = useState<string[]>([]);
+  const [availableTemplateCategories, setAvailableTemplateCategories] = useState(defaultTemplateCategories);
   const [toast, setToast] = useState("");
   const [newName, setNewName] = useState("");
   const [newLanguages, setNewLanguages] = useState(["EN"]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("joydata-survey-drafts");
+    try {
+      const savedCategories = JSON.parse(window.localStorage.getItem("joydata-template-categories") || "[]");
+      if (savedCategories.length) setAvailableTemplateCategories(Array.from(new Set([...defaultTemplateCategories, ...savedCategories])));
+    } catch {}
     if (!saved) return;
     try {
       const drafts = JSON.parse(saved) as Survey[];
@@ -307,6 +316,40 @@ export default function Home() {
     setSurveys((current) => [copy, ...current]);
     setMenuSurvey(null);
     notify("已复制为新的问卷草稿");
+  }
+
+  function saveSurveyAsTemplate() {
+    if (!templateSurvey || !templateCategories.length) {
+      notify("请至少选择一个模板分类");
+      return;
+    }
+    let questionCount = 0;
+    try {
+      questionCount = JSON.parse(window.localStorage.getItem(`joydata-survey-schema-${templateSurvey.id}`) || "[]").length;
+    } catch {}
+    const template = {
+      id: `custom-${Date.now()}`,
+      name: `${templateSurvey.name}（副本）`,
+      label: templateSurvey.name,
+      category: templateCategories[0],
+      categories: templateCategories,
+      description: `由“${templateSurvey.name}”保存的团队模板。`,
+      questions: questionCount,
+      languages: templateSurvey.languages,
+      region: templateSurvey.region,
+      sourceSurveyId: String(templateSurvey.id),
+      useCount: 0,
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      const saved = JSON.parse(window.localStorage.getItem("joydata-survey-templates") || "[]");
+      window.localStorage.setItem("joydata-survey-templates", JSON.stringify([template, ...saved]));
+    } catch {
+      window.localStorage.setItem("joydata-survey-templates", JSON.stringify([template]));
+    }
+    setTemplateSurvey(null);
+    setTemplateCategories([]);
+    notify("已保存为团队模板");
   }
 
   function updateSurveyStatus(survey: Survey, nextStatus: Status) {
@@ -573,6 +616,7 @@ export default function Home() {
                                   <button onClick={() => router.push(`/survey/${survey.id}/edit`)}>✎ 编辑问卷</button>
                                 )}
                                 <button onClick={() => duplicateSurvey(survey)}>⧉ 复制问卷</button>
+                                <button onClick={() => { setTemplateSurvey(survey); setTemplateCategories([]); setMenuSurvey(null); }}>▦ 设为模板</button>
                                 <button onClick={() => { setMenuSurvey(null); notify("项目与分组设置已打开"); }}>▱ 更改项目与分组</button>
                                 <i />
                                 <button className="danger" onClick={() => { setConfirmDelete(survey); setMenuSurvey(null); }}>⌫ 移入回收站</button>
@@ -692,6 +736,33 @@ export default function Home() {
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setProjectToDelete(null)}>
           <section className="project-delete-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
             <span className="delete-warning">!</span><h2>删除“{projectToDelete.name}”分组吗？</h2><p>{projectToDelete.count ? `该分组属于 ${projectToDelete.project}，包含 ${projectToDelete.count} 份问卷。删除后问卷会保留并转移至“未归入分组”，答卷数据不会受影响。` : `该分组属于 ${projectToDelete.project}，当前暂无问卷，删除后不可恢复。`}</p><footer><button className="secondary-button" onClick={() => setProjectToDelete(null)}>取消</button><button className="danger-button" onClick={deleteProject}>确认删除</button></footer>
+          </section>
+        </div>
+      )}
+
+      {templateSurvey && (
+        <div className="preview-backdrop" onMouseDown={() => setTemplateSurvey(null)}>
+          <section className="template-save-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <header><div><strong>设为团队模板</strong><small>{templateSurvey.name}</small></div><button onClick={() => setTemplateSurvey(null)}>×</button></header>
+            <div>
+              <label><span>模板名称</span><input value={templateSurvey.name} readOnly /></label>
+              <label>
+                <span>模板分类 <b>*</b><small>可选择多个分类</small></span>
+                <div className="template-category-checks">
+                  {availableTemplateCategories.map((category) => (
+                    <button
+                      key={category}
+                      className={templateCategories.includes(category) ? "selected" : ""}
+                      onClick={() => setTemplateCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category])}
+                    >
+                      <i>{templateCategories.includes(category) ? "✓" : ""}</i>{category}
+                    </button>
+                  ))}
+                </div>
+              </label>
+              <p>保存后可在模板中心的多个分类中找到；模板仍限定在{templateSurvey.region}工作区使用。</p>
+            </div>
+            <footer><button className="secondary-button" onClick={() => setTemplateSurvey(null)}>取消</button><button className="primary-button" onClick={saveSurveyAsTemplate}>保存模板</button></footer>
           </section>
         </div>
       )}

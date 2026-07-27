@@ -23,7 +23,7 @@ const globalLanguages = [
   { code: "ID", name: "Bahasa Indonesia", hint: "印尼语" },
 ];
 
-type TemplatePreset = { name: string; label: string; languages: string[]; region: Region; category: string; sourceSurveyId?: string };
+type TemplatePreset = { name: string; label: string; languages: string[]; region: Region; category: string; categories?: string[]; sourceSurveyId?: string };
 
 const templatePresets: Record<string, TemplatePreset> = {
   "game-beta": { name: "游戏测试体验调研（副本）", label: "游戏测试体验调研", languages: ["EN", "繁中", "ไทย"], region: "海外", category: "版本测试" },
@@ -37,7 +37,7 @@ const templatePresets: Record<string, TemplatePreset> = {
   support: { name: "客服满意度回访（副本）", label: "客服满意度回访", languages: ["EN", "繁中", "ไทย"], region: "海外", category: "服务体验" },
 };
 
-const templateCategories = ["全部分类", "版本测试", "满意度", "用户洞察", "运营活动", "服务体验", "其他"];
+const defaultTemplateCategories = ["全部分类", "版本测试", "满意度", "用户洞察", "运营活动", "服务体验", "招募筛选", "其他"];
 
 export default function NewSurveyPage() {
   return <Suspense fallback={<main className="wizard-page" />}><NewSurveyWizard /></Suspense>;
@@ -61,6 +61,7 @@ function NewSurveyWizard() {
   const [mode, setMode] = useState<CreationMode>(initialTemplate ? "template" : "blank");
   const [selectedTemplateId, setSelectedTemplateId] = useState(requestedTemplateId);
   const [templateCategory, setTemplateCategory] = useState("全部分类");
+  const [availableTemplateCategories, setAvailableTemplateCategories] = useState(defaultTemplateCategories);
   const [customTemplates, setCustomTemplates] = useState<Record<string, TemplatePreset>>({});
   const [internalNote, setInternalNote] = useState("");
   const [error, setError] = useState("");
@@ -77,13 +78,21 @@ function NewSurveyWizard() {
 
   const availableTemplates = useMemo(
     () => Object.entries(allTemplates).filter(([, item]) =>
-      item.region === region && (templateCategory === "全部分类" || item.category === templateCategory),
+      item.region === region && (
+        templateCategory === "全部分类"
+        || item.category === templateCategory
+        || item.categories?.includes(templateCategory)
+      ),
     ),
     [allTemplates, region, templateCategory],
   );
 
   useEffect(() => {
     try {
+      const savedCategories = JSON.parse(window.localStorage.getItem("joydata-template-categories") || "[]");
+      if (savedCategories.length) {
+        setAvailableTemplateCategories(Array.from(new Set([...defaultTemplateCategories, ...savedCategories])));
+      }
       const savedTemplates = JSON.parse(window.localStorage.getItem("joydata-survey-templates") || "[]");
       setCustomTemplates(Object.fromEntries(savedTemplates.map((item: TemplatePreset & { id: string }) => [item.id, item])));
       const requestedCustom = savedTemplates.find((item: TemplatePreset & { id: string }) => item.id === requestedTemplateId);
@@ -356,12 +365,12 @@ function NewSurveyWizard() {
                     </ul>
                   </button>
                 </div>
-                <div className="region-warning">
-                  <span>i</span>
-                  <p>
-                    {template ? `当前模板属于${template.region}工作空间，因此本次创建的工作空间已锁定。` : "问卷结构后续可以复制到另一工作空间，但答卷、发布链接和 Webhook 不会一并复制。"}
-                  </p>
-                </div>
+                {template && (
+                  <div className="region-warning">
+                    <span>i</span>
+                    <p>当前模板属于{template.region}工作空间，因此本次创建的工作空间已锁定。</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -438,7 +447,7 @@ function NewSurveyWizard() {
                     <header>
                       <div><strong>选择模板</strong><small>仅展示{region}工作区模板</small></div>
                       <select value={templateCategory} onChange={(event) => setTemplateCategory(event.target.value)}>
-                        {templateCategories.map((category) => <option key={category}>{category}</option>)}
+                        {availableTemplateCategories.map((category) => <option key={category}>{category}</option>)}
                       </select>
                     </header>
                     <div>
@@ -449,7 +458,7 @@ function NewSurveyWizard() {
                           onClick={() => chooseTemplate(id)}
                         >
                           <span>▦</span>
-                          <p><strong>{item.label}</strong><small>{item.category} · {item.languages.join(" / ")}</small></p>
+                          <p><strong>{item.label}</strong><small>{(item.categories?.length ? item.categories : [item.category]).join(" / ")} · {item.languages.join(" / ")}</small></p>
                           <i>{selectedTemplateId === id ? "✓" : ""}</i>
                         </button>
                       ))}

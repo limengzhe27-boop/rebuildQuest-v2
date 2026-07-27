@@ -77,6 +77,8 @@ const palette: { title: string; items: { type: QuestionType; icon: string }[] }[
   },
 ];
 
+const defaultTemplateCategories = ["版本测试", "满意度", "用户洞察", "运营活动", "服务体验", "招募筛选", "其他"];
+
 type LogicCondition = NonNullable<Question["displayLogic"]>["conditions"][number];
 
 export default function SurveyEditorPage() {
@@ -90,7 +92,8 @@ export default function SurveyEditorPage() {
   const [preview, setPreview] = useState(false);
   const [showTemplateSave, setShowTemplateSave] = useState(false);
   const [templateName, setTemplateName] = useState("");
-  const [templateCategory, setTemplateCategory] = useState("");
+  const [templateCategories, setTemplateCategories] = useState<string[]>([]);
+  const [availableTemplateCategories, setAvailableTemplateCategories] = useState(defaultTemplateCategories);
   const [templateDescription, setTemplateDescription] = useState("");
   const [logicQuestionId, setLogicQuestionId] = useState<string | null>(null);
   const [logicDraft, setLogicDraft] = useState<NonNullable<Question["displayLogic"]> | null>(null);
@@ -102,6 +105,10 @@ export default function SurveyEditorPage() {
 
   useEffect(() => {
     setQuestions(loadQuestions(surveyId));
+    try {
+      const savedCategories = JSON.parse(window.localStorage.getItem("joydata-template-categories") || "[]");
+      if (savedCategories.length) setAvailableTemplateCategories(Array.from(new Set([...defaultTemplateCategories, ...savedCategories])));
+    } catch {}
     hydrated.current = true;
   }, [surveyId]);
 
@@ -125,14 +132,14 @@ export default function SurveyEditorPage() {
 
   function openTemplateSave() {
     setTemplateName(surveyTitle);
-    setTemplateCategory("");
+    setTemplateCategories([]);
     setTemplateDescription("");
     setShowTemplateSave(true);
   }
 
   function saveAsTemplate() {
-    if (!templateName.trim() || !templateCategory) {
-      flash("请填写模板名称并选择模板分类");
+    if (!templateName.trim() || !templateCategories.length) {
+      flash("请填写模板名称并至少选择一个模板分类");
       return;
     }
     let draft: { region?: string; languages?: string[] } | undefined;
@@ -145,12 +152,15 @@ export default function SurveyEditorPage() {
       id: `custom-${Date.now()}`,
       name: `${templateName.trim()}（副本）`,
       label: templateName.trim(),
-      category: templateCategory,
+      category: templateCategories[0],
+      categories: templateCategories,
       description: templateDescription.trim() || "由团队问卷保存，可继续修改题目、语言和设置。",
       questions: questions.length,
       languages: draft?.languages?.length ? draft.languages : ["简中"],
       region,
       sourceSurveyId: surveyId,
+      useCount: 0,
+      updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
     };
     try {
@@ -160,7 +170,7 @@ export default function SurveyEditorPage() {
       window.localStorage.setItem("joydata-survey-templates", JSON.stringify([template]));
     }
     setShowTemplateSave(false);
-    flash(`已保存到“${templateCategory}”分类`);
+    flash(`已保存到 ${templateCategories.length} 个模板分类`);
   }
 
   function addQuestion(type: QuestionType) {
@@ -581,11 +591,18 @@ export default function SurveyEditorPage() {
             <div>
               <label><span>模板名称 <b>*</b></span><input value={templateName} onChange={(event) => setTemplateName(event.target.value)} /></label>
               <label>
-                <span>模板分类 <b>*</b></span>
-                <select value={templateCategory} onChange={(event) => setTemplateCategory(event.target.value)}>
-                  <option value="">请选择分类</option>
-                  {["版本测试", "满意度", "用户洞察", "运营活动", "服务体验", "招募筛选", "其他"].map((category) => <option key={category}>{category}</option>)}
-                </select>
+                <span>模板分类 <b>*</b><small>可选择多个分类</small></span>
+                <div className="template-category-checks">
+                  {availableTemplateCategories.map((category) => (
+                    <button
+                      key={category}
+                      className={templateCategories.includes(category) ? "selected" : ""}
+                      onClick={() => setTemplateCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category])}
+                    >
+                      <i>{templateCategories.includes(category) ? "✓" : ""}</i>{category}
+                    </button>
+                  ))}
+                </div>
               </label>
               <label><span>模板说明</span><textarea value={templateDescription} onChange={(event) => setTemplateDescription(event.target.value)} placeholder="说明适用场景、目标用户和使用方式" /></label>
               <p>保存后可在“模板中心 → 我的模板”中查看，并只能用于相同工作区。</p>
