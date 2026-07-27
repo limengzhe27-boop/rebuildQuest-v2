@@ -12,7 +12,9 @@ export type QuestionType =
   | "cascade"
   | "city"
   | "provinceCity"
+  | "globalProvinceCity"
   | "location"
+  | "phone"
   | "ocr"
   | "random"
   | "product"
@@ -22,6 +24,7 @@ export type QuestionType =
   | "matrixFill"
   | "matrixSelect"
   | "matrixScale"
+  | "matrixSlider"
   | "matrixDropdown"
   | "tableSelect"
   | "sort"
@@ -43,46 +46,52 @@ export type Question = {
   min?: number;
   max?: number;
   displayLogic?: {
-    questionId: string;
-    operator: "等于" | "不等于" | "包含";
-    value: string;
+    match: "all" | "any";
+    conditions: {
+      questionId: string;
+      operator: "等于" | "不等于" | "包含";
+      value: string;
+    }[];
   };
 };
 
 export const questionLabels: Record<QuestionType, string> = {
-  single: "单选题",
-  multiple: "多选题",
-  text: "文本题",
+  single: "单选框组",
+  multiple: "多选框组",
+  text: "单行文本",
   textarea: "多行文本",
   date: "日期时间",
-  rating: "评分题",
+  rating: "评分组件",
   file: "文件上传",
   imageUpload: "图片上传",
-  nps: "NPS",
+  nps: "NPS组件",
   dropdown: "下拉选择",
   cascade: "级联选择",
-  city: "省市联动",
-  provinceCity: "全球省市联动",
+  city: "省市联动（旧）",
+  provinceCity: "省市联动",
+  globalProvinceCity: "全球省市联动",
   location: "地理位置",
+  phone: "手机号验证",
   ocr: "文字识别",
   random: "随机编号",
   product: "商品",
   appointmentDate: "预约日期",
-  appointmentSlot: "预约时段",
+  appointmentSlot: "预约时间段",
   matrix: "矩阵题",
   matrixFill: "矩阵填空",
   matrixSelect: "矩阵选择",
   matrixScale: "矩阵量表",
+  matrixSlider: "矩阵滑块",
   matrixDropdown: "矩阵下拉",
   tableSelect: "表格选择",
-  sort: "排序题",
+  sort: "排序题型",
   image: "图片选择",
   pageBreak: "分页组件",
   divider: "分割线",
   button: "按钮组件",
   imageDisplay: "图片展示",
   carousel: "图片轮播",
-  description: "说明文字",
+  description: "文字描述",
 };
 
 export const defaultQuestions: Question[] = [
@@ -126,7 +135,7 @@ export function createQuestion(type: QuestionType): Question {
   }
   if (type === "rating") return { ...common, min: 1, max: 5 };
   if (type === "nps") return { ...common, min: 0, max: 10 };
-  if (["matrix", "matrixFill", "matrixScale", "matrixDropdown"].includes(type)) return { ...common, options: ["维度 1", "维度 2", "维度 3"] };
+  if (["matrix", "matrixFill", "matrixScale", "matrixSlider", "matrixDropdown"].includes(type)) return { ...common, options: ["维度 1", "维度 2", "维度 3"] };
   return common;
 }
 
@@ -134,7 +143,29 @@ export function loadQuestions(surveyId: string): Question[] {
   if (typeof window === "undefined") return defaultQuestions;
   try {
     const saved = window.localStorage.getItem(`joydata-survey-schema-${surveyId}`);
-    return saved ? JSON.parse(saved) : defaultQuestions;
+    if (!saved) return defaultQuestions;
+    const parsed = JSON.parse(saved) as (Omit<Question, "displayLogic"> & {
+      displayLogic?: Question["displayLogic"] | {
+        questionId: string;
+        operator: "等于" | "不等于" | "包含";
+        value: string;
+      };
+    })[];
+    return parsed.map((question) => {
+      const logic = question.displayLogic;
+      if (!logic || "conditions" in logic) return question as Question;
+      return {
+        ...question,
+        displayLogic: {
+          match: "all",
+          conditions: [{
+            questionId: logic.questionId,
+            operator: logic.operator,
+            value: logic.value,
+          }],
+        },
+      } as Question;
+    });
   } catch {
     return defaultQuestions;
   }

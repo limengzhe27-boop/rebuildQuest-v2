@@ -19,9 +19,9 @@ const palette: { title: string; items: { type: QuestionType; icon: string }[] }[
     items: [
       { type: "text", icon: "T" },
       { type: "textarea", icon: "≡" },
-      { type: "date", icon: "◫" },
-      { type: "rating", icon: "★" },
-      { type: "file", icon: "⇧" },
+      { type: "date", icon: "▦" },
+      { type: "rating", icon: "☆" },
+      { type: "file", icon: "☁" },
       { type: "imageUpload", icon: "▧" },
       { type: "sort", icon: "↕" },
     ],
@@ -30,7 +30,7 @@ const palette: { title: string; items: { type: QuestionType; icon: string }[] }[
     title: "选择组件",
     items: [
       { type: "dropdown", icon: "⌄" },
-      { type: "cascade", icon: "⌘" },
+      { type: "cascade", icon: "☷" },
       { type: "single", icon: "◉" },
       { type: "multiple", icon: "☑" },
       { type: "image", icon: "▧" },
@@ -39,13 +39,11 @@ const palette: { title: string; items: { type: QuestionType; icon: string }[] }[
   {
     title: "进阶组件",
     items: [
-      { type: "city", icon: "⌘" },
-      { type: "provinceCity", icon: "▦" },
+      { type: "provinceCity", icon: "⌘" },
+      { type: "globalProvinceCity", icon: "▦" },
       { type: "location", icon: "⌖" },
+      { type: "phone", icon: "▯" },
       { type: "nps", icon: "10" },
-      { type: "ocr", icon: "T" },
-      { type: "random", icon: "№" },
-      { type: "product", icon: "□" },
     ],
   },
   {
@@ -61,7 +59,7 @@ const palette: { title: string; items: { type: QuestionType; icon: string }[] }[
       { type: "matrixFill", icon: "▦" },
       { type: "matrixSelect", icon: "▤" },
       { type: "matrixScale", icon: "◌" },
-      { type: "matrix", icon: "☷" },
+      { type: "matrixSlider", icon: "↔" },
       { type: "matrixDropdown", icon: "≡" },
       { type: "tableSelect", icon: "▦" },
     ],
@@ -79,6 +77,8 @@ const palette: { title: string; items: { type: QuestionType; icon: string }[] }[
   },
 ];
 
+type LogicCondition = NonNullable<Question["displayLogic"]>["conditions"][number];
+
 export default function SurveyEditorPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -89,6 +89,8 @@ export default function SurveyEditorPage() {
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
   const [preview, setPreview] = useState(false);
   const [logicQuestionId, setLogicQuestionId] = useState<string | null>(null);
+  const [logicDraft, setLogicDraft] = useState<NonNullable<Question["displayLogic"]> | null>(null);
+  const [moreQuestionId, setMoreQuestionId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -166,17 +168,6 @@ export default function SurveyEditorPage() {
     setSelectedId(questions[Math.max(0, index - 1)]?.id || "");
   }
 
-  function moveQuestion(id: string, direction: -1 | 1) {
-    const index = questions.findIndex((item) => item.id === id);
-    const target = index + direction;
-    if (index < 0 || target < 0 || target >= questions.length) return;
-    setQuestions((current) => {
-      const next = [...current];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  }
-
   function reorderQuestion(sourceId: string, targetId: string) {
     if (sourceId === targetId) return;
     setQuestions((current) => {
@@ -192,6 +183,65 @@ export default function SurveyEditorPage() {
     flash("题目顺序已更新");
   }
 
+  function openLogicEditor(question: Question) {
+    const index = questions.findIndex((item) => item.id === question.id);
+    setMoreQuestionId(null);
+    if (index <= 0) {
+      flash("第一题没有前置题目，无法设置显示逻辑");
+      return;
+    }
+    setLogicQuestionId(question.id);
+    setLogicDraft(
+      question.displayLogic || {
+        match: "all",
+        conditions: [{
+          questionId: questions[index - 1].id,
+          operator: "等于",
+          value: "",
+        }],
+      },
+    );
+  }
+
+  function updateLogicCondition(index: number, patch: Partial<LogicCondition>) {
+    setLogicDraft((current) => current ? {
+      ...current,
+      conditions: current.conditions.map((condition, conditionIndex) =>
+        conditionIndex === index ? { ...condition, ...patch } : condition,
+      ),
+    } : current);
+  }
+
+  function addLogicCondition() {
+    const targetIndex = questions.findIndex((item) => item.id === logicQuestionId);
+    if (targetIndex <= 0) return;
+    setLogicDraft((current) => current ? {
+      ...current,
+      conditions: [...current.conditions, {
+        questionId: questions[targetIndex - 1].id,
+        operator: "等于",
+        value: "",
+      }],
+    } : current);
+  }
+
+  function closeLogicEditor() {
+    setLogicQuestionId(null);
+    setLogicDraft(null);
+  }
+
+  function saveLogic() {
+    if (!logicQuestionId || !logicDraft) return;
+    const validConditions = logicDraft.conditions.filter((condition) => condition.value.trim());
+    updateQuestion(logicQuestionId, {
+      displayLogic: validConditions.length
+        ? { ...logicDraft, conditions: validConditions }
+        : undefined,
+    });
+    closeLogicEditor();
+    flash(validConditions.length ? "题目显示逻辑已保存" : "未填写条件，已清除显示逻辑");
+  }
+
   function updateOption(index: number, value: string) {
     const currentQuestion = questions.find((question) => question.id === selectedId);
     if (!currentQuestion?.options) return;
@@ -199,6 +249,9 @@ export default function SurveyEditorPage() {
     next[index] = value;
     updateSelected({ options: next });
   }
+
+  const logicQuestionIndex = questions.findIndex((item) => item.id === logicQuestionId);
+  const logicSources = logicQuestionIndex > 0 ? questions.slice(0, logicQuestionIndex) : [];
 
   return (
     <main className="editor-page">
@@ -312,7 +365,43 @@ export default function SurveyEditorPage() {
                     >⠿</div>
                     <div className="question-index">{String(index + 1).padStart(2, "0")}</div>
                     <div className="question-content">
-                      <div className="inline-question-meta"><span className="question-type">{questionLabels[question.type]}</span><label><input type="checkbox" checked={question.required} onChange={(event) => { event.stopPropagation(); updateQuestion(question.id, { required: event.target.checked }); }} /> 必填</label></div>
+                      <div className="inline-question-meta">
+                        <span className="question-type">{questionLabels[question.type]}</span>
+                        <div className="question-card-toolbar">
+                          <div className="required-switch">
+                            <button
+                              type="button"
+                              className={`mini-switch ${question.required ? "on" : ""}`}
+                              aria-label={question.required ? "取消必填" : "设为必填"}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                updateQuestion(question.id, { required: !question.required });
+                              }}
+                            ><i /></button>
+                            必填
+                          </div>
+                          <button title="复制题目" aria-label="复制题目" onClick={(event) => { event.stopPropagation(); duplicateQuestion(question.id); }}>⧉</button>
+                          <button title="删除题目" aria-label="删除题目" onClick={(event) => { event.stopPropagation(); removeQuestion(question.id); }}>⌫</button>
+                          <button
+                            className={question.displayLogic ? "logic-active" : ""}
+                            title="更多"
+                            aria-label="更多题目操作"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setMoreQuestionId(moreQuestionId === question.id ? null : question.id);
+                            }}
+                          >•••</button>
+                          {moreQuestionId === question.id && (
+                            <div className="question-more-menu" onClick={(event) => event.stopPropagation()}>
+                              <button onClick={() => openLogicEditor(question)}>
+                                <span>⌘</span>
+                                <p><strong>题目显示逻辑</strong><small>根据前置题目的答案决定是否显示</small></p>
+                                {question.displayLogic && <em>{question.displayLogic.conditions.length}</em>}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       <div className="inline-title-row"><b>{question.required ? "*" : ""}</b><textarea value={question.title} onChange={(event) => updateQuestion(question.id, { title: event.target.value })} aria-label="题目标题" /></div>
                       <input className="inline-description" value={question.description} onChange={(event) => updateQuestion(question.id, { description: event.target.value })} placeholder="添加题目描述（选填）" aria-label="题目描述" />
                       {(["single", "multiple", "dropdown", "cascade"] as QuestionType[]).includes(question.type) && (
@@ -323,7 +412,7 @@ export default function SurveyEditorPage() {
                           {selectedId === question.id && <button className="inline-add-option" onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { options: [...(question.options || []), `选项 ${(question.options?.length || 0) + 1}`] }); }}>＋ 添加选项</button>}
                         </div>
                       )}
-                      {(["text", "textarea", "date", "file", "imageUpload", "city", "provinceCity", "location", "ocr", "random", "product", "appointmentDate", "appointmentSlot"] as QuestionType[]).includes(question.type) && <div className="text-preview">{question.type === "date" || question.type === "appointmentDate" ? "请选择日期" : question.type === "appointmentSlot" ? "请选择预约时段" : "请输入您的回答"}</div>}
+                      {(["text", "textarea", "date", "file", "imageUpload", "city", "provinceCity", "globalProvinceCity", "location", "phone", "ocr", "random", "product", "appointmentDate", "appointmentSlot"] as QuestionType[]).includes(question.type) && <div className="text-preview">{question.type === "date" || question.type === "appointmentDate" ? "请选择日期" : question.type === "appointmentSlot" ? "请选择预约时段" : question.type === "phone" ? "请输入手机号并完成验证" : "请输入您的回答"}</div>}
                       {(question.type === "nps" || question.type === "rating") && (
                         <div className="score-preview">
                           {Array.from(
@@ -332,7 +421,7 @@ export default function SurveyEditorPage() {
                           ).map((score) => <span key={score}>{score}</span>)}
                         </div>
                       )}
-                      {(["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixDropdown", "tableSelect"] as QuestionType[]).includes(question.type) && (
+                      {(["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown", "tableSelect"] as QuestionType[]).includes(question.type) && (
                         <div className="matrix-preview">
                           <span />
                           {["不满意", "一般", "满意"].map((item) => <b key={item}>{item}</b>)}
@@ -349,17 +438,7 @@ export default function SurveyEditorPage() {
                       )}
                       {question.type === "description" && <div className="description-preview">这是一段用于说明背景和填写要求的文字。</div>}
                       {(["pageBreak", "divider", "button", "imageDisplay", "carousel"] as QuestionType[]).includes(question.type) && <div className="description-preview">{questionLabels[question.type]}将展示在问卷中，用于组织内容与补充说明。</div>}
-                      {logicQuestionId === question.id && <div className="inline-logic-panel"><header><div><strong>题目显示逻辑</strong><small>满足以下条件时显示本题</small></div><button onClick={(event) => { event.stopPropagation(); setLogicQuestionId(null); }}>×</button></header>{index === 0 ? <p>第一题无法引用前置题目，请从第二题开始设置显示逻辑。</p> : <div className="logic-condition-row"><span>当</span><select value={question.displayLogic?.questionId || questions[index - 1].id} onChange={(event) => updateQuestion(question.id, { displayLogic: { questionId: event.target.value, operator: question.displayLogic?.operator || "等于", value: question.displayLogic?.value || "" } })}>{questions.slice(0, index).map((source, sourceIndex) => <option key={source.id} value={source.id}>第 {sourceIndex + 1} 题 · {source.title}</option>)}</select><select value={question.displayLogic?.operator || "等于"} onChange={(event) => updateQuestion(question.id, { displayLogic: { questionId: question.displayLogic?.questionId || questions[index - 1].id, operator: event.target.value as "等于" | "不等于" | "包含", value: question.displayLogic?.value || "" } })}><option>等于</option><option>不等于</option><option>包含</option></select><input value={question.displayLogic?.value || ""} onChange={(event) => updateQuestion(question.id, { displayLogic: { questionId: question.displayLogic?.questionId || questions[index - 1].id, operator: question.displayLogic?.operator || "等于", value: event.target.value } })} placeholder="输入选项或答案" /></div>}<footer><button onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { displayLogic: undefined }); setLogicQuestionId(null); }}>清除逻辑</button><button className="primary-button" onClick={(event) => { event.stopPropagation(); setLogicQuestionId(null); flash("题目显示逻辑已保存"); }}>完成</button></footer></div>}
                     </div>
-                    {selectedId === question.id && (
-                      <div className="question-actions">
-                        <button className={question.displayLogic ? "logic-active" : ""} onClick={(event) => { event.stopPropagation(); setLogicQuestionId(logicQuestionId === question.id ? null : question.id); }}>⌁ 显示逻辑</button>
-                        <button onClick={(event) => { event.stopPropagation(); moveQuestion(question.id, -1); }}>↑</button>
-                        <button onClick={(event) => { event.stopPropagation(); moveQuestion(question.id, 1); }}>↓</button>
-                        <button onClick={(event) => { event.stopPropagation(); duplicateQuestion(question.id); }}>⧉</button>
-                        <button className="danger" onClick={(event) => { event.stopPropagation(); removeQuestion(question.id); }}>⌫</button>
-                      </div>
-                    )}
                   </article>
                 ))}
                 <button className="canvas-add" onClick={() => addQuestion("single")}>＋ 添加一道题</button>
@@ -370,6 +449,62 @@ export default function SurveyEditorPage() {
         </section>
 
       </section>
+
+      {logicQuestionId && logicDraft && (
+        <div className="preview-backdrop logic-backdrop" onMouseDown={closeLogicEditor}>
+          <section className="display-logic-modal" role="dialog" aria-modal="true" aria-labelledby="logic-modal-title" onMouseDown={(event) => event.stopPropagation()}>
+            <header>
+              <div>
+                <h2 id="logic-modal-title">题目显示逻辑</h2>
+                <p>仅当玩家答案满足设定条件时显示当前题目。</p>
+              </div>
+              <button aria-label="关闭" onClick={closeLogicEditor}>×</button>
+            </header>
+
+            <div className="logic-match-row">
+              <span>符合以下</span>
+              <select
+                value={logicDraft.match}
+                onChange={(event) => setLogicDraft({ ...logicDraft, match: event.target.value as "all" | "any" })}
+              >
+                <option value="all">所有</option>
+                <option value="any">任一</option>
+              </select>
+              <span>条件</span>
+            </div>
+
+            <div className="logic-condition-list">
+              {logicDraft.conditions.map((condition, conditionIndex) => (
+                <div className="logic-condition-row" key={`${condition.questionId}-${conditionIndex}`}>
+                  <select value={condition.questionId} onChange={(event) => updateLogicCondition(conditionIndex, { questionId: event.target.value })}>
+                    {logicSources.map((source, sourceIndex) => <option key={source.id} value={source.id}>A{sourceIndex + 1} {source.title}</option>)}
+                  </select>
+                  <select value={condition.operator} onChange={(event) => updateLogicCondition(conditionIndex, { operator: event.target.value as LogicCondition["operator"] })}>
+                    <option>等于</option>
+                    <option>不等于</option>
+                    <option>包含</option>
+                  </select>
+                  <input value={condition.value} onChange={(event) => updateLogicCondition(conditionIndex, { value: event.target.value })} placeholder="请输入答案或选项" />
+                  <button
+                    aria-label="删除条件"
+                    disabled={logicDraft.conditions.length === 1}
+                    onClick={() => setLogicDraft({
+                      ...logicDraft,
+                      conditions: logicDraft.conditions.filter((_, index) => index !== conditionIndex),
+                    })}
+                  >×</button>
+                </div>
+              ))}
+            </div>
+
+            <button className="add-logic-condition" onClick={addLogicCondition}>＋ 添加条件</button>
+            <footer>
+              <button className="secondary-button" onClick={closeLogicEditor}>取消</button>
+              <button className="primary-button" onClick={saveLogic}>确定</button>
+            </footer>
+          </section>
+        </div>
+      )}
 
       {preview && (
         <div className="preview-backdrop" onMouseDown={() => setPreview(false)}>
