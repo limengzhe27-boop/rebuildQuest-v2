@@ -136,9 +136,7 @@ export default function LanguagesPage() {
           <div><strong>{surveyTitle}</strong><small><i className="saved" />翻译内容自动保存</small></div>
         </div>
         <SurveyNav surveyId={surveyId} active="languages" />
-        <div className="editor-actions">
-          <button className="secondary-button" onClick={() => router.push(`/s/ro3-global-beta?surveyId=${surveyId}`)}>▣ 预览当前语言</button>
-        </div>
+        <div className="editor-actions"><span className="continuous-list-label">连续校验清单 · 不分页</span></div>
       </header>
 
       <section className="language-workspace language-workspace-simple">
@@ -175,8 +173,8 @@ export default function LanguagesPage() {
           <header className="translation-heading translation-heading-simple">
             <div>
               <div className="breadcrumb">多语言 <span>/</span> {activeLocale}</div>
-              <h1>{localeMeta.find((item) => item.code === activeLocale)?.name} 翻译</h1>
-              <p>完整表单共 {fields.length} 项内容，已完成 {completed} 项。</p>
+              <h1>{localeMeta.find((item) => item.code === activeLocale)?.name} 内容校验</h1>
+              <p>从问卷封面到完成页连续展示，共 {fields.length} 项；题目、说明和选项均需翻译并人工确认。</p>
             </div>
             <label className={`translation-verify ${verified ? "verified" : ""}`}>
               <button className={`mini-switch ${verified ? "on" : ""}`} onClick={toggleVerified}><i /></button>
@@ -193,20 +191,21 @@ export default function LanguagesPage() {
             <span>源语言：简体中文</span>
           </div>
 
-          <div className="translation-form">
+          <div className="translation-column-head"><span>内容位置</span><span>源语言 · 简体中文</span><span>当前语言 · {activeLocale}</span><span>状态</span></div>
+          <div className="translation-form translation-table-form">
             {groupedFields.map(([section, sectionFields]) => (
               <section className="translation-section" key={section}>
-                <header><strong>{section}</strong><span>{sectionFields.filter((field) => fieldValue(field).trim()).length}/{sectionFields.length}</span></header>
+                <header><strong>{section}</strong><span>{sectionFields.filter((field) => fieldValue(field).trim()).length}/{sectionFields.length} 已完成</span></header>
                 {sectionFields.map((field) => {
                   const value = fieldValue(field);
                   return (
                     <div className="translation-field-row" key={field.id}>
-                      <div className="source-copy"><small>{field.label} · 简体中文</small><p>{field.source}</p></div>
+                      <strong className="translation-field-label">{field.label}</strong>
+                      <div className="source-copy"><p>{field.source}</p></div>
                       <div className="target-copy">
-                        <small>{field.label} · {activeLocale}</small>
                         <textarea value={value} placeholder={`输入${activeLocale}翻译`} onChange={(event) => updateTranslation(field.id, event.target.value)} />
                       </div>
-                      <span className={value.trim() ? "field-done" : "field-missing"}>{value.trim() ? "✓" : "!"}</span>
+                      <span className={value.trim() ? "field-done" : "field-missing"}>{value.trim() ? "已翻译" : "未翻译"}</span>
                     </div>
                   );
                 })}

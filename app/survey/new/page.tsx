@@ -22,14 +22,16 @@ const globalLanguages = [
   { code: "ID", name: "Bahasa Indonesia", hint: "印尼语" },
 ];
 
-const templatePresets: Record<string, { name: string; label: string; languages: string[] }> = {
-  "game-beta": { name: "游戏测试体验调研（副本）", label: "游戏测试体验调研", languages: ["EN", "繁中", "ไทย"] },
-  update: { name: "版本更新满意度（副本）", label: "版本更新满意度", languages: ["EN", "繁中"] },
-  nps: { name: "玩家 NPS 追踪（副本）", label: "玩家 NPS 追踪", languages: ["EN", "繁中", "ไทย"] },
-  churn: { name: "流失玩家召回调研（副本）", label: "流失玩家召回调研", languages: ["EN", "繁中"] },
-  event: { name: "运营活动复盘（副本）", label: "运营活动复盘", languages: ["简中"] },
-  community: { name: "社区玩家画像（副本）", label: "社区玩家画像", languages: ["EN", "日本語", "한국어"] },
-  support: { name: "客服满意度回访（副本）", label: "客服满意度回访", languages: ["EN", "繁中", "ไทย"] },
+const templatePresets: Record<string, { name: string; label: string; languages: string[]; region: Region }> = {
+  "game-beta": { name: "游戏测试体验调研（副本）", label: "游戏测试体验调研", languages: ["EN", "繁中", "ไทย"], region: "海外" },
+  update: { name: "版本更新满意度（副本）", label: "版本更新满意度", languages: ["EN", "繁中"], region: "海外" },
+  nps: { name: "玩家 NPS 追踪（副本）", label: "玩家 NPS 追踪", languages: ["EN", "繁中", "ไทย"], region: "海外" },
+  churn: { name: "流失玩家召回调研（副本）", label: "流失玩家召回调研", languages: ["EN", "繁中"], region: "海外" },
+  event: { name: "国内运营活动复盘（副本）", label: "国内运营活动复盘", languages: ["简中"], region: "国内" },
+  "cn-satisfaction": { name: "国内玩家满意度（副本）", label: "国内玩家满意度", languages: ["简中"], region: "国内" },
+  "cn-update": { name: "国服版本更新反馈（副本）", label: "国服版本更新反馈", languages: ["简中"], region: "国内" },
+  community: { name: "社区玩家画像（副本）", label: "社区玩家画像", languages: ["EN", "日本語", "한국어"], region: "海外" },
+  support: { name: "客服满意度回访（副本）", label: "客服满意度回访", languages: ["EN", "繁中", "ไทย"], region: "海外" },
 };
 
 export default function NewSurveyPage() {
@@ -40,13 +42,14 @@ function NewSurveyWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const template = templatePresets[searchParams.get("template") || ""];
+  const requestedRegion: Region = searchParams.get("region") === "china" ? "国内" : "海外";
   const initialProject = searchParams.get("project") || "RO3";
   const initialGroup = searchParams.get("group") || "3.6版本先锋测试";
   const [step, setStep] = useState(1);
   const [name, setName] = useState(template?.name || "");
   const [game, setGame] = useState(initialProject);
   const [projectGroup, setProjectGroup] = useState(initialGroup);
-  const [region, setRegion] = useState<Region>("海外");
+  const [region, setRegion] = useState<Region>(template?.region || requestedRegion);
   const [languages, setLanguages] = useState(template?.languages || ["EN", "繁中"]);
   const [defaultLanguage, setDefaultLanguage] = useState("EN");
   const [mode, setMode] = useState<CreationMode>(template ? "template" : "blank");
@@ -61,7 +64,12 @@ function NewSurveyWizard() {
   );
 
   function chooseRegion(next: Region) {
+    if (template && template.region !== next) {
+      setError(`「${template.label}」属于${template.region}工作空间，不能用于${next}工作空间`);
+      return;
+    }
     setRegion(next);
+    setError("");
     if (next === "国内") {
       setLanguages(["简中"]);
       setDefaultLanguage("简中");
@@ -234,7 +242,8 @@ function NewSurveyWizard() {
                 </div>
                 <div className="region-choice-grid">
                   <button
-                    className={region === "海外" ? "selected" : ""}
+                    className={`${region === "海外" ? "selected" : ""} ${template?.region === "国内" ? "disabled" : ""}`}
+                    disabled={template?.region === "国内"}
                     onClick={() => chooseRegion("海外")}
                   >
                     <span className="region-choice-icon global">◎</span>
@@ -249,7 +258,8 @@ function NewSurveyWizard() {
                     </ul>
                   </button>
                   <button
-                    className={region === "国内" ? "selected china" : ""}
+                    className={`${region === "国内" ? "selected china" : ""} ${template?.region === "海外" ? "disabled" : ""}`}
+                    disabled={template?.region === "海外"}
                     onClick={() => chooseRegion("国内")}
                   >
                     <span className="region-choice-icon china">中</span>
@@ -267,8 +277,7 @@ function NewSurveyWizard() {
                 <div className="region-warning">
                   <span>i</span>
                   <p>
-                    问卷结构后续可以复制到另一工作空间，但答卷、发布链接和
-                    Webhook 不会一并复制。
+                    {template ? `当前模板属于${template.region}工作空间，因此本次创建的工作空间已锁定。` : "问卷结构后续可以复制到另一工作空间，但答卷、发布链接和 Webhook 不会一并复制。"}
                   </p>
                 </div>
               </div>
@@ -343,7 +352,7 @@ function NewSurveyWizard() {
                   </button>
                   <button
                     className={mode === "template" ? "selected" : ""}
-                    onClick={() => template ? setMode("template") : router.push("/survey/templates")}
+                    onClick={() => template ? setMode("template") : router.push(`/survey/templates?region=${region === "国内" ? "china" : "global"}`)}
                   >
                     <span>▦</span>
                     <div><strong>从模板创建</strong><p>{template ? `已选「${template.label}」` : "前往模板中心选择满意度、招募、版本反馈等标准模板。"}</p></div>

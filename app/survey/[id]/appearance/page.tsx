@@ -43,6 +43,13 @@ const themes = [
   ["活力橙", "#F06E3A", "plain"],
 ] as const;
 
+const previewLocaleNames: Record<string, string> = {
+  简中: "简体中文（源语言）",
+  EN: "English",
+  繁中: "繁體中文",
+  ไทย: "ภาษาไทย",
+};
+
 export default function AppearancePage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -52,12 +59,21 @@ export default function AppearancePage() {
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
   const [pageIndex, setPageIndex] = useState(0);
+  const [previewLocale, setPreviewLocale] = useState("简中");
+  const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
+  const [verifiedLocales, setVerifiedLocales] = useState<Record<string, boolean>>({});
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
     const saved = window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`);
     if (saved) setConfig({ ...defaults, ...JSON.parse(saved) });
     setQuestions(loadQuestions(surveyId));
+    try {
+      const savedTranslations = window.localStorage.getItem(`joydata-survey-translations-${surveyId}`);
+      const savedVerified = window.localStorage.getItem(`joydata-survey-translation-verified-${surveyId}`);
+      if (savedTranslations) setTranslations(JSON.parse(savedTranslations));
+      if (savedVerified) setVerifiedLocales(JSON.parse(savedVerified));
+    } catch {}
   }, [surveyId]);
 
   useEffect(() => {
@@ -78,6 +94,12 @@ export default function AppearancePage() {
 
   const hasPagination = pages.length > 1;
   const visibleQuestions = hasPagination ? pages[Math.min(pageIndex, pages.length - 1)] : pages.flat();
+  const availablePreviewLocales = ["简中", ...Object.keys(verifiedLocales).filter((locale) => verifiedLocales[locale])];
+
+  function translated(fieldId: string, fallback: string, legacyId?: string) {
+    if (previewLocale === "简中") return fallback;
+    return translations[previewLocale]?.[fieldId] || (legacyId ? translations[previewLocale]?.[legacyId] : "") || fallback;
+  }
 
   function update(patch: Partial<Appearance>) {
     setConfig((current) => ({ ...current, ...patch }));
@@ -91,14 +113,14 @@ export default function AppearancePage() {
   function renderQuestion(question: Question, index: number) {
     const overallIndex = questions.filter((item) => item.type !== "pageBreak").findIndex((item) => item.id === question.id);
     if (question.type === "divider") return <div className="appearance-divider" key={question.id} />;
-    if (question.type === "description") return <div className="appearance-description" key={question.id}>{question.title}</div>;
+    if (question.type === "description") return <div className="appearance-description" key={question.id}>{translated(`${question.id}:title`, question.title, question.id)}</div>;
     if (question.type === "imageDisplay" || question.type === "carousel") return <div className="appearance-image-block" key={question.id}>▧ {question.type === "carousel" ? "图片轮播" : "图片展示"}</div>;
     return (
       <article className="appearance-question-preview" key={question.id}>
         <small>{config.questionNumber ? `${String(overallIndex + 1).padStart(2, "0")} · ` : ""}{question.type === "nps" ? "NPS" : "问题"}</small>
-        <h2>{question.title}{config.requiredMark && question.required && <b>*</b>}</h2>
-        {question.description && <p>{question.description}</p>}
-        {question.options?.slice(0, 5).map((option, optionIndex) => <button key={`${question.id}-${optionIndex}`} className={optionIndex === 0 ? "selected" : ""}><i>{question.type === "multiple" ? "□" : "○"}</i>{option}</button>)}
+        <h2>{translated(`${question.id}:title`, question.title, question.id)}{config.requiredMark && question.required && <b>*</b>}</h2>
+        {question.description && <p>{translated(`${question.id}:description`, question.description)}</p>}
+        {question.options?.slice(0, 5).map((option, optionIndex) => <button key={`${question.id}-${optionIndex}`} className={optionIndex === 0 ? "selected" : ""}><i>{question.type === "multiple" ? "□" : "○"}</i>{translated(`${question.id}:option:${optionIndex}`, option)}</button>)}
         {(question.type === "text" || question.type === "textarea" || question.type === "phone") && <div className="appearance-input">{question.type === "phone" ? "请输入手机号" : "请输入您的回答"}</div>}
         {(question.type === "rating" || question.type === "nps") && <div className="appearance-score-row">{Array.from({ length: Math.min(11, (question.max || 5) - (question.min || 0) + 1) }, (_, score) => <span key={score}>{score + (question.min || 0)}</span>)}</div>}
         {!question.options && !["text", "textarea", "phone", "rating", "nps"].includes(question.type) && <div className="appearance-input">请填写或选择内容</div>}
@@ -140,12 +162,13 @@ export default function AppearancePage() {
           <div className="preview-device-toggle">
             <button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")}>▱ 桌面端</button>
             <button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")}>▯ 移动端</button>
+            <label className="appearance-language-preview"><span>预览语言</span><select value={previewLocale} onChange={(event) => { setPreviewLocale(event.target.value); setPageIndex(0); }}>{availablePreviewLocales.map((locale) => <option key={locale} value={locale}>{previewLocaleNames[locale] || locale}</option>)}</select></label>
             <span>{hasPagination ? `分页问卷 · 第 ${pageIndex + 1}/${pages.length} 页` : "连续滚动问卷"}</span>
           </div>
           <div className={`survey-device ${device} ${config.density} font-${config.fontSize} button-${config.buttonStyle}`}>
             <div className="player-mini-page player-scroll-page">
               {config.progress && <div className="mini-progress"><i style={{ width: hasPagination ? `${(pageIndex + 1) / pages.length * 100}%` : "100%" }} /></div>}
-              {config.cover && <header>{config.logo && <span>RO3 · PLAYER RESEARCH</span>}<h1>{surveyTitle}</h1><p>感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。</p></header>}
+              {config.cover && <header>{config.logo && <span>RO3 · PLAYER RESEARCH</span>}<h1>{translated("form:title", surveyTitle)}</h1><p>{translated("form:intro", "感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。")}</p></header>}
               <main className="appearance-form-content">
                 {visibleQuestions.map(renderQuestion)}
                 <footer className="appearance-form-footer">
