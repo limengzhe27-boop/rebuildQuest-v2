@@ -456,6 +456,38 @@ input:focus-visible {
   cursor: pointer;
 }
 
+.project-manager-trigger {
+  width: 100%;
+  height: 27px;
+  margin: -1px 0 7px;
+  border: 0;
+  background: transparent;
+  color: #718096;
+  font-size: 9px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-manager-trigger:hover { color: var(--blue); }
+
+.project-manager-modal { width: 520px; border-radius: 12px; background: #fff; box-shadow: 0 20px 60px rgba(29, 49, 80, .2); }
+.project-manager-modal>header { display: flex; justify-content: space-between; padding: 23px 25px 17px; border-bottom: 1px solid #edf0f4; }
+.project-manager-modal h2,.project-delete-modal h2 { margin-top: 4px; color: #24334c; font-size: 17px; }
+.project-manager-modal header p { margin-top: 7px; color: #7d899a; font-size: 10px; line-height: 1.5; }
+.project-manager-modal header>button { border: 0; background: transparent; color: #8792a3; font-size: 20px; cursor: pointer; }
+.project-manager-list { max-height: 360px; overflow: auto; padding: 8px 25px; }
+.project-manager-list>div { display: flex; align-items: center; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid #edf0f4; }
+.project-manager-list>div>div { display: flex; flex-direction: column; gap: 5px; }
+.project-manager-list strong { color: #33425c; font-size: 11px; }
+.project-manager-list small,.project-manager-list>p { color: #8994a5; font-size: 9px; }
+.project-manager-list button { height: 27px; padding: 0 9px; border: 1px solid #f0cfcf; border-radius: 5px; background: #fff; color: #d65d5d; font-size: 9px; cursor: pointer; }
+.project-manager-modal>footer { display: flex; justify-content: flex-end; padding: 16px 25px; border-top: 1px solid #edf0f4; }
+.project-delete-modal { width: 390px; padding: 27px; border-radius: 12px; background: #fff; box-shadow: 0 20px 60px rgba(29, 49, 80, .2); text-align: center; }
+.delete-warning { width: 35px; height: 35px; display: inline-grid; place-items: center; border-radius: 50%; background: #fff1ef; color: #de675d; font-size: 17px; font-weight: 700; }
+.project-delete-modal p { margin: 12px 0 21px; color: #748195; font-size: 10px; line-height: 1.7; text-align: left; }
+.project-delete-modal footer { display: flex; justify-content: flex-end; gap: 8px; }
+.danger-button { height: 32px; padding: 0 13px; border: 0; border-radius: 6px; background: #e45f5f; color: #fff; font-size: 10px; cursor: pointer; }
+
 .project-picker-list {
   display: grid;
   max-height: 242px;

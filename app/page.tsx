@@ -116,6 +116,8 @@ export default function Home() {
   const [projectQuery, setProjectQuery] = useState("");
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [showProjectCreate, setShowProjectCreate] = useState(false);
+  const [showProjectManager, setShowProjectManager] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<{ name: string; count: number } | null>(null);
   const [newProjectName, setNewProjectName] = useState("");
   const [customProjects, setCustomProjects] = useState<ResearchProject[]>([]);
   const [query, setQuery] = useState("");
@@ -246,6 +248,21 @@ export default function Home() {
     setShowProjectCreate(false);
     setNewProjectName("");
     notify("调研项目已创建，可在此项目下创建问卷");
+  }
+
+  function deleteProject() {
+    if (!projectToDelete) return;
+    const { name, count } = projectToDelete;
+    if (count > 0) {
+      setSurveys((current) => current.map((survey) => survey.group === name ? { ...survey, group: "未归入项目" } : survey));
+    }
+    const next = customProjects.filter((project) => project.name !== name || project.region !== region);
+    setCustomProjects(next);
+    window.localStorage.setItem("joydata-survey-projects", JSON.stringify(next));
+    if (activeProjectGroup === name) setActiveProjectGroup(null);
+    setProjectToDelete(null);
+    setShowProjectManager(false);
+    notify(count > 0 ? `已将 ${count} 份问卷移至“未归入项目”，原项目已删除` : "调研项目已删除");
   }
 
   function toggleLanguage(language: string) {
@@ -463,6 +480,7 @@ export default function Home() {
                     <small>项目是问卷的业务归属；状态筛选会在当前项目内生效。</small>
                     <button className="project-create-trigger" onClick={() => setShowProjectCreate((current) => !current)}>＋ 新建调研项目</button>
                     {showProjectCreate && <div className="project-create-form"><input autoFocus value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} onKeyDown={(event) => event.key === "Enter" && createProject()} placeholder="例如：RO3 3.7版本回归调研" /><button onClick={createProject}>创建</button></div>}
+                    <button className="project-manager-trigger" onClick={() => { setShowProjectPicker(false); setShowProjectManager(true); }}>管理项目</button>
                     <div className="project-picker-list">
                       <button className={!activeProjectGroup ? "selected" : ""} onClick={() => { setActiveProjectGroup(null); setShowProjectPicker(false); }}>全部项目 <em>{projectGroups.reduce((total, group) => total + group.count, 0)}</em></button>
                       {matchingProjectGroups.map((group) => <button key={group.name} className={activeProjectGroup === group.name ? "selected" : ""} onClick={() => { setActiveProjectGroup(group.name); setActiveGroup("全部问卷"); setShowProjectPicker(false); }}><span>{group.name}</span><em>{group.count}</em></button>)}
@@ -652,6 +670,24 @@ export default function Home() {
               <button className="secondary-button" onClick={() => setShowCreate(false)}>取消</button>
               <button className="primary-button" onClick={createSurvey}>创建并进入编辑器</button>
             </footer>
+          </section>
+        </div>
+      )}
+
+      {showProjectManager && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProjectManager(false)}>
+          <section className="project-manager-modal" role="dialog" aria-modal="true" aria-labelledby="project-manager-title" onMouseDown={(event) => event.stopPropagation()}>
+            <header><div><span className="modal-eyebrow">PROJECT MANAGEMENT</span><h2 id="project-manager-title">管理调研项目</h2><p>删除项目不会删除问卷或答卷；含问卷的项目会先转移至“未归入项目”。</p></div><button aria-label="关闭" onClick={() => setShowProjectManager(false)}>×</button></header>
+            <div className="project-manager-list">{projectGroups.length ? projectGroups.map((project) => <div key={project.name}><div><strong>{project.name}</strong><small>{project.count ? `包含 ${project.count} 份问卷` : "暂无问卷"}</small></div><button onClick={() => setProjectToDelete(project)}>删除</button></div>) : <p>当前工作空间暂无调研项目。</p>}</div>
+            <footer><button className="secondary-button" onClick={() => setShowProjectManager(false)}>关闭</button></footer>
+          </section>
+        </div>
+      )}
+
+      {projectToDelete && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setProjectToDelete(null)}>
+          <section className="project-delete-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <span className="delete-warning">!</span><h2>删除“{projectToDelete.name}”吗？</h2><p>{projectToDelete.count ? `该项目下有 ${projectToDelete.count} 份问卷。删除后，问卷会保留并转移至“未归入项目”，答卷数据不会受影响。` : "该项目下暂无问卷，删除后不可恢复。"}</p><footer><button className="secondary-button" onClick={() => setProjectToDelete(null)}>取消</button><button className="danger-button" onClick={deleteProject}>确认删除</button></footer>
           </section>
         </div>
       )}
