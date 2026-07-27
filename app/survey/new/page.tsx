@@ -40,10 +40,12 @@ function NewSurveyWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const template = templatePresets[searchParams.get("template") || ""];
+  const initialProject = searchParams.get("project") || "RO3";
+  const initialGroup = searchParams.get("group") || "3.6版本先锋测试";
   const [step, setStep] = useState(1);
   const [name, setName] = useState(template?.name || "");
-  const [game, setGame] = useState("RO3 东南亚服");
-  const [projectGroup, setProjectGroup] = useState("RO3 3.6版本先锋测试");
+  const [game, setGame] = useState(initialProject);
+  const [projectGroup, setProjectGroup] = useState(initialGroup);
   const [region, setRegion] = useState<Region>("海外");
   const [languages, setLanguages] = useState(template?.languages || ["EN", "繁中"]);
   const [defaultLanguage, setDefaultLanguage] = useState("EN");
@@ -83,7 +85,7 @@ function NewSurveyWizard() {
 
   function nextStep() {
     if (step === 1 && (!name.trim() || !projectGroup.trim())) {
-      setError(!name.trim() ? "请填写问卷名称" : "请填写或选择调研项目");
+      setError(!name.trim() ? "请填写问卷名称" : "请填写或选择项目分组");
       return;
     }
     setError("");
@@ -190,26 +192,28 @@ function NewSurveyWizard() {
                   <label className="wizard-field">
                     <span>所属项目 <b>*</b></span>
                     <select value={game} onChange={(event) => setGame(event.target.value)}>
-                      <option>RO3 东南亚服</option>
-                      <option>ROOC 亚服</option>
-                      <option>HMT 港澳台</option>
-                      <option>RO 国服</option>
+                      <option>RO3</option>
+                      <option>ROOC</option>
+                      <option>HMT</option>
+                      <option>RO国服</option>
+                      <option>通用</option>
                     </select>
+                    <small>项目用于区分游戏业务；非游戏问卷请选择“通用”。</small>
                   </label>
                   <label className="wizard-field">
-                    <span>调研项目 <b>*</b></span>
+                    <span>项目分组 <b>*</b></span>
                     <input
                       value={projectGroup}
                       onChange={(event) => { setProjectGroup(event.target.value); setError(""); }}
                       list="research-projects"
-                      placeholder="例如：RO3 3.6版本先锋测试"
+                      placeholder="例如：3.6版本先锋测试"
                     />
                     <datalist id="research-projects">
-                      <option value="RO3 3.6版本先锋测试" />
-                      <option value="HMT 2026 Q3 VIP满意度" />
-                      <option value="ROOC 1.8职业平衡调研" />
+                      <option value="3.6版本先锋测试" />
+                      <option value="2026 Q3 VIP满意度" />
+                      <option value="1.8职业平衡调研" />
                     </datalist>
-                    <small>可选择已有项目；输入新名称并创建问卷，即会新建该项目。</small>
+                    <small>可选择该项目下的已有分组；输入新名称并创建问卷，即会在当前项目下新建分组。</small>
                   </label>
                   <label className="wizard-field full">
                     <span>内部备注</span>
@@ -357,8 +361,8 @@ function NewSurveyWizard() {
                 <div className="creation-summary">
                   <h3>创建信息确认</h3>
                   <div><span>问卷名称</span><strong>{name}</strong></div>
-                  <div><span>所属游戏</span><strong>{game}</strong></div>
-                  <div><span>调研项目</span><strong>{projectGroup}</strong></div>
+                  <div><span>所属项目</span><strong>{game}</strong></div>
+                  <div><span>项目分组</span><strong>{projectGroup}</strong></div>
                   {template && <div><span>使用模板</span><strong>{template.label}</strong></div>}
                   <div><span>工作空间</span><strong>{region}</strong></div>
                   <div><span>问卷语言</span><strong>{languages.join("、")}</strong></div>
