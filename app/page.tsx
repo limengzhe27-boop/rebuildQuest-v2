@@ -310,6 +310,16 @@ export default function Home() {
     notify("已复制为新的问卷草稿");
   }
 
+  function updateSurveyStatus(survey: Survey, nextStatus: Status) {
+    const updatedSurvey = { ...survey, status: nextStatus, updated: "刚刚" };
+    setSurveys((current) =>
+      current.map((item) => (item.id === survey.id ? updatedSurvey : item)),
+    );
+    setSelected((current) => (current?.id === survey.id ? updatedSurvey : current));
+    setMenuSurvey(null);
+    notify(nextStatus === "已结束" ? "问卷收集已结束" : "问卷已重新开始收集");
+  }
+
   function moveToTrash(survey: Survey) {
     const next = [...trashedIds, survey.id];
     setTrashedIds(next);
@@ -524,11 +534,31 @@ export default function Home() {
                               <button onClick={() => restoreSurvey(survey)}>↺ 恢复问卷</button>
                             ) : (
                               <>
-                                <button onClick={() => router.push(`/survey/${survey.id}/analytics`)}>▥ 查看数据看板</button>
-                                <button onClick={() => router.push(`/survey/${survey.id}/edit`)}>✎ 进入编辑器</button>
+                                {survey.status === "草稿" ? (
+                                  <>
+                                    <button onClick={() => router.push(`/survey/${survey.id}/edit`)}>✎ 继续编辑</button>
+                                    <button onClick={() => router.push(`/survey/${survey.id}/publish`)}>▷ 发布设置</button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button onClick={() => router.push(`/survey/${survey.id}/analytics`)}>▥ 查看答案统计</button>
+                                    <button onClick={() => router.push(`/survey/${survey.id}/responses`)}>▤ 查看答卷明细</button>
+                                    {survey.status === "收集中" ? (
+                                      <>
+                                        <button onClick={() => { setMenuSurvey(null); notify("问卷链接已复制"); }}>⌁ 复制问卷链接</button>
+                                        <button className="warning" onClick={() => updateSurveyStatus(survey, "已结束")}>■ 结束收集</button>
+                                      </>
+                                    ) : (
+                                      <button className="restart" onClick={() => updateSurveyStatus(survey, "收集中")}>▶ 重新开始收集</button>
+                                    )}
+                                  </>
+                                )}
+                                <i />
+                                {survey.status !== "草稿" && (
+                                  <button onClick={() => router.push(`/survey/${survey.id}/edit`)}>✎ 编辑问卷</button>
+                                )}
                                 <button onClick={() => duplicateSurvey(survey)}>⧉ 复制问卷</button>
-                                <button onClick={() => notify("移动分组面板已打开")}>▱ 移动到分组</button>
-                                <button onClick={() => notify("协作权限面板已打开")}>♙ 协作权限</button>
+                                <button onClick={() => { setMenuSurvey(null); notify("项目与分组设置已打开"); }}>▱ 更改项目与分组</button>
                                 <i />
                                 <button className="danger" onClick={() => { setConfirmDelete(survey); setMenuSurvey(null); }}>⌫ 移入回收站</button>
                               </>
