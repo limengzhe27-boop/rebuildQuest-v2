@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 const tabs = [
   ["edit", "编辑器"],
   ["languages", "多语言"],
-  ["logic", "逻辑"],
   ["appearance", "外观"],
   ["publish", "发布与回收"],
   ["analytics", "数据看板"],
@@ -33,7 +32,6 @@ export function SurveyNav({
             if (
               key === "edit" ||
               key === "languages" ||
-              key === "logic" ||
               key === "appearance" ||
               key === "publish" ||
               key === "responses" ||

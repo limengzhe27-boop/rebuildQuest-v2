@@ -42,6 +42,11 @@ export type Question = {
   options?: string[];
   min?: number;
   max?: number;
+  displayLogic?: {
+    questionId: string;
+    operator: "等于" | "不等于" | "包含";
+    value: string;
+  };
 };
 
 export const questionLabels: Record<QuestionType, string> = {

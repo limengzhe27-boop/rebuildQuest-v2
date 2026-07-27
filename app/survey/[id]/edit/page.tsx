@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   createQuestion,
@@ -88,6 +88,7 @@ export default function SurveyEditorPage() {
   const [selectedId, setSelectedId] = useState(defaultQuestions[0].id);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
   const [preview, setPreview] = useState(false);
+  const [logicQuestionId, setLogicQuestionId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const hydrated = useRef(false);
 
@@ -108,11 +109,6 @@ export default function SurveyEditorPage() {
     }, 650);
     return () => window.clearTimeout(timer);
   }, [questions, surveyId]);
-
-  const selected = useMemo(
-    () => questions.find((question) => question.id === selectedId) || null,
-    [questions, selectedId],
-  );
 
   function flash(message: string) {
     setNotice(message);
@@ -135,6 +131,10 @@ export default function SurveyEditorPage() {
         question.id === selectedId ? { ...question, ...patch } : question,
       ),
     );
+  }
+
+  function updateQuestion(id: string, patch: Partial<Question>) {
+    setQuestions((current) => current.map((question) => question.id === id ? { ...question, ...patch } : question));
   }
 
   function duplicateQuestion(id: string) {
@@ -176,8 +176,9 @@ export default function SurveyEditorPage() {
   }
 
   function updateOption(index: number, value: string) {
-    if (!selected?.options) return;
-    const next = [...selected.options];
+    const currentQuestion = questions.find((question) => question.id === selectedId);
+    if (!currentQuestion?.options) return;
+    const next = [...currentQuestion.options];
     next[index] = value;
     updateSelected({ options: next });
   }
@@ -263,14 +264,15 @@ export default function SurveyEditorPage() {
                     <div className="drag-handle">⠿</div>
                     <div className="question-index">{String(index + 1).padStart(2, "0")}</div>
                     <div className="question-content">
-                      <span className="question-type">{questionLabels[question.type]}</span>
-                      <h2>{question.required && <b>*</b>}{question.title}</h2>
-                      {question.description && <p>{question.description}</p>}
+                      <div className="inline-question-meta"><span className="question-type">{questionLabels[question.type]}</span><label><input type="checkbox" checked={question.required} onChange={(event) => { event.stopPropagation(); updateQuestion(question.id, { required: event.target.checked }); }} /> 必填</label></div>
+                      <div className="inline-title-row"><b>{question.required ? "*" : ""}</b><textarea value={question.title} onChange={(event) => updateQuestion(question.id, { title: event.target.value })} aria-label="题目标题" /></div>
+                      <input className="inline-description" value={question.description} onChange={(event) => updateQuestion(question.id, { description: event.target.value })} placeholder="添加题目描述（选填）" aria-label="题目描述" />
                       {(["single", "multiple", "dropdown", "cascade"] as QuestionType[]).includes(question.type) && (
-                        <div className="choice-preview">
-                          {question.options?.map((option) => (
-                            <span key={option}><i>{question.type === "multiple" ? "□" : "○"}</i>{option}</span>
+                        <div className={`choice-preview ${selectedId === question.id ? "editing" : ""}`}>
+                          {question.options?.map((option, optionIndex) => (
+                            <span key={`${question.id}-${optionIndex}`}><i>{question.type === "multiple" ? "□" : "○"}</i>{selectedId === question.id ? <><input value={option} onChange={(event) => updateOption(optionIndex, event.target.value)} /><button disabled={(question.options?.length || 0) <= 2} onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { options: question.options?.filter((_, itemIndex) => itemIndex !== optionIndex) }); }}>×</button></> : option}</span>
                           ))}
+                          {selectedId === question.id && <button className="inline-add-option" onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { options: [...(question.options || []), `选项 ${(question.options?.length || 0) + 1}`] }); }}>＋ 添加选项</button>}
                         </div>
                       )}
                       {(["text", "textarea", "date", "file", "imageUpload", "city", "provinceCity", "location", "ocr", "random", "product", "appointmentDate", "appointmentSlot"] as QuestionType[]).includes(question.type) && <div className="text-preview">{question.type === "date" || question.type === "appointmentDate" ? "请选择日期" : question.type === "appointmentSlot" ? "请选择预约时段" : "请输入您的回答"}</div>}
@@ -299,9 +301,11 @@ export default function SurveyEditorPage() {
                       )}
                       {question.type === "description" && <div className="description-preview">这是一段用于说明背景和填写要求的文字。</div>}
                       {(["pageBreak", "divider", "button", "imageDisplay", "carousel"] as QuestionType[]).includes(question.type) && <div className="description-preview">{questionLabels[question.type]}将展示在问卷中，用于组织内容与补充说明。</div>}
+                      {logicQuestionId === question.id && <div className="inline-logic-panel"><header><div><strong>题目显示逻辑</strong><small>满足以下条件时显示本题</small></div><button onClick={(event) => { event.stopPropagation(); setLogicQuestionId(null); }}>×</button></header>{index === 0 ? <p>第一题无法引用前置题目，请从第二题开始设置显示逻辑。</p> : <div className="logic-condition-row"><span>当</span><select value={question.displayLogic?.questionId || questions[index - 1].id} onChange={(event) => updateQuestion(question.id, { displayLogic: { questionId: event.target.value, operator: question.displayLogic?.operator || "等于", value: question.displayLogic?.value || "" } })}>{questions.slice(0, index).map((source, sourceIndex) => <option key={source.id} value={source.id}>第 {sourceIndex + 1} 题 · {source.title}</option>)}</select><select value={question.displayLogic?.operator || "等于"} onChange={(event) => updateQuestion(question.id, { displayLogic: { questionId: question.displayLogic?.questionId || questions[index - 1].id, operator: event.target.value as "等于" | "不等于" | "包含", value: question.displayLogic?.value || "" } })}><option>等于</option><option>不等于</option><option>包含</option></select><input value={question.displayLogic?.value || ""} onChange={(event) => updateQuestion(question.id, { displayLogic: { questionId: question.displayLogic?.questionId || questions[index - 1].id, operator: question.displayLogic?.operator || "等于", value: event.target.value } })} placeholder="输入选项或答案" /></div>}<footer><button onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { displayLogic: undefined }); setLogicQuestionId(null); }}>清除逻辑</button><button className="primary-button" onClick={(event) => { event.stopPropagation(); setLogicQuestionId(null); flash("题目显示逻辑已保存"); }}>完成</button></footer></div>}
                     </div>
                     {selectedId === question.id && (
                       <div className="question-actions">
+                        <button className={question.displayLogic ? "logic-active" : ""} onClick={(event) => { event.stopPropagation(); setLogicQuestionId(logicQuestionId === question.id ? null : question.id); }}>⌁ 显示逻辑</button>
                         <button onClick={(event) => { event.stopPropagation(); moveQuestion(question.id, -1); }}>↑</button>
                         <button onClick={(event) => { event.stopPropagation(); moveQuestion(question.id, 1); }}>↓</button>
                         <button onClick={(event) => { event.stopPropagation(); duplicateQuestion(question.id); }}>⧉</button>
@@ -317,72 +321,6 @@ export default function SurveyEditorPage() {
           </div>
         </section>
 
-        <aside className="property-panel">
-          <div className="panel-small-heading">
-            <div><strong>题目属性</strong><small>{selected ? questionLabels[selected.type] : "未选择题目"}</small></div>
-            <button onClick={() => flash("属性面板设置")}>•••</button>
-          </div>
-          {selected ? (
-            <div className="property-content">
-              <label className="property-field">
-                <span>题目标题</span>
-                <textarea value={selected.title} onChange={(event) => updateSelected({ title: event.target.value })} />
-              </label>
-              <label className="property-field">
-                <span>辅助说明</span>
-                <textarea
-                  className="compact"
-                  value={selected.description}
-                  placeholder="选填，帮助玩家理解题目"
-                  onChange={(event) => updateSelected({ description: event.target.value })}
-                />
-              </label>
-              <div className="property-switch-row">
-                <div><strong>必答题</strong><small>玩家必须回答才能继续</small></div>
-                <button className={selected.required ? "on" : ""} onClick={() => updateSelected({ required: !selected.required })}><i /></button>
-              </div>
-              {selected.options && (
-                <section className="option-editor">
-                  <div className="property-section-title"><strong>选项设置</strong><button onClick={() => updateSelected({ options: [...selected.options!, `选项 ${selected.options!.length + 1}`] })}>＋ 添加</button></div>
-                  {selected.options.map((option, index) => (
-                    <div className="option-row" key={`${selected.id}-${index}`}>
-                      <span>⠿</span>
-                      <input value={option} onChange={(event) => updateOption(index, event.target.value)} />
-                      <button
-                        disabled={selected.options!.length <= 2}
-                        onClick={() => updateSelected({ options: selected.options!.filter((_, i) => i !== index) })}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                  {selected.type === "multiple" && (
-                    <label className="limit-row">
-                      <span>最多可选</span>
-                      <select><option>不限</option><option>2 项</option><option>3 项</option></select>
-                    </label>
-                  )}
-                </section>
-              )}
-              {(selected.type === "rating" || selected.type === "nps") && (
-                <section className="score-settings">
-                  <div className="property-section-title"><strong>分值范围</strong></div>
-                  <div>
-                    <label><span>起始分</span><input type="number" value={selected.min} onChange={(e) => updateSelected({ min: Number(e.target.value) })} /></label>
-                    <label><span>最高分</span><input type="number" value={selected.max} onChange={(e) => updateSelected({ max: Number(e.target.value) })} /></label>
-                  </div>
-                </section>
-              )}
-              <section className="property-advanced">
-                <button onClick={() => router.push(`/survey/${surveyId}/logic`)}>分支与显示逻辑 <span>›</span></button>
-                <button onClick={() => flash("已打开校验规则")}>校验与错误提示 <span>›</span></button>
-                <button onClick={() => router.push(`/survey/${surveyId}/languages`)}>多语言翻译 <span>›</span></button>
-              </section>
-            </div>
-          ) : (
-            <div className="property-empty">选择画布中的题目后进行配置</div>
-          )}
-        </aside>
       </section>
 
       {preview && (

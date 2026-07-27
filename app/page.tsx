@@ -96,12 +96,6 @@ const navItems = [
   ["▱", "数据"],
 ];
 
-const quickGroups = [
-  ["全部问卷", 12],
-  ["我创建的", 5],
-  ["回收站", 1],
-];
-
 function formatNumber(value: number) {
   return new Intl.NumberFormat("zh-CN").format(value);
 }
@@ -120,6 +114,8 @@ export default function Home() {
   const [customProjects, setCustomProjects] = useState<ResearchProject[]>([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"全部" | Status>("全部");
+  const [ownerScope, setOwnerScope] = useState<"全部创建人" | "我创建的">("全部创建人");
+  const [showWorkspaceMore, setShowWorkspaceMore] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<Survey | null>(null);
   const [surveys, setSurveys] = useState(seedSurveys);
@@ -165,19 +161,17 @@ export default function Home() {
       const byTrash = activeGroup === "回收站" ? isTrashed : !isTrashed;
       const byRegion = survey.region === region;
       const byStatus = status === "全部" || survey.status === status;
-      const byView =
-        activeGroup === "全部问卷" ||
-        (activeGroup === "我创建的" && survey.owner === "李孟哲") ||
-        activeGroup === "回收站";
+      const byView = activeGroup === "全部问卷" || activeGroup === "回收站";
+      const byOwner = ownerScope === "全部创建人" || survey.owner === "李孟哲";
       const byProject = !activeProjectGroup || survey.group === activeProjectGroup;
       const byQuery =
         !query ||
         survey.name.toLowerCase().includes(query.toLowerCase()) ||
         survey.game.toLowerCase().includes(query.toLowerCase()) ||
         survey.group.toLowerCase().includes(query.toLowerCase());
-      return byTrash && byRegion && byStatus && byView && byProject && byQuery;
+      return byTrash && byRegion && byStatus && byView && byOwner && byProject && byQuery;
     });
-  }, [activeGroup, activeProjectGroup, query, region, status, surveys, trashedIds]);
+  }, [activeGroup, activeProjectGroup, ownerScope, query, region, status, surveys, trashedIds]);
 
   const projectGroups = useMemo(() => {
     const groups = new Map<string, number>();
@@ -200,12 +194,10 @@ export default function Home() {
     const current = surveys.filter((survey) => {
       const isTrashed = trashedIds.includes(survey.id);
       const byTrash = activeGroup === "回收站" ? isTrashed : !isTrashed;
-      const byView =
-        activeGroup === "全部问卷" ||
-        (activeGroup === "我创建的" && survey.owner === "李孟哲") ||
-        activeGroup === "回收站";
+      const byView = activeGroup === "全部问卷" || activeGroup === "回收站";
+      const byOwner = ownerScope === "全部创建人" || survey.owner === "李孟哲";
       const byProject = !activeProjectGroup || survey.group === activeProjectGroup;
-      return byTrash && byView && byProject && survey.region === region;
+      return byTrash && byView && byOwner && byProject && survey.region === region;
     });
 
     return {
@@ -214,7 +206,7 @@ export default function Home() {
       草稿: current.filter((item) => item.status === "草稿").length,
       已结束: current.filter((item) => item.status === "已结束").length,
     };
-  }, [activeGroup, activeProjectGroup, region, surveys, trashedIds]);
+  }, [activeGroup, activeProjectGroup, ownerScope, region, surveys, trashedIds]);
 
   function notify(message: string) {
     setToast(message);
@@ -375,52 +367,19 @@ export default function Home() {
         </header>
 
         <div className="content-layout">
-          <aside className="survey-sidebar">
-            <div className="sidebar-heading">
-              <div>
-                <small>USER RESEARCH</small>
-                <h2>用研中心</h2>
-              </div>
-            </div>
-            <nav aria-label="问卷导航">
-              <p className="sidebar-label">问卷管理</p>
-              {quickGroups.map(([label, count]) => (
-                <button
-                  key={label}
-                  className={activeGroup === label ? "active" : ""}
-                  onClick={() => setActiveGroup(String(label))}
-                >
-                  <span className="folder-icon">{label === "回收站" ? "⌫" : "▱"}</span>
-                  <span>{label}</span>
-                  <em>{count}</em>
-                </button>
-              ))}
-              <p className="sidebar-label">资源</p>
-              <button onClick={() => router.push("/survey/templates")}>
-                <span className="folder-icon">▦</span>
-                <span>模板中心</span>
-              </button>
-            </nav>
-            <div className="sidebar-tip">
-              <span>i</span>
-              <p><strong>多语言问卷</strong><br />自动匹配玩家语言，也支持手动切换。</p>
-            </div>
-          </aside>
-
           <section className="main-content">
             <div className="page-heading">
               <div>
-                <div className="breadcrumb">用研中心 <span>/</span> 问卷工作台</div>
-                <h1>问卷工作台</h1>
-                <p>创建、发布并分析面向全球玩家的多语言问卷。</p>
+                <div className="breadcrumb">用研中心 <span>/</span> {activeGroup === "回收站" ? "回收站" : "问卷工作台"}</div>
+                <h1>{activeGroup === "回收站" ? "回收站" : "问卷工作台"}</h1>
+                <p>{activeGroup === "回收站" ? "已删除的问卷会保留 30 天，可恢复后继续使用。" : "创建、发布并查看面向全球玩家的多语言问卷。"}</p>
               </div>
               <div className="heading-actions">
-                <button className="secondary-button" onClick={() => router.push("/survey/templates")}>
+                {activeGroup === "回收站" ? <button className="secondary-button" onClick={() => setActiveGroup("全部问卷")}>← 返回工作台</button> : <><button className="secondary-button" onClick={() => router.push("/survey/templates")}>
                   ▦ 模板中心
-                </button>
-                <button className="primary-button" onClick={() => router.push("/survey/new")}>
+                </button><button className="primary-button" onClick={() => router.push("/survey/new")}>
                   ＋ 创建问卷
-                </button>
+                </button></>}
               </div>
             </div>
 
@@ -482,6 +441,10 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+                <select className="owner-filter" value={ownerScope} onChange={(event) => setOwnerScope(event.target.value as "全部创建人" | "我创建的")} aria-label="创建人筛选">
+                  <option>全部创建人</option>
+                  <option>我创建的</option>
+                </select>
                 <div className="filter-tabs" aria-label="状态筛选">
                   {(["全部", "收集中", "草稿", "已结束"] as const).map((item) => (
                     <button
@@ -498,7 +461,10 @@ export default function Home() {
                   ≡ 筛选
                 </button>
                 <button className="icon-button" aria-label="刷新" onClick={() => notify("数据已刷新")}>↻</button>
-                <button className="icon-button" aria-label="更多操作" onClick={() => notify("更多操作")}>•••</button>
+                <div className="workspace-more">
+                  <button className="icon-button" aria-label="更多操作" onClick={() => setShowWorkspaceMore((current) => !current)}>•••</button>
+                  {showWorkspaceMore && <div className="workspace-more-menu"><button onClick={() => { setActiveGroup("回收站"); setStatus("全部"); setShowWorkspaceMore(false); }}>⌫ 回收站 <em>{trashedIds.length}</em></button></div>}
+                </div>
               </div>
 
               <div className="survey-table" role="table" aria-label="问卷列表">
