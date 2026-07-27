@@ -42,15 +42,11 @@ export default function TemplatesPage() {
   ), [category, query]);
 
   function useTemplate(template: Template) {
-    const id = Date.now();
-    const draft = {
-      id, name: template.id === "blank" ? "未命名问卷" : `${template.name} · 新问卷`,
-      group: "海外 / 未分组", game: "RO3", region: "海外", languages: template.languages[0] === "自定义" ? ["EN"] : template.languages,
-      status: "草稿", responses: 0, completion: 0, updated: "刚刚", owner: "李孟哲",
-    };
-    const saved = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
-    window.localStorage.setItem("joydata-survey-drafts", JSON.stringify([draft, ...saved]));
-    router.push(`/survey/${id}/edit`);
+    if (template.id === "blank") {
+      router.push("/survey/new");
+      return;
+    }
+    router.push(`/survey/new?template=${template.id}`);
   }
 
   function flash(message: string) {

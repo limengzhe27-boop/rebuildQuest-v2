@@ -19,6 +19,8 @@ type Survey = {
   owner: string;
 };
 
+type ResearchProject = { name: string; region: Region };
+
 const seedSurveys: Survey[] = [
   {
     id: 1,
@@ -113,6 +115,9 @@ export default function Home() {
   const [activeProjectGroup, setActiveProjectGroup] = useState<string | null>(null);
   const [projectQuery, setProjectQuery] = useState("");
   const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [showProjectCreate, setShowProjectCreate] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [customProjects, setCustomProjects] = useState<ResearchProject[]>([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"全部" | Status>("全部");
   const [showCreate, setShowCreate] = useState(false);
@@ -136,6 +141,16 @@ export default function Home() {
       });
     } catch {
       window.localStorage.removeItem("joydata-survey-drafts");
+    }
+  }, []);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("joydata-survey-projects");
+    if (!saved) return;
+    try {
+      setCustomProjects(JSON.parse(saved) as ResearchProject[]);
+    } catch {
+      window.localStorage.removeItem("joydata-survey-projects");
     }
   }, []);
 
@@ -171,8 +186,11 @@ export default function Home() {
     surveys
       .filter((survey) => survey.region === region && !trashedIds.includes(survey.id))
       .forEach((survey) => groups.set(survey.group, (groups.get(survey.group) || 0) + 1));
+    customProjects
+      .filter((project) => project.region === region)
+      .forEach((project) => groups.set(project.name, groups.get(project.name) || 0));
     return Array.from(groups, ([name, count]) => ({ name, count }));
-  }, [region, surveys, trashedIds]);
+  }, [customProjects, region, surveys, trashedIds]);
 
   const matchingProjectGroups = useMemo(() => {
     const normalizedQuery = projectQuery.trim().toLowerCase();
@@ -205,6 +223,29 @@ export default function Home() {
   function notify(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 2400);
+  }
+
+  function createProject() {
+    const name = newProjectName.trim();
+    if (!name) {
+      notify("请输入调研项目名称");
+      return;
+    }
+    if (projectGroups.some((project) => project.name === name)) {
+      setActiveProjectGroup(name);
+      setShowProjectCreate(false);
+      setNewProjectName("");
+      notify("已切换至该调研项目");
+      return;
+    }
+    const next = [...customProjects, { name, region }];
+    setCustomProjects(next);
+    window.localStorage.setItem("joydata-survey-projects", JSON.stringify(next));
+    setActiveProjectGroup(name);
+    setActiveGroup("全部问卷");
+    setShowProjectCreate(false);
+    setNewProjectName("");
+    notify("调研项目已创建，可在此项目下创建问卷");
   }
 
   function toggleLanguage(language: string) {
@@ -424,6 +465,8 @@ export default function Home() {
                     <div className="project-picker-header"><strong>选择项目</strong><button aria-label="关闭项目选择" onClick={() => setShowProjectPicker(false)}>×</button></div>
                     <div className="project-picker-search"><span>⌕</span><input autoFocus value={projectQuery} onChange={(event) => setProjectQuery(event.target.value)} placeholder="搜索项目名称，例如 RO3 3.6" /></div>
                     <small>项目是问卷的业务归属；状态筛选会在当前项目内生效。</small>
+                    <button className="project-create-trigger" onClick={() => setShowProjectCreate((current) => !current)}>＋ 新建调研项目</button>
+                    {showProjectCreate && <div className="project-create-form"><input autoFocus value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} onKeyDown={(event) => event.key === "Enter" && createProject()} placeholder="例如：RO3 3.7版本回归调研" /><button onClick={createProject}>创建</button></div>}
                     <div className="project-picker-list">
                       <button className={!activeProjectGroup ? "selected" : ""} onClick={() => { setActiveProjectGroup(null); setShowProjectPicker(false); }}>全部项目 <em>{projectGroups.reduce((total, group) => total + group.count, 0)}</em></button>
                       {matchingProjectGroups.map((group) => <button key={group.name} className={activeProjectGroup === group.name ? "selected" : ""} onClick={() => { setActiveProjectGroup(group.name); setActiveGroup("全部问卷"); setShowProjectPicker(false); }}><span>{group.name}</span><em>{group.count}</em></button>)}

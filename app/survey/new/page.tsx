@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Region = "海外" | "国内";
 type CreationMode = "blank" | "template" | "copy";
@@ -22,16 +22,32 @@ const globalLanguages = [
   { code: "ID", name: "Bahasa Indonesia", hint: "印尼语" },
 ];
 
+const templatePresets: Record<string, { name: string; label: string; languages: string[] }> = {
+  "game-beta": { name: "游戏测试体验调研（副本）", label: "游戏测试体验调研", languages: ["EN", "繁中", "ไทย"] },
+  update: { name: "版本更新满意度（副本）", label: "版本更新满意度", languages: ["EN", "繁中"] },
+  nps: { name: "玩家 NPS 追踪（副本）", label: "玩家 NPS 追踪", languages: ["EN", "繁中", "ไทย"] },
+  churn: { name: "流失玩家召回调研（副本）", label: "流失玩家召回调研", languages: ["EN", "繁中"] },
+  event: { name: "运营活动复盘（副本）", label: "运营活动复盘", languages: ["简中"] },
+  community: { name: "社区玩家画像（副本）", label: "社区玩家画像", languages: ["EN", "日本語", "한국어"] },
+  support: { name: "客服满意度回访（副本）", label: "客服满意度回访", languages: ["EN", "繁中", "ไทย"] },
+};
+
 export default function NewSurveyPage() {
+  return <Suspense fallback={<main className="wizard-page" />}><NewSurveyWizard /></Suspense>;
+}
+
+function NewSurveyWizard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const template = templatePresets[searchParams.get("template") || ""];
   const [step, setStep] = useState(1);
-  const [name, setName] = useState("");
-  const [project, setProject] = useState("RO3 东南亚服");
-  const [group, setGroup] = useState("版本调研");
+  const [name, setName] = useState(template?.name || "");
+  const [game, setGame] = useState("RO3 东南亚服");
+  const [projectGroup, setProjectGroup] = useState("RO3 3.6版本先锋测试");
   const [region, setRegion] = useState<Region>("海外");
-  const [languages, setLanguages] = useState(["EN", "繁中"]);
+  const [languages, setLanguages] = useState(template?.languages || ["EN", "繁中"]);
   const [defaultLanguage, setDefaultLanguage] = useState("EN");
-  const [mode, setMode] = useState<CreationMode>("blank");
+  const [mode, setMode] = useState<CreationMode>(template ? "template" : "blank");
   const [error, setError] = useState("");
 
   const availableLanguages = useMemo(
@@ -66,8 +82,8 @@ export default function NewSurveyPage() {
   }
 
   function nextStep() {
-    if (step === 1 && !name.trim()) {
-      setError("请填写问卷名称");
+    if (step === 1 && (!name.trim() || !projectGroup.trim())) {
+      setError(!name.trim() ? "请填写问卷名称" : "请填写或选择调研项目");
       return;
     }
     setError("");
@@ -78,13 +94,12 @@ export default function NewSurveyPage() {
     const draft = {
       id: Date.now(),
       name: name.trim(),
-      group: `${region} / ${group}`,
-      game: project.replace(" 东南亚服", "").replace(" 国服", ""),
+      group: projectGroup.trim(),
+      game: game.replace(" 东南亚服", "").replace(" 国服", ""),
       region,
       languages,
       status: "草稿",
       responses: 0,
-      completion: 0,
       updated: "刚刚",
       owner: "李孟哲",
       defaultLanguage,
@@ -174,7 +189,7 @@ export default function NewSurveyPage() {
                   </label>
                   <label className="wizard-field">
                     <span>所属项目 <b>*</b></span>
-                    <select value={project} onChange={(event) => setProject(event.target.value)}>
+                    <select value={game} onChange={(event) => setGame(event.target.value)}>
                       <option>RO3 东南亚服</option>
                       <option>ROOC 亚服</option>
                       <option>HMT 港澳台</option>
@@ -182,13 +197,19 @@ export default function NewSurveyPage() {
                     </select>
                   </label>
                   <label className="wizard-field">
-                    <span>问卷分组</span>
-                    <select value={group} onChange={(event) => setGroup(event.target.value)}>
-                      <option>版本调研</option>
-                      <option>满意度</option>
-                      <option>运营活动</option>
-                      <option>未分组</option>
-                    </select>
+                    <span>调研项目 <b>*</b></span>
+                    <input
+                      value={projectGroup}
+                      onChange={(event) => { setProjectGroup(event.target.value); setError(""); }}
+                      list="research-projects"
+                      placeholder="例如：RO3 3.6版本先锋测试"
+                    />
+                    <datalist id="research-projects">
+                      <option value="RO3 3.6版本先锋测试" />
+                      <option value="HMT 2026 Q3 VIP满意度" />
+                      <option value="ROOC 1.8职业平衡调研" />
+                    </datalist>
+                    <small>可选择已有项目；输入新名称并创建问卷，即会新建该项目。</small>
                   </label>
                   <label className="wizard-field full">
                     <span>内部备注</span>
@@ -318,10 +339,10 @@ export default function NewSurveyPage() {
                   </button>
                   <button
                     className={mode === "template" ? "selected" : ""}
-                    onClick={() => setMode("template")}
+                    onClick={() => template ? setMode("template") : router.push("/survey/templates")}
                   >
                     <span>▦</span>
-                    <div><strong>从模板创建</strong><p>使用满意度、招募、版本反馈等标准模板。</p></div>
+                    <div><strong>从模板创建</strong><p>{template ? `已选「${template.label}」` : "前往模板中心选择满意度、招募、版本反馈等标准模板。"}</p></div>
                     <i>{mode === "template" ? "✓" : ""}</i>
                   </button>
                   <button
@@ -336,7 +357,9 @@ export default function NewSurveyPage() {
                 <div className="creation-summary">
                   <h3>创建信息确认</h3>
                   <div><span>问卷名称</span><strong>{name}</strong></div>
-                  <div><span>项目与分组</span><strong>{project} · {group}</strong></div>
+                  <div><span>所属游戏</span><strong>{game}</strong></div>
+                  <div><span>调研项目</span><strong>{projectGroup}</strong></div>
+                  {template && <div><span>使用模板</span><strong>{template.label}</strong></div>}
                   <div><span>工作空间</span><strong>{region}</strong></div>
                   <div><span>问卷语言</span><strong>{languages.join("、")}</strong></div>
                   <div><span>默认语言</span><strong>{defaultLanguage}</strong></div>
