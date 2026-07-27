@@ -18,6 +18,7 @@ type Appearance = {
   cover: boolean;
   logo: boolean;
   requiredMark: boolean;
+  languageSwitch: boolean;
   background: "plain" | "soft" | "dark";
 };
 
@@ -33,6 +34,7 @@ const defaults: Appearance = {
   cover: true,
   logo: true,
   requiredMark: true,
+  languageSwitch: true,
   background: "soft",
 };
 
@@ -120,6 +122,8 @@ export default function AppearancePage() {
         <small>{config.questionNumber ? `${String(overallIndex + 1).padStart(2, "0")} · ` : ""}{question.type === "nps" ? "NPS" : "问题"}</small>
         <h2>{translated(`${question.id}:title`, question.title, question.id)}{config.requiredMark && question.required && <b>*</b>}</h2>
         {question.description && <p>{translated(`${question.id}:description`, question.description)}</p>}
+        {question.helpText && <div className="appearance-question-help">ⓘ {translated(`${question.id}:help`, question.helpText)}</div>}
+        {question.referenceImage && <div className="appearance-reference-image">▧ 参考图片</div>}
         {question.options?.slice(0, 5).map((option, optionIndex) => <button key={`${question.id}-${optionIndex}`} className={optionIndex === 0 ? "selected" : ""}><i>{question.type === "multiple" ? "□" : "○"}</i>{translated(`${question.id}:option:${optionIndex}`, option)}</button>)}
         {(question.type === "text" || question.type === "textarea" || question.type === "phone") && <div className="appearance-input">{question.type === "phone" ? "请输入手机号" : "请输入您的回答"}</div>}
         {(question.type === "rating" || question.type === "nps") && <div className="appearance-score-row">{Array.from({ length: Math.min(11, (question.max || 5) - (question.min || 0) + 1) }, (_, score) => <span key={score}>{score + (question.min || 0)}</span>)}</div>}
@@ -155,6 +159,7 @@ export default function AppearancePage() {
             ["显示进度条", "progress"],
             ["显示题号", "questionNumber"],
             ["显示必填标记", "requiredMark"],
+            ["允许用户切换语言", "languageSwitch"],
           ].map(([label, key]) => <div className="appearance-toggle" key={key}><span>{label}</span><button className={`mini-switch ${config[key as keyof Appearance] ? "on" : ""}`} onClick={() => update({ [key]: !config[key as keyof Appearance] })}><i /></button></div>)}</section>
         </aside>
 
@@ -167,6 +172,7 @@ export default function AppearancePage() {
           </div>
           <div className={`survey-device ${device} ${config.density} font-${config.fontSize} button-${config.buttonStyle}`}>
             <div className="player-mini-page player-scroll-page">
+              {config.languageSwitch && <div className="appearance-player-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}⌄</div>}
               {config.progress && <div className="mini-progress"><i style={{ width: hasPagination ? `${(pageIndex + 1) / pages.length * 100}%` : "100%" }} /></div>}
               {config.cover && <header>{config.logo && <span>RO3 · PLAYER RESEARCH</span>}<h1>{translated("form:title", surveyTitle)}</h1><p>{translated("form:intro", "感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。")}</p></header>}
               <main className="appearance-form-content">

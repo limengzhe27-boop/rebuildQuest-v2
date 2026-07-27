@@ -115,12 +115,15 @@ export default function PlayerSurvey() {
         window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`) || "{}",
       );
       if (appearance.primary) setPrimary(appearance.primary);
+      if (typeof appearance.languageSwitch === "boolean") setAllowLanguageSwitch(appearance.languageSwitch);
 
       const publications = JSON.parse(
         window.localStorage.getItem(`joydata-survey-publications-${surveyId}`) || "[]",
       );
       const publication = publications.find((item: { slug: string }) => item.slug === params.slug);
-      if (publication) setAllowLanguageSwitch(publication.allowLanguageSwitch !== false);
+      if (publication && typeof appearance.languageSwitch !== "boolean") {
+        setAllowLanguageSwitch(publication.allowLanguageSwitch !== false);
+      }
       if (publication?.status === "stopped") {
         setClosedMessage(
           publication.closedMessage ||
@@ -308,6 +311,8 @@ export default function PlayerSurvey() {
             <small>{String(step).padStart(2, "0")} / {String(visibleQuestions.length).padStart(2, "0")} · {current.type.toUpperCase()}</small>
             <h2>{currentLocalized.title}{isRequired(current) && <b>*</b>}</h2>
             <p>{currentLocalized.description || copy.optional}</p>
+            {currentLocalized.helpText && <div className="player-question-help">ⓘ {currentLocalized.helpText}</div>}
+            {currentLocalized.referenceImage && <div className="player-reference-image"><img src={currentLocalized.referenceImage} alt="题目参考图" /></div>}
             <QuestionInput question={currentLocalized} value={answers[current.id]} onChange={updateAnswer} placeholder={copy.placeholder} />
             {validation && <div className="player-validation">! {validation}</div>}
             <footer>
@@ -369,7 +374,7 @@ function QuestionInput({
   if (question.type === "nps" || question.type === "rating") {
     const min = question.min ?? 0;
     const max = question.max ?? 10;
-    return <><div className="player-nps">{Array.from({ length: max - min + 1 }, (_, index) => index + min).map((score) => <button key={score} className={value === score ? "selected" : ""} onClick={() => onChange(score)}>{score}</button>)}</div><div className="nps-labels"><span>{min}</span><span>{max}</span></div></>;
+    return <><div className="player-nps">{Array.from({ length: Math.min(21, max - min + 1) }, (_, index) => index + min).map((score) => <button key={score} className={value === score ? "selected" : ""} onClick={() => onChange(score)}>{score}</button>)}</div><div className="nps-labels"><span>{question.minLabel || min}</span><span>{question.maxLabel || max}</span></div></>;
   }
   return <><textarea value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} maxLength={1000} /><div className="text-count">{typeof value === "string" ? value.length : 0} / 1000</div></>;
 }

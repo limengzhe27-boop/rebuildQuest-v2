@@ -45,6 +45,10 @@ export type Question = {
   options?: string[];
   min?: number;
   max?: number;
+  minLabel?: string;
+  maxLabel?: string;
+  helpText?: string;
+  referenceImage?: string;
   displayLogic?: {
     match: "all" | "any";
     conditions: {
@@ -133,7 +137,7 @@ export function createQuestion(type: QuestionType): Question {
   if (["single", "multiple", "sort", "image", "dropdown", "cascade", "matrixSelect", "tableSelect"].includes(type)) {
     return { ...common, options: ["选项 1", "选项 2", "选项 3"] };
   }
-  if (type === "rating") return { ...common, min: 1, max: 5 };
+  if (type === "rating") return { ...common, min: 1, max: 5, minLabel: "非常不满意", maxLabel: "非常满意" };
   if (type === "nps") return { ...common, min: 0, max: 10 };
   if (["matrix", "matrixFill", "matrixScale", "matrixSlider", "matrixDropdown"].includes(type)) return { ...common, options: ["维度 1", "维度 2", "维度 3"] };
   return common;

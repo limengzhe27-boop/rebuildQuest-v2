@@ -89,7 +89,6 @@ export default function SurveyEditorPage() {
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [selectedId, setSelectedId] = useState(defaultQuestions[0].id);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
-  const [preview, setPreview] = useState(false);
   const [showTemplateSave, setShowTemplateSave] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateCategories, setTemplateCategories] = useState<string[]>([]);
@@ -337,7 +336,6 @@ export default function SurveyEditorPage() {
         <SurveyNav surveyId={surveyId} active="edit" onNotice={flash} />
         <div className="editor-actions">
           <button className="secondary-button" onClick={openTemplateSave}>设为模板</button>
-          <button className="secondary-button" onClick={() => setPreview(true)}>▣ 预览</button>
           <button className="primary-button" onClick={() => flash("草稿已保存，可以继续配置发布")}>保存草稿</button>
         </div>
       </header>
@@ -370,18 +368,6 @@ export default function SurveyEditorPage() {
         </aside>
 
         <section className="builder-canvas-wrap">
-          <div className="canvas-toolbar">
-            <div>
-              <button className="active">桌面端</button>
-              <button>移动端</button>
-            </div>
-            <div>
-              <button onClick={() => flash("已撤销最近操作")}>↶</button>
-              <button onClick={() => flash("没有可重做的操作")}>↷</button>
-              <span />
-              <button onClick={() => flash("问卷结构检查通过")}>✓ 检查问卷</button>
-            </div>
-          </div>
           <div className="builder-scroll">
             <div className="survey-canvas">
               <header className="survey-cover">
@@ -472,6 +458,14 @@ export default function SurveyEditorPage() {
                       </div>
                       <div className="inline-title-row"><b>{question.required ? "*" : ""}</b><textarea value={question.title} onChange={(event) => updateQuestion(question.id, { title: event.target.value })} aria-label="题目标题" /></div>
                       <input className="inline-description" value={question.description} onChange={(event) => updateQuestion(question.id, { description: event.target.value })} placeholder="添加题目描述（选填）" aria-label="题目描述" />
+                      {selectedId === question.id && (
+                        <div className="question-support-tools">
+                          <button onClick={() => updateQuestion(question.id, { helpText: question.helpText === undefined ? "" : undefined })}>ⓘ {question.helpText === undefined ? "添加填写提示" : "移除填写提示"}</button>
+                          <button onClick={() => updateQuestion(question.id, { referenceImage: question.referenceImage === undefined ? "" : undefined })}>▧ {question.referenceImage === undefined ? "添加参考图" : "移除参考图"}</button>
+                        </div>
+                      )}
+                      {question.helpText !== undefined && <input className="question-help-input" value={question.helpText} onChange={(event) => updateQuestion(question.id, { helpText: event.target.value })} placeholder="输入填写提示，例如评分标准或示例说明" />}
+                      {question.referenceImage !== undefined && <div className="question-reference-editor"><input value={question.referenceImage} onChange={(event) => updateQuestion(question.id, { referenceImage: event.target.value })} placeholder="粘贴参考图片地址" /><span>{question.referenceImage ? "已添加参考图" : "参考图将在题目下方展示"}</span></div>}
                       {(["single", "multiple", "dropdown", "cascade"] as QuestionType[]).includes(question.type) && (
                         <div className={`choice-preview ${selectedId === question.id ? "editing" : ""}`}>
                           {question.options?.map((option, optionIndex) => (
@@ -482,12 +476,21 @@ export default function SurveyEditorPage() {
                       )}
                       {(["text", "textarea", "date", "file", "imageUpload", "city", "provinceCity", "globalProvinceCity", "location", "phone", "ocr", "random", "product", "appointmentDate", "appointmentSlot"] as QuestionType[]).includes(question.type) && <div className="text-preview">{question.type === "date" || question.type === "appointmentDate" ? "请选择日期" : question.type === "appointmentSlot" ? "请选择预约时段" : question.type === "phone" ? "请输入手机号并完成验证" : "请输入您的回答"}</div>}
                       {(question.type === "nps" || question.type === "rating") && (
-                        <div className="score-preview">
-                          {Array.from(
-                            { length: (question.max || 5) - (question.min || 0) + 1 },
-                            (_, score) => score + (question.min || 0),
-                          ).map((score) => <span key={score}>{score}</span>)}
-                        </div>
+                        <>
+                          {question.type === "rating" && selectedId === question.id && <div className="rating-config-row">
+                            <label><span>最低分</span><input type="number" value={question.min ?? 0} onChange={(event) => updateQuestion(question.id, { min: Number(event.target.value) })} /></label>
+                            <label><span>最高分</span><input type="number" value={question.max ?? 5} onChange={(event) => updateQuestion(question.id, { max: Number(event.target.value) })} /></label>
+                            <label><span>低分辅助文字</span><input value={question.minLabel || ""} onChange={(event) => updateQuestion(question.id, { minLabel: event.target.value })} placeholder="例如：很不满意" /></label>
+                            <label><span>高分辅助文字</span><input value={question.maxLabel || ""} onChange={(event) => updateQuestion(question.id, { maxLabel: event.target.value })} placeholder="例如：非常满意" /></label>
+                          </div>}
+                          <div className="score-label-row"><small>{question.minLabel}</small><small>{question.maxLabel}</small></div>
+                          <div className="score-preview">
+                            {Array.from(
+                              { length: Math.max(1, Math.min(21, (question.max ?? 5) - (question.min ?? 0) + 1)) },
+                              (_, score) => score + (question.min ?? 0),
+                            ).map((score) => <span key={score}>{score}</span>)}
+                          </div>
+                        </>
                       )}
                       {(["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown", "tableSelect"] as QuestionType[]).includes(question.type) && (
                         <div className="matrix-preview">
@@ -592,7 +595,9 @@ export default function SurveyEditorPage() {
               <label><span>模板名称 <b>*</b></span><input value={templateName} onChange={(event) => setTemplateName(event.target.value)} /></label>
               <label>
                 <span>模板分类 <b>*</b><small>可选择多个分类</small></span>
-                <div className="template-category-checks">
+                <details className="template-category-multiselect">
+                  <summary>{templateCategories.length ? `已选择 ${templateCategories.length} 个分类` : "请选择模板分类"}<i>⌄</i></summary>
+                  <div className="template-category-checks">
                   {availableTemplateCategories.map((category) => (
                     <button
                       key={category}
@@ -602,7 +607,8 @@ export default function SurveyEditorPage() {
                       <i>{templateCategories.includes(category) ? "✓" : ""}</i>{category}
                     </button>
                   ))}
-                </div>
+                  </div>
+                </details>
               </label>
               <label><span>模板说明</span><textarea value={templateDescription} onChange={(event) => setTemplateDescription(event.target.value)} placeholder="说明适用场景、目标用户和使用方式" /></label>
               <p>保存后可在“模板中心 → 我的模板”中查看，并只能用于相同工作区。</p>
@@ -615,27 +621,6 @@ export default function SurveyEditorPage() {
         </div>
       )}
 
-      {preview && (
-        <div className="preview-backdrop" onMouseDown={() => setPreview(false)}>
-          <section className="preview-modal" onMouseDown={(event) => event.stopPropagation()}>
-            <header><div><strong>玩家端预览</strong><small>iPhone 15 · English</small></div><button onClick={() => setPreview(false)}>×</button></header>
-            <div className="phone-frame">
-              <div className="phone-screen">
-                <span className="preview-brand">RO3 · PLAYER RESEARCH</span>
-                <h2>{surveyTitle}</h2>
-                <p>感谢您参与本次测试，您的反馈非常重要。</p>
-                {questions.slice(0, 2).map((question, index) => (
-                  <div className="phone-question" key={question.id}>
-                    <strong>{index + 1}. {question.title}</strong>
-                    {question.options?.slice(0, 3).map((option) => <span key={option}>○ {option}</span>)}
-                  </div>
-                ))}
-                <button>下一页</button>
-              </div>
-            </div>
-          </section>
-        </div>
-      )}
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
     </main>
   );

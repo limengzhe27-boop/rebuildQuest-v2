@@ -20,9 +20,16 @@ export type SurveyResponse = {
   submitBrowser: string;
   sourceParameter: string;
   qualityReason: string;
+  submitAddress: string;
+  completionTime: string;
+  joyUserInfo: string;
+  lineUserInfo: string;
+  extValue: string;
+  answerCount: number;
+  formVersion: string;
 };
 
-type BaseResponse = Omit<SurveyResponse, "serialNumber" | "accountType" | "submitIp" | "submitOs" | "submitBrowser" | "sourceParameter" | "qualityReason">;
+type BaseResponse = Omit<SurveyResponse, "serialNumber" | "accountType" | "submitIp" | "submitOs" | "submitBrowser" | "sourceParameter" | "qualityReason" | "submitAddress" | "completionTime" | "joyUserInfo" | "lineUserInfo" | "extValue" | "answerCount" | "formVersion">;
 
 const baseResponses: BaseResponse[] = [
   { id: "RSP-008421", submittedAt: "2026-07-24 14:31:28", playerId: "JM-5839201", country: "美国", locale: "English", channel: "Discord", device: "Windows", duration: "04:26", status: "valid", satisfaction: "非常满意", nps: 9, feedback: "The battle flow feels much smoother. I hope controller rebinding can be added." },
@@ -57,6 +64,13 @@ export const surveyResponses: SurveyResponse[] = baseResponses.map((item, index)
   submitOs: item.device === "Windows" ? "Windows 11" : item.device === "Android" ? "Android 15" : "iOS 19",
   submitBrowser: browserByDevice[item.device] || "WebView",
   sourceParameter: sourceByChannel[item.channel] || "source=direct",
+  submitAddress: item.country,
+  completionTime: item.duration,
+  joyUserInfo: item.playerId.startsWith("JM-") ? `${item.playerId} · 已授权` : "—",
+  lineUserInfo: item.playerId.startsWith("LINE-") ? `${item.playerId} · 已授权` : "—",
+  extValue: `region=${item.country};device=${item.device}`,
+  answerCount: item.feedback ? 3 : 2,
+  formVersion: "v3.6",
   qualityReason:
     item.status === "review"
       ? "填写时长仅 31 秒，触发极速提交规则"

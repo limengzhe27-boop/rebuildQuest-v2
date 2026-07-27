@@ -7,26 +7,33 @@ import { LiveSurveyResponse, runtimeLocales } from "@/lib/survey-runtime";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
-const exportColumns: [string, (item: SurveyResponse) => string | number][] = [
-  ["序号", (item) => item.serialNumber],
-  ["答卷编号", (item) => item.id],
-  ["提交时间", (item) => item.submittedAt],
-  ["账号类型", (item) => item.accountType],
-  ["玩家标识", (item) => item.playerId],
-  ["国家/地区", (item) => item.country],
-  ["问卷语言", (item) => item.locale],
-  ["渠道", (item) => item.channel],
-  ["渠道参数", (item) => item.sourceParameter],
-  ["提交 IP", (item) => item.submitIp],
-  ["操作系统", (item) => item.submitOs],
-  ["浏览器", (item) => item.submitBrowser],
-  ["设备", (item) => item.device],
-  ["填写时长", (item) => item.duration],
-  ["整体满意度", (item) => item.satisfaction],
-  ["NPS", (item) => item.nps],
-  ["改进建议", (item) => item.feedback],
-  ["质量状态", (item) => responseStatusLabel[item.status]],
-  ["判定原因", (item) => item.qualityReason],
+const allColumns: { key: string; label: string; getter: (item: SurveyResponse) => string | number }[] = [
+  { key: "serialNumber", label: "序号", getter: (item) => item.serialNumber },
+  { key: "id", label: "答卷编号", getter: (item) => item.id },
+  { key: "submittedAt", label: "提交时间", getter: (item) => item.submittedAt },
+  { key: "formVersion", label: "问卷版本", getter: (item) => item.formVersion },
+  { key: "accountType", label: "账号类型", getter: (item) => item.accountType },
+  { key: "playerId", label: "玩家标识", getter: (item) => item.playerId },
+  { key: "joyUserInfo", label: "JoyMaker 信息", getter: (item) => item.joyUserInfo },
+  { key: "lineUserInfo", label: "LINE 信息", getter: (item) => item.lineUserInfo },
+  { key: "country", label: "国家/地区", getter: (item) => item.country },
+  { key: "submitAddress", label: "提交地区", getter: (item) => item.submitAddress },
+  { key: "locale", label: "问卷语言", getter: (item) => item.locale },
+  { key: "channel", label: "来源", getter: (item) => item.channel },
+  { key: "sourceParameter", label: "来源参数", getter: (item) => item.sourceParameter },
+  { key: "submitIp", label: "提交 IP", getter: (item) => item.submitIp },
+  { key: "submitOs", label: "操作系统", getter: (item) => item.submitOs },
+  { key: "submitBrowser", label: "浏览器", getter: (item) => item.submitBrowser },
+  { key: "device", label: "设备", getter: (item) => item.device },
+  { key: "duration", label: "填写时长", getter: (item) => item.duration },
+  { key: "completionTime", label: "完成用时", getter: (item) => item.completionTime },
+  { key: "answerCount", label: "已答题数", getter: (item) => item.answerCount },
+  { key: "satisfaction", label: "整体满意度", getter: (item) => item.satisfaction },
+  { key: "nps", label: "NPS", getter: (item) => item.nps },
+  { key: "feedback", label: "改进建议", getter: (item) => item.feedback || "—" },
+  { key: "extValue", label: "扩展字段", getter: (item) => item.extValue },
+  { key: "status", label: "质量状态", getter: (item) => responseStatusLabel[item.status] },
+  { key: "qualityReason", label: "判定原因", getter: (item) => item.qualityReason },
 ];
 
 export default function ResponsesPage() {
@@ -40,6 +47,8 @@ export default function ResponsesPage() {
   const [notice, setNotice] = useState("");
   const [showRules, setShowRules] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showColumns, setShowColumns] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState(allColumns.map((column) => column.key));
   const [liveResponses, setLiveResponses] = useState<SurveyResponse[]>([]);
 
   useEffect(() => {
@@ -66,6 +75,13 @@ export default function ResponsesPage() {
           duration: `${String(Math.floor(item.durationSeconds / 60)).padStart(2, "0")}:${String(item.durationSeconds % 60).padStart(2, "0")}`,
           status: "valid",
           qualityReason: "必答题完整，未命中重复、极速或异常答案规则",
+          submitAddress: "未知",
+          completionTime: `${item.durationSeconds} 秒`,
+          joyUserInfo: "—",
+          lineUserInfo: "—",
+          extValue: item.source ? `source=${item.source}` : "source=direct",
+          answerCount: Object.keys(item.answers).length,
+          formVersion: "当前版本",
           satisfaction: String(item.answers.welcome ?? "—"),
           nps: Number(item.answers.nps ?? 0),
           feedback: String(item.answers.feedback ?? ""),
@@ -81,6 +97,7 @@ export default function ResponsesPage() {
     const content = `${item.id}${item.playerId}${item.country}${item.channel}${item.sourceParameter}${item.submitIp}${item.satisfaction}${item.feedback}${item.qualityReason}`.toLowerCase();
     return content.includes(query.toLowerCase()) && (locale === "all" || item.locale === locale) && (status === "all" || item.status === status);
   }), [allResponses, locale, query, status]);
+  const selectedColumns = allColumns.filter((column) => visibleColumns.includes(column.key));
 
   function flash(message: string) {
     setNotice(message);
@@ -102,15 +119,15 @@ export default function ResponsesPage() {
   function exportCsv() {
     const escape = (value: string | number) => `"${String(value).replaceAll("\"", "\"\"")}"`;
     const content = [
-      exportColumns.map(([label]) => escape(label)).join(","),
-      ...rows.map((item) => exportColumns.map(([, getter]) => escape(getter(item))).join(",")),
+      selectedColumns.map((column) => escape(column.label)).join(","),
+      ...rows.map((item) => selectedColumns.map((column) => escape(column.getter(item))).join(",")),
     ].join("\r\n");
     downloadFile(`\uFEFF${content}`, "text/csv;charset=utf-8", "csv");
   }
 
   function exportExcel() {
     const escape = (value: string | number) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;");
-    const table = `<table><thead><tr>${exportColumns.map(([label]) => `<th>${escape(label)}</th>`).join("")}</tr></thead><tbody>${rows.map((item) => `<tr>${exportColumns.map(([, getter]) => `<td>${escape(getter(item))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    const table = `<table><thead><tr>${selectedColumns.map((column) => `<th>${escape(column.label)}</th>`).join("")}</tr></thead><tbody>${rows.map((item) => `<tr>${selectedColumns.map((column) => `<td>${escape(column.getter(item))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
     const document = `<html><head><meta charset="UTF-8"><style>table{border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px;mso-number-format:"\\@"}</style></head><body>${table}</body></html>`;
     downloadFile(`\uFEFF${document}`, "application/vnd.ms-excel;charset=utf-8", "xls");
   }
@@ -151,14 +168,24 @@ export default function ResponsesPage() {
           <div className="responses-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索答卷、账号、IP、渠道、答案或判定原因" /></div>
           <select value={locale} onChange={(event) => setLocale(event.target.value)}><option value="all">全部语言</option><option>English</option><option>繁體中文</option><option>ไทย</option></select>
           <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">全部状态</option><option value="valid">有效</option><option value="review">待复核</option><option value="invalid">无效</option></select>
+          <div className="column-selector">
+            <button onClick={() => setShowColumns(!showColumns)}>☷ 显示字段 <em>{visibleColumns.length}/{allColumns.length}</em></button>
+            {showColumns && <div className="column-selector-menu">
+              <header><strong>选择表格字段</strong><button onClick={() => setVisibleColumns(allColumns.map((column) => column.key))}>全选</button></header>
+              <div>{allColumns.map((column) => <label key={column.key}><input type="checkbox" checked={visibleColumns.includes(column.key)} onChange={() => setVisibleColumns((current) => current.includes(column.key) ? (current.length > 1 ? current.filter((key) => key !== column.key) : current) : [...current, column.key])} />{column.label}</label>)}</div>
+              <footer><span>至少保留一个字段</span><button onClick={() => setShowColumns(false)}>完成</button></footer>
+            </div>}
+          </div>
           <span>当前显示 {rows.length} 条</span>
         </div>
 
         <div className="flat-response-table-wrap detailed">
           <table className="flat-response-table detailed-table">
-            <thead><tr><th>序号</th><th>答卷编号</th><th>提交时间</th><th>账号类型</th><th>玩家标识</th><th>国家/地区</th><th>语言</th><th>渠道</th><th>渠道参数</th><th>提交 IP</th><th>操作系统</th><th>浏览器</th><th>设备</th><th>填写时长</th><th>整体满意度</th><th>NPS</th><th>改进建议</th><th>状态</th><th>判定原因</th></tr></thead>
+            <thead><tr>{selectedColumns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead>
             <tbody>{rows.map((item) => <tr key={item.id}>
-              <td>{item.serialNumber}</td><td><strong>{item.id}</strong></td><td>{item.submittedAt}</td><td>{item.accountType}</td><td>{item.playerId}</td><td>{item.country}</td><td>{item.locale}</td><td>{item.channel}</td><td><code>{item.sourceParameter}</code></td><td>{item.submitIp}</td><td>{item.submitOs}</td><td>{item.submitBrowser}</td><td>{item.device}</td><td>{item.duration}</td><td>{item.satisfaction}</td><td><strong>{item.nps}</strong></td><td className="answer-text-cell" title={item.feedback}>{item.feedback || "—"}</td><td><span className={`response-status ${item.status}`}>{responseStatusLabel[item.status]}</span></td><td className="quality-reason-cell" title={item.qualityReason}>{item.qualityReason}</td>
+              {selectedColumns.map((column) => <td key={column.key} className={column.key === "feedback" ? "answer-text-cell" : column.key === "qualityReason" ? "quality-reason-cell" : ""} title={String(column.getter(item))}>
+                {column.key === "status" ? <span className={`response-status ${item.status}`}>{responseStatusLabel[item.status]}</span> : column.key === "id" || column.key === "nps" ? <strong>{column.getter(item)}</strong> : column.key === "sourceParameter" ? <code>{column.getter(item)}</code> : column.getter(item)}
+              </td>)}
             </tr>)}</tbody>
           </table>
           <footer className="table-pagination"><span>第 1–{rows.length} 条，共 {(8421 + liveResponses.length).toLocaleString()} 条</span><div><button disabled>‹</button><button className="active">1</button><button>2</button><button>3</button><button>…</button><button>703</button><button>›</button></div><select><option>20 条/页</option><option>50 条/页</option></select></footer>

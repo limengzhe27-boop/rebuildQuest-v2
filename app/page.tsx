@@ -748,7 +748,9 @@ export default function Home() {
               <label><span>模板名称</span><input value={templateSurvey.name} readOnly /></label>
               <label>
                 <span>模板分类 <b>*</b><small>可选择多个分类</small></span>
-                <div className="template-category-checks">
+                <details className="template-category-multiselect">
+                  <summary>{templateCategories.length ? `已选择 ${templateCategories.length} 个分类` : "请选择模板分类"}<i>⌄</i></summary>
+                  <div className="template-category-checks">
                   {availableTemplateCategories.map((category) => (
                     <button
                       key={category}
@@ -758,7 +760,8 @@ export default function Home() {
                       <i>{templateCategories.includes(category) ? "✓" : ""}</i>{category}
                     </button>
                   ))}
-                </div>
+                  </div>
+                </details>
               </label>
               <p>保存后可在模板中心的多个分类中找到；模板仍限定在{templateSurvey.region}工作区使用。</p>
             </div>
