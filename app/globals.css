@@ -350,6 +350,119 @@ input:focus-visible {
   font-size: 18px;
 }
 
+.project-picker {
+  position: absolute;
+  z-index: 30;
+  top: 292px;
+  left: 228px;
+  width: 284px;
+  padding: 14px;
+  border: 1px solid #dce3ed;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(35, 53, 84, 0.16);
+}
+
+.project-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.project-picker-header button {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #8793a5;
+  font-size: 17px;
+}
+
+.project-picker-header button:hover {
+  background: #f2f5f9;
+}
+
+.project-picker-search {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 0 9px;
+  border: 1px solid #dce3ed;
+  border-radius: 6px;
+  color: #8d98a9;
+}
+
+.project-picker-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: #435167;
+  font-size: 10px;
+}
+
+.project-picker > small {
+  display: block;
+  margin: 8px 0 7px;
+  color: #98a2b2;
+  font-size: 9px;
+}
+
+.project-picker-list {
+  display: grid;
+  max-height: 242px;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.project-picker-list button {
+  display: flex;
+  width: 100%;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+  cursor: pointer;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #556278;
+  font-size: 10px;
+  text-align: left;
+}
+
+.project-picker-list button:hover,
+.project-picker-list button.selected {
+  background: #edf4ff;
+  color: var(--blue);
+}
+
+.project-picker-list button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-picker-list em {
+  min-width: 18px;
+  color: inherit;
+  font-size: 9px;
+  font-style: normal;
+  text-align: right;
+}
+
+.project-picker-list p {
+  margin: 10px 8px;
+  color: #98a2b2;
+  font-size: 10px;
+}
+
 .survey-sidebar nav > button {
   display: grid;
   width: 100%;
@@ -760,6 +873,28 @@ input:focus-visible {
 .filter-tabs button.active .filter-count {
   background: #e8f0ff;
   color: #2e6fdf;
+}
+
+.project-scope {
+  display: inline-flex;
+  max-width: 220px;
+  height: 30px;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  padding: 0 9px;
+  border: 1px solid #cddcf6;
+  border-radius: 6px;
+  background: #f3f7ff;
+  color: #3970d2;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-scope span {
+  color: #7798d6;
+  font-size: 14px;
 }
 
 .filter-button,

@@ -24,7 +24,7 @@ const seedSurveys: Survey[] = [
   {
     id: 1,
     name: "RO3 先锋测试玩家体验调研",
-    group: "RO3 / 版本调研",
+    group: "RO3 S3 先锋测试",
     game: "RO3",
     region: "海外",
     languages: ["EN", "繁中", "ไทย"],
@@ -37,7 +37,7 @@ const seedSurveys: Survey[] = [
   {
     id: 2,
     name: "HMT VIP 满意度调查 · 2026 Q3",
-    group: "HMT / 满意度",
+    group: "HMT 2026 Q3 VIP 满意度",
     game: "RO仙境传说",
     region: "海外",
     languages: ["繁中", "EN"],
@@ -50,7 +50,7 @@ const seedSurveys: Survey[] = [
   {
     id: 3,
     name: "新职业平衡性玩家反馈",
-    group: "ROOC / 版本调研",
+    group: "ROOC 新职业平衡性调研",
     game: "ROOC",
     region: "海外",
     languages: ["EN", "한국어", "日本語"],
@@ -63,7 +63,7 @@ const seedSurveys: Survey[] = [
   {
     id: 4,
     name: "国服回归玩家流失原因调研",
-    group: "国内 / 用户研究",
+    group: "RO国服回归玩家研究",
     game: "RO国服",
     region: "国内",
     languages: ["简中"],
@@ -76,7 +76,7 @@ const seedSurveys: Survey[] = [
   {
     id: 5,
     name: "公会战活动满意度回访",
-    group: "国内 / 运营活动",
+    group: "RO国服公会战活动回访",
     game: "RO国服",
     region: "国内",
     languages: ["简中"],
@@ -116,6 +116,9 @@ export default function Home() {
   const router = useRouter();
   const [region, setRegion] = useState<Region>("海外");
   const [activeGroup, setActiveGroup] = useState("全部问卷");
+  const [activeProjectGroup, setActiveProjectGroup] = useState<string | null>(null);
+  const [projectQuery, setProjectQuery] = useState("");
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"全部" | Status>("全部");
   const [showCreate, setShowCreate] = useState(false);
@@ -153,33 +156,48 @@ export default function Home() {
       const byTrash = activeGroup === "回收站" ? isTrashed : !isTrashed;
       const byRegion = survey.region === region;
       const byStatus = status === "全部" || survey.status === status;
-      const byGroup =
+      const byView =
         activeGroup === "全部问卷" ||
         (activeGroup === "我创建的" && survey.owner === "李孟哲") ||
         (activeGroup === "与我协作" && survey.owner !== "李孟哲") ||
         (activeGroup === "草稿" && survey.status === "草稿") ||
-        activeGroup === "回收站" ||
-        survey.group.includes(activeGroup);
+        activeGroup === "回收站";
+      const byProject = !activeProjectGroup || survey.group === activeProjectGroup;
       const byQuery =
         !query ||
         survey.name.toLowerCase().includes(query.toLowerCase()) ||
-        survey.game.toLowerCase().includes(query.toLowerCase());
-      return byTrash && byRegion && byStatus && byGroup && byQuery;
+        survey.game.toLowerCase().includes(query.toLowerCase()) ||
+        survey.group.toLowerCase().includes(query.toLowerCase());
+      return byTrash && byRegion && byStatus && byView && byProject && byQuery;
     });
-  }, [activeGroup, query, region, status, surveys, trashedIds]);
+  }, [activeGroup, activeProjectGroup, query, region, status, surveys, trashedIds]);
+
+  const projectGroups = useMemo(() => {
+    const groups = new Map<string, number>();
+    surveys
+      .filter((survey) => survey.region === region && !trashedIds.includes(survey.id))
+      .forEach((survey) => groups.set(survey.group, (groups.get(survey.group) || 0) + 1));
+    return Array.from(groups, ([name, count]) => ({ name, count }));
+  }, [region, surveys, trashedIds]);
+
+  const matchingProjectGroups = useMemo(() => {
+    const normalizedQuery = projectQuery.trim().toLowerCase();
+    if (!normalizedQuery) return projectGroups;
+    return projectGroups.filter((group) => group.name.toLowerCase().includes(normalizedQuery));
+  }, [projectGroups, projectQuery]);
 
   const statusCounts = useMemo(() => {
     const current = surveys.filter((survey) => {
       const isTrashed = trashedIds.includes(survey.id);
       const byTrash = activeGroup === "回收站" ? isTrashed : !isTrashed;
-      const byGroup =
+      const byView =
         activeGroup === "全部问卷" ||
         (activeGroup === "我创建的" && survey.owner === "李孟哲") ||
         (activeGroup === "与我协作" && survey.owner !== "李孟哲") ||
         (activeGroup === "草稿" && survey.status === "草稿") ||
-        activeGroup === "回收站" ||
-        survey.group.includes(activeGroup);
-      return byTrash && byGroup && survey.region === region;
+        activeGroup === "回收站";
+      const byProject = !activeProjectGroup || survey.group === activeProjectGroup;
+      return byTrash && byView && byProject && survey.region === region;
     });
 
     return {
@@ -188,7 +206,7 @@ export default function Home() {
       草稿: current.filter((item) => item.status === "草稿").length,
       已结束: current.filter((item) => item.status === "已结束").length,
     };
-  }, [activeGroup, region, surveys, trashedIds]);
+  }, [activeGroup, activeProjectGroup, region, surveys, trashedIds]);
 
   function notify(message: string) {
     setToast(message);
@@ -211,7 +229,7 @@ export default function Home() {
     const newSurvey: Survey = {
       id: Date.now(),
       name: newName.trim(),
-      group: `${region} / 未分组`,
+      group: activeProjectGroup || "未分组",
       game: "RO3",
       region,
       languages: newLanguages.length ? newLanguages : ["EN"],
@@ -319,7 +337,6 @@ export default function Home() {
                 <small>USER RESEARCH</small>
                 <h2>用研中心</h2>
               </div>
-              <button aria-label="新建分组" onClick={() => notify("新建分组")}>＋</button>
             </div>
             <nav aria-label="问卷导航">
               <p className="sidebar-label">问卷管理</p>
@@ -335,23 +352,39 @@ export default function Home() {
                 </button>
               ))}
               <p className="sidebar-label with-action">
-                项目分组 <button onClick={() => notify("新建项目分组")}>＋</button>
+                项目分组 <button aria-label="搜索项目" onClick={() => setShowProjectPicker((current) => !current)}>⌕</button>
               </p>
-              <button onClick={() => setActiveGroup("版本调研")}>
-                <span className="folder-icon">▹</span>
-                <span>版本调研</span>
-                <em>4</em>
+              <button className={!activeProjectGroup ? "active" : ""} onClick={() => setActiveProjectGroup(null)}>
+                <span className="folder-icon">▱</span>
+                <span>全部项目</span>
+                <em>{projectGroups.reduce((total, group) => total + group.count, 0)}</em>
               </button>
-              <button onClick={() => setActiveGroup("满意度")}>
-                <span className="folder-icon">▹</span>
-                <span>满意度</span>
-                <em>3</em>
-              </button>
-              <button onClick={() => setActiveGroup("运营活动")}>
-                <span className="folder-icon">▹</span>
-                <span>运营活动</span>
-                <em>2</em>
-              </button>
+              {projectGroups.slice(0, 3).map((group) => (
+                <button
+                  key={group.name}
+                  className={activeProjectGroup === group.name ? "active" : ""}
+                  onClick={() => {
+                    setActiveProjectGroup(group.name);
+                    setActiveGroup("全部问卷");
+                  }}
+                >
+                  <span className="folder-icon">▹</span>
+                  <span>{group.name}</span>
+                  <em>{group.count}</em>
+                </button>
+              ))}
+              {showProjectPicker && (
+                <div className="project-picker" role="dialog" aria-label="选择项目分组">
+                  <div className="project-picker-header"><strong>选择项目分组</strong><button aria-label="关闭项目选择" onClick={() => setShowProjectPicker(false)}>×</button></div>
+                  <div className="project-picker-search"><span>⌕</span><input autoFocus value={projectQuery} onChange={(event) => setProjectQuery(event.target.value)} placeholder="搜索项目名称" /></div>
+                  <small>仅展示当前{region}工作空间中的项目</small>
+                  <div className="project-picker-list">
+                    <button className={!activeProjectGroup ? "selected" : ""} onClick={() => { setActiveProjectGroup(null); setShowProjectPicker(false); }}>全部项目 <em>{projectGroups.reduce((total, group) => total + group.count, 0)}</em></button>
+                    {matchingProjectGroups.map((group) => <button key={group.name} className={activeProjectGroup === group.name ? "selected" : ""} onClick={() => { setActiveProjectGroup(group.name); setActiveGroup("全部问卷"); setShowProjectPicker(false); }}><span>{group.name}</span><em>{group.count}</em></button>)}
+                    {!matchingProjectGroups.length && <p>未找到匹配项目</p>}
+                  </div>
+                </div>
+              )}
               <p className="sidebar-label">资源</p>
               <button onClick={() => router.push("/survey/templates")}>
                 <span className="folder-icon">▦</span>
@@ -402,7 +435,11 @@ export default function Home() {
                   <button
                     key={item}
                     className={region === item ? "active" : ""}
-                    onClick={() => setRegion(item)}
+                    onClick={() => {
+                      setRegion(item);
+                      setActiveProjectGroup(null);
+                      setProjectQuery("");
+                    }}
                   >
                     {item === "海外" ? "海外 GLOBAL" : "国内 CHINA"}
                   </button>
@@ -421,6 +458,7 @@ export default function Home() {
                     aria-label="搜索问卷"
                   />
                 </div>
+                {activeProjectGroup && <button className="project-scope" onClick={() => setActiveProjectGroup(null)}>项目：{activeProjectGroup}<span>×</span></button>}
                 <div className="filter-tabs" aria-label="状态筛选">
                   {(["全部", "收集中", "草稿", "已结束"] as const).map((item) => (
                     <button
