@@ -389,10 +389,6 @@ export default function Home() {
                 <span className="folder-icon">▦</span>
                 <span>模板中心</span>
               </button>
-              <button onClick={() => notify("主题中心已打开")}>
-                <span className="folder-icon">◫</span>
-                <span>主题中心</span>
-              </button>
             </nav>
             <div className="sidebar-tip">
               <span>i</span>
