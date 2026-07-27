@@ -43,7 +43,7 @@ export default function PublishPage() {
   const checks = useMemo(() => selected ? [
     { label: "问卷内容完整", done: true, detail: "题目与必答规则检查通过" },
     { label: "语言内容完整", done: true, detail: selected.region === "global" ? "默认 English，已启用自动匹配" : "默认简体中文" },
-    { label: "隐私与合规", done: selected.privacyConsent, detail: selected.region === "global" ? "海外隐私声明已配置" : "国内隐私声明已配置" },
+    { label: "访问与合规", done: selected.privacyConsent && (selected.accessGate !== "password" || Boolean(selected.accessPassword)), detail: selected.accessGate === "password" && !selected.accessPassword ? "访问密码尚未设置" : "身份方式与隐私声明已配置" },
     { label: "收集规则有效", done: Boolean(selected.startAt && selected.endAt), detail: "时间与回收限制已配置" },
   ] : [], [selected]);
   const passCount = checks.filter((item) => item.done).length;
@@ -75,6 +75,37 @@ export default function PublishPage() {
     if (!selected) return;
     navigator.clipboard?.writeText(publicationUrl(selected));
     flash("问卷链接已复制");
+  }
+
+  function copyChannelLink(parameter: string) {
+    const separator = publicationUrl(selected).includes("?") ? "&" : "?";
+    navigator.clipboard?.writeText(`${publicationUrl(selected)}${separator}${parameter}`);
+    flash("渠道链接已复制");
+  }
+
+  function addChannel() {
+    updateSelected({
+      accessMode: "channel",
+      channels: [
+        ...selected.channels,
+        {
+          id: `channel-${Date.now()}`,
+          name: "新渠道",
+          parameter: `source=channel_${selected.channels.length + 1}`,
+          locale: selected.defaultLocale,
+          enabled: true,
+        },
+      ],
+    });
+    flash("已添加渠道，可直接修改名称与参数");
+  }
+
+  function updateChannel(channelId: string, patch: Partial<Publication["channels"][number]>) {
+    updateSelected({
+      channels: selected.channels.map((channel) =>
+        channel.id === channelId ? { ...channel, ...patch } : channel,
+      ),
+    });
   }
 
   if (!selected) return null;
@@ -120,6 +151,11 @@ export default function PublishPage() {
               <button onClick={copyLink}>复制链接</button>
               <button onClick={() => flash("二维码已生成")}>▦ 二维码</button>
             </div>
+            <div className="publication-summary-row">
+              <span><small>访问验证</small><strong>{selected.accessGate === "open" ? "无需验证" : selected.accessGate === "password" ? "访问密码" : "玩家账号"}</strong></span>
+              <span><small>收集边界</small><strong>{selected.scheduleEnabled ? `定时结束 · ${selected.endAt.replace("T", " ")}` : selected.quotaEnabled ? `${selected.totalLimit} 份后结束` : "手动结束"}</strong></span>
+              <button onClick={() => router.push(`/survey/${surveyId}/settings`)}>修改设置 →</button>
+            </div>
           </div>
 
           {selected.status === "stopped" && (
@@ -154,10 +190,26 @@ export default function PublishPage() {
                 </div>
                 {selected.accessMode === "channel" && (
                   <div className="channel-table">
-                    <div><strong>渠道名称</strong><strong>参数</strong><strong>默认语言</strong><strong>状态</strong></div>
-                    <div><span>Discord 社区</span><code>source=discord</code><span>English</span><em>已启用</em></div>
-                    <div><span>Facebook Ads</span><code>source=fb_ads</code><span>English</span><em>已启用</em></div>
-                    <button onClick={() => flash("已添加待配置渠道")}>＋ 添加渠道</button>
+                    <div className="channel-table-head"><strong>渠道名称</strong><strong>渠道参数</strong><strong>默认语言</strong><strong>状态</strong><strong>操作</strong></div>
+                    {selected.channels.map((channel) => (
+                      <div className="channel-table-row" key={channel.id}>
+                        <input value={channel.name} onChange={(event) => updateChannel(channel.id, { name: event.target.value })} />
+                        <input value={channel.parameter} onChange={(event) => updateChannel(channel.id, { parameter: event.target.value.replace(/^\?/, "") })} />
+                        <select value={channel.locale} onChange={(event) => updateChannel(channel.id, { locale: event.target.value })}>
+                          <option value="en-US">English</option>
+                          <option value="zh-TW">繁體中文</option>
+                          <option value="th-TH">ไทย</option>
+                          <option value="zh-CN">简体中文</option>
+                        </select>
+                        <button className={`mini-switch ${channel.enabled ? "on" : ""}`} onClick={() => updateChannel(channel.id, { enabled: !channel.enabled })}><i /></button>
+                        <span className="channel-row-actions">
+                          <button onClick={() => copyChannelLink(channel.parameter)}>复制</button>
+                          <button className="danger" onClick={() => updateSelected({ channels: selected.channels.filter((item) => item.id !== channel.id) })}>删除</button>
+                        </span>
+                      </div>
+                    ))}
+                    {!selected.channels.length && <div className="channel-empty">还没有渠道链接。添加后可按来源和默认语言区分答卷。</div>}
+                    <button onClick={addChannel}>＋ 添加渠道</button>
                   </div>
                 )}
               </section>

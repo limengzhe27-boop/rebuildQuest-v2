@@ -1,5 +1,20 @@
 export type Region = "global" | "china";
 export type AccessMode = "public" | "channel" | "assigned";
+export type AccessGate = "open" | "password" | "account";
+export type RedirectRule = {
+  id: string;
+  questionId: string;
+  operator: "等于" | "不等于" | "包含" | "不包含";
+  value: string;
+  url: string;
+};
+export type PublicationChannel = {
+  id: string;
+  name: string;
+  parameter: string;
+  locale: string;
+  enabled: boolean;
+};
 
 export type Publication = {
   id: string;
@@ -18,7 +33,13 @@ export type Publication = {
   totalLimit: number;
   perAccountLimit: number;
   deviceLimit: boolean;
+  ipLimit: boolean;
   anonymous: boolean;
+  resumeEnabled: boolean;
+  accessGate: AccessGate;
+  accessPassword: string;
+  joymakerLogin: boolean;
+  lineLogin: boolean;
   privacyConsent: boolean;
   ageConsent: boolean;
   completionMode: "message" | "redirect";
@@ -27,6 +48,8 @@ export type Publication = {
   stoppedAt?: string;
   stopReason?: string;
   redirectUrl: string;
+  redirectRules: RedirectRule[];
+  channels: PublicationChannel[];
   webhookEnabled: boolean;
   webhookUrl: string;
   slug: string;
@@ -53,13 +76,24 @@ export const defaultPublications: Publication[] = [
     totalLimit: 10000,
     perAccountLimit: 1,
     deviceLimit: true,
+    ipLimit: false,
     anonymous: true,
+    resumeEnabled: true,
+    accessGate: "open",
+    accessPassword: "",
+    joymakerLogin: true,
+    lineLogin: true,
     privacyConsent: true,
     ageConsent: true,
     completionMode: "message",
     completionMessage: "Thank you! Your feedback has been submitted.",
     closedMessage: "This survey has ended. Thank you for your interest.",
     redirectUrl: "",
+    redirectRules: [],
+    channels: [
+      { id: "discord", name: "Discord 社区", parameter: "source=discord", locale: "en-US", enabled: true },
+      { id: "facebook", name: "Facebook Ads", parameter: "source=fb_ads", locale: "en-US", enabled: true },
+    ],
     webhookEnabled: false,
     webhookUrl: "",
     slug: "ro3-global-beta",
@@ -81,13 +115,21 @@ export const defaultPublications: Publication[] = [
     totalLimit: 3000,
     perAccountLimit: 1,
     deviceLimit: true,
+    ipLimit: false,
     anonymous: false,
+    resumeEnabled: true,
+    accessGate: "account",
+    accessPassword: "",
+    joymakerLogin: true,
+    lineLogin: false,
     privacyConsent: true,
     ageConsent: false,
     completionMode: "message",
     completionMessage: "提交成功，感谢您的反馈。",
     closedMessage: "本次问卷收集已结束，感谢您的关注。",
     redirectUrl: "",
+    redirectRules: [],
+    channels: [],
     webhookEnabled: false,
     webhookUrl: "",
     slug: "ro3-cn-beta",

@@ -49,7 +49,7 @@ export type Question = {
     match: "all" | "any";
     conditions: {
       questionId: string;
-      operator: "等于" | "不等于" | "包含";
+      operator: "等于" | "不等于" | "包含" | "不包含" | "为空" | "不为空";
       value: string;
     }[];
   };
@@ -147,7 +147,7 @@ export function loadQuestions(surveyId: string): Question[] {
     const parsed = JSON.parse(saved) as (Omit<Question, "displayLogic"> & {
       displayLogic?: Question["displayLogic"] | {
         questionId: string;
-        operator: "等于" | "不等于" | "包含";
+        operator: "等于" | "不等于" | "包含" | "不包含" | "为空" | "不为空";
         value: string;
       };
     })[];

@@ -207,7 +207,16 @@ export default function SurveyEditorPage() {
     setLogicDraft((current) => current ? {
       ...current,
       conditions: current.conditions.map((condition, conditionIndex) =>
-        conditionIndex === index ? { ...condition, ...patch } : condition,
+        conditionIndex === index
+          ? {
+              ...condition,
+              ...patch,
+              value:
+                patch.operator === "为空" || patch.operator === "不为空"
+                  ? ""
+                  : patch.value ?? condition.value,
+            }
+          : condition,
       ),
     } : current);
   }
@@ -232,7 +241,11 @@ export default function SurveyEditorPage() {
 
   function saveLogic() {
     if (!logicQuestionId || !logicDraft) return;
-    const validConditions = logicDraft.conditions.filter((condition) => condition.value.trim());
+    const validConditions = logicDraft.conditions.filter((condition) =>
+      condition.operator === "为空" ||
+      condition.operator === "不为空" ||
+      condition.value.trim(),
+    );
     updateQuestion(logicQuestionId, {
       displayLogic: validConditions.length
         ? { ...logicDraft, conditions: validConditions }
@@ -483,8 +496,15 @@ export default function SurveyEditorPage() {
                     <option>等于</option>
                     <option>不等于</option>
                     <option>包含</option>
+                    <option>不包含</option>
+                    <option>为空</option>
+                    <option>不为空</option>
                   </select>
-                  <input value={condition.value} onChange={(event) => updateLogicCondition(conditionIndex, { value: event.target.value })} placeholder="请输入答案或选项" />
+                  {condition.operator === "为空" || condition.operator === "不为空" ? (
+                    <span className="logic-no-value">无需填写条件值</span>
+                  ) : (
+                    <input value={condition.value} onChange={(event) => updateLogicCondition(conditionIndex, { value: event.target.value })} placeholder="请输入答案或选项" />
+                  )}
                   <button
                     aria-label="删除条件"
                     disabled={logicDraft.conditions.length === 1}

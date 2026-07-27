@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultPublications, loadPublications, Publication } from "@/lib/survey-publication";
+import { loadQuestions, Question } from "@/lib/survey-builder";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
@@ -12,13 +13,15 @@ export default function SurveySettingsPage() {
   const surveyId = params.id;
   const surveyTitle = useSurveyTitle(surveyId);
   const [publications, setPublications] = useState<Publication[]>(defaultPublications);
-  const [section, setSection] = useState<"submission" | "collection">("submission");
+  const [section, setSection] = useState<"submission" | "collection" | "access">("submission");
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [autoSave, setAutoSave] = useState(true);
   const [notice, setNotice] = useState("");
   const hydrated = useRef(false);
 
   useEffect(() => {
     setPublications(loadPublications(surveyId));
+    setQuestions(loadQuestions(surveyId));
     setAutoSave(window.localStorage.getItem(`joydata-survey-autosave-${surveyId}`) !== "false");
     hydrated.current = true;
   }, [surveyId]);
@@ -40,6 +43,34 @@ export default function SurveySettingsPage() {
   function flash(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 2200);
+  }
+
+  function addRedirectRule() {
+    const question = questions.find((item) => !["divider", "description", "imageDisplay", "carousel", "pageBreak"].includes(item.type));
+    if (!question) {
+      flash("请先在编辑器中添加可作判断的题目");
+      return;
+    }
+    updateSelected({
+      redirectRules: [
+        ...selected.redirectRules,
+        {
+          id: `redirect-${Date.now()}`,
+          questionId: question.id,
+          operator: "等于",
+          value: "",
+          url: "",
+        },
+      ],
+    });
+  }
+
+  function updateRedirectRule(ruleId: string, patch: Partial<Publication["redirectRules"][number]>) {
+    updateSelected({
+      redirectRules: selected.redirectRules.map((rule) =>
+        rule.id === ruleId ? { ...rule, ...patch } : rule,
+      ),
+    });
   }
 
   if (!selected) return null;
@@ -65,7 +96,7 @@ export default function SurveySettingsPage() {
             <div>
               <span>FORM SETTINGS</span>
               <h1>问卷设置</h1>
-              <p>配置提交完成页和答卷收集规则。发布渠道与链接请前往“发布”。</p>
+              <p>配置提交结果、收集边界和玩家访问方式。发布链接与渠道参数请前往“发布”。</p>
             </div>
             <span className={`region-pill ${selected.region}`}>
               {selected.region === "global" ? "海外工作区 · GLOBAL" : "国内工作区 · CHINA"}
@@ -74,7 +105,8 @@ export default function SurveySettingsPage() {
 
           <div className="publish-section-tabs settings-tabs">
             <button className={section === "submission" ? "active" : ""} onClick={() => setSection("submission")}>提交设置</button>
-            <button className={section === "collection" ? "active" : ""} onClick={() => setSection("collection")}>回收设置</button>
+            <button className={section === "collection" ? "active" : ""} onClick={() => setSection("collection")}>收集规则</button>
+            <button className={section === "access" ? "active" : ""} onClick={() => setSection("access")}>访问与身份</button>
           </div>
 
           {section === "submission" ? (
@@ -94,11 +126,39 @@ export default function SurveySettingsPage() {
               </section>
 
               <section className="config-card">
+                <header>
+                  <div><strong>按答案跳转</strong><small>满足条件时优先跳转到指定页面；未命中时使用上方默认结果</small></div>
+                  <button className="config-add-button" onClick={addRedirectRule}>＋ 添加规则</button>
+                </header>
+                {selected.redirectRules.length ? (
+                  <div className="redirect-rule-list">
+                    {selected.redirectRules.map((rule) => (
+                      <article key={rule.id}>
+                        <span>当</span>
+                        <select value={rule.questionId} onChange={(event) => updateRedirectRule(rule.id, { questionId: event.target.value })}>
+                          {questions.map((question, index) => <option key={question.id} value={question.id}>{index + 1}. {question.title}</option>)}
+                        </select>
+                        <select value={rule.operator} onChange={(event) => updateRedirectRule(rule.id, { operator: event.target.value as typeof rule.operator })}>
+                          <option>等于</option><option>不等于</option><option>包含</option><option>不包含</option>
+                        </select>
+                        <input placeholder="答案或选项" value={rule.value} onChange={(event) => updateRedirectRule(rule.id, { value: event.target.value })} />
+                        <span>跳转至</span>
+                        <input className="redirect-url-input" placeholder="https://" value={rule.url} onChange={(event) => updateRedirectRule(rule.id, { url: event.target.value })} />
+                        <button aria-label="删除跳转规则" onClick={() => updateSelected({ redirectRules: selected.redirectRules.filter((item) => item.id !== rule.id) })}>×</button>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="config-empty-state"><span>↗</span><p><strong>暂无条件跳转</strong><small>适合按满意度、玩家类型等答案进入不同感谢页或招募页。</small></p></div>
+                )}
+              </section>
+
+              <section className="config-card">
                 <header><div><strong>问卷结束页</strong><small>手动结束、定时结束或达到数量上限后展示</small></div></header>
                 <label className="large-config-field"><span>结束提示语</span><textarea value={selected.closedMessage} onChange={(event) => updateSelected({ closedMessage: event.target.value })} /></label>
               </section>
             </div>
-          ) : (
+          ) : section === "collection" ? (
             <div className="publish-config-stack">
               <section className="config-card">
                 <header><div><strong>收集时间与数量</strong><small>达到任一已启用条件后自动结束收集</small></div><span className="auto-stop-tag">任一满足即结束</span></header>
@@ -130,14 +190,46 @@ export default function SurveySettingsPage() {
                 <header><div><strong>填写与防重复</strong><small>保留通用、跨地区适用的有效设置</small></div></header>
                 <div className="setting-switch-list">
                   <div><p><strong>填写过程自动暂存</strong><small>玩家意外关闭页面后可以继续填写</small></p><button className={`mini-switch ${autoSave ? "on" : ""}`} onClick={() => setAutoSave(!autoSave)}><i /></button></div>
+                  <div><p><strong>恢复未完成的填写</strong><small>再次打开同一问卷时，从上次中断的位置继续</small></p><button className={`mini-switch ${selected.resumeEnabled ? "on" : ""}`} onClick={() => updateSelected({ resumeEnabled: !selected.resumeEnabled })}><i /></button></div>
                   <div><p><strong>设备防重复</strong><small>同一设备达到账号次数限制后不可再次提交</small></p><button className={`mini-switch ${selected.deviceLimit ? "on" : ""}`} onClick={() => updateSelected({ deviceLimit: !selected.deviceLimit })}><i /></button></div>
-                  <div><p><strong>允许匿名填写</strong><small>不要求 JoyID、Line ID 或 JM ID</small></p><button className={`mini-switch ${selected.anonymous ? "on" : ""}`} onClick={() => updateSelected({ anonymous: !selected.anonymous })}><i /></button></div>
+                  <div><p><strong>IP 防重复</strong><small>作为辅助风控信号，避免同一网络环境重复提交</small></p><button className={`mini-switch ${selected.ipLimit ? "on" : ""}`} onClick={() => updateSelected({ ipLimit: !selected.ipLimit })}><i /></button></div>
                   <div><p><strong>异常行为检测</strong><small>自动标记极速提交、重复答案和可疑来源</small></p><span className="managed-tag">平台统一开启</span></div>
                 </div>
               </section>
 
+            </div>
+          ) : (
+            <div className="publish-config-stack">
               <section className="config-card">
-                <header><div><strong>区域合规</strong><small>根据创建时选择的工作区应用对应政策</small></div><span className={`region-pill ${selected.region}`}>{selected.region === "global" ? "Global" : "China"}</span></header>
+                <header><div><strong>玩家访问方式</strong><small>只选择一种入口验证方式，避免多个开关互相冲突</small></div></header>
+                <div className="access-gate-grid">
+                  {[
+                    { key: "open", title: "无需验证", description: "获得链接即可填写，适合公开调研", icon: "◎" },
+                    { key: "password", title: "访问密码", description: "输入统一密码后进入问卷", icon: "⌨" },
+                    { key: "account", title: "玩家账号", description: "登录后填写，可精确限制次数", icon: "♙" },
+                  ].map((mode) => (
+                    <button
+                      key={mode.key}
+                      className={selected.accessGate === mode.key ? "active" : ""}
+                      onClick={() => updateSelected({ accessGate: mode.key as Publication["accessGate"], anonymous: mode.key === "open" })}
+                    >
+                      <span>{mode.icon}</span><p><strong>{mode.title}</strong><small>{mode.description}</small></p><i />
+                    </button>
+                  ))}
+                </div>
+                {selected.accessGate === "password" && (
+                  <label className="large-config-field compact-config-field"><span>访问密码</span><input type="text" placeholder="设置 4–20 位密码" value={selected.accessPassword} onChange={(event) => updateSelected({ accessPassword: event.target.value })} /></label>
+                )}
+                {selected.accessGate === "account" && (
+                  <div className="account-provider-list">
+                    <div><p><strong>JoyMaker / JoyID</strong><small>适用于游戏内与官方账号渠道</small></p><button className={`mini-switch ${selected.joymakerLogin ? "on" : ""}`} onClick={() => updateSelected({ joymakerLogin: !selected.joymakerLogin })}><i /></button></div>
+                    {selected.region === "global" && <div><p><strong>LINE 登录</strong><small>适用于已接入 LINE 的海外发行渠道</small></p><button className={`mini-switch ${selected.lineLogin ? "on" : ""}`} onClick={() => updateSelected({ lineLogin: !selected.lineLogin })}><i /></button></div>}
+                  </div>
+                )}
+              </section>
+
+              <section className="config-card">
+                <header><div><strong>区域合规</strong><small>按创建问卷时选定的数据工作区应用对应规则</small></div><span className={`region-pill ${selected.region}`}>{selected.region === "global" ? "Global" : "China"}</span></header>
                 <div className="setting-switch-list">
                   <div><p><strong>隐私政策确认</strong><small>填写前展示隐私政策并记录同意时间</small></p><button className={`mini-switch ${selected.privacyConsent ? "on" : ""}`} onClick={() => updateSelected({ privacyConsent: !selected.privacyConsent })}><i /></button></div>
                   {selected.region === "global" && <div><p><strong>年龄与监护人确认</strong><small>针对未成年人展示区域化同意流程</small></p><button className={`mini-switch ${selected.ageConsent ? "on" : ""}`} onClick={() => updateSelected({ ageConsent: !selected.ageConsent })}><i /></button></div>}
