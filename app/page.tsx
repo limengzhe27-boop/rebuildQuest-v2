@@ -15,7 +15,6 @@ type Survey = {
   languages: string[];
   status: Status;
   responses: number;
-  completion: number;
   updated: string;
   owner: string;
 };
@@ -30,7 +29,6 @@ const seedSurveys: Survey[] = [
     languages: ["EN", "繁中", "ไทย"],
     status: "收集中",
     responses: 1286,
-    completion: 84.2,
     updated: "今天 14:21",
     owner: "李孟哲",
   },
@@ -43,7 +41,6 @@ const seedSurveys: Survey[] = [
     languages: ["繁中", "EN"],
     status: "收集中",
     responses: 864,
-    completion: 78.6,
     updated: "今天 11:08",
     owner: "Kevin Ke",
   },
@@ -56,7 +53,6 @@ const seedSurveys: Survey[] = [
     languages: ["EN", "한국어", "日本語"],
     status: "草稿",
     responses: 0,
-    completion: 0,
     updated: "昨天 18:42",
     owner: "王怡",
   },
@@ -69,7 +65,6 @@ const seedSurveys: Survey[] = [
     languages: ["简中"],
     status: "已结束",
     responses: 2391,
-    completion: 91.4,
     updated: "07月21日",
     owner: "刘颖",
   },
@@ -82,7 +77,6 @@ const seedSurveys: Survey[] = [
     languages: ["简中"],
     status: "收集中",
     responses: 576,
-    completion: 76.8,
     updated: "07月20日",
     owner: "陈曦",
   },
@@ -235,7 +229,6 @@ export default function Home() {
       languages: newLanguages.length ? newLanguages : ["EN"],
       status: "草稿",
       responses: 0,
-      completion: 0,
       updated: "刚刚",
       owner: "李孟哲",
     };
@@ -253,7 +246,6 @@ export default function Home() {
       name: `${survey.name}（副本）`,
       status: "草稿",
       responses: 0,
-      completion: 0,
       updated: "刚刚",
       owner: "李孟哲",
     };
@@ -464,7 +456,6 @@ export default function Home() {
                   <div role="columnheader">语言</div>
                   <div role="columnheader">状态</div>
                   <div role="columnheader">回收数</div>
-                  <div role="columnheader">完成率</div>
                   <div role="columnheader">最后更新</div>
                   <div role="columnheader" aria-label="操作" />
                 </div>
@@ -495,12 +486,6 @@ export default function Home() {
                         </span>
                       </div>
                       <div className="number-cell" role="cell">{formatNumber(survey.responses)}</div>
-                      <div className="completion-cell" role="cell">
-                        <div className="progress-track">
-                          <i style={{ width: `${survey.completion}%` }} />
-                        </div>
-                        <span>{survey.completion ? `${survey.completion}%` : "—"}</span>
-                      </div>
                       <div className="updated-cell" role="cell">
                         <span>{survey.updated}</span>
                         <small>{survey.owner}</small>
@@ -656,7 +641,6 @@ export default function Home() {
             </div>
             <div className="drawer-metrics">
               <div><span>回收数</span><strong>{formatNumber(selected.responses)}</strong></div>
-              <div><span>完成率</span><strong>{selected.completion || 0}%</strong></div>
               <div><span>语言</span><strong>{selected.languages.length}</strong></div>
             </div>
             <div className="drawer-section">
