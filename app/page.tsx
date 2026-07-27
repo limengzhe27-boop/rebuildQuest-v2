@@ -24,7 +24,7 @@ const seedSurveys: Survey[] = [
   {
     id: 1,
     name: "RO3 先锋测试玩家体验调研",
-    group: "RO3 S3 先锋测试",
+    group: "RO3 3.6版本先锋测试",
     game: "RO3",
     region: "海外",
     languages: ["EN", "繁中", "ไทย"],
@@ -37,7 +37,7 @@ const seedSurveys: Survey[] = [
   {
     id: 2,
     name: "HMT VIP 满意度调查 · 2026 Q3",
-    group: "HMT 2026 Q3 VIP 满意度",
+    group: "HMT 2026 Q3 VIP满意度",
     game: "RO仙境传说",
     region: "海外",
     languages: ["繁中", "EN"],
@@ -50,7 +50,7 @@ const seedSurveys: Survey[] = [
   {
     id: 3,
     name: "新职业平衡性玩家反馈",
-    group: "ROOC 新职业平衡性调研",
+    group: "ROOC 1.8职业平衡调研",
     game: "ROOC",
     region: "海外",
     languages: ["EN", "한국어", "日本語"],
@@ -63,7 +63,7 @@ const seedSurveys: Survey[] = [
   {
     id: 4,
     name: "国服回归玩家流失原因调研",
-    group: "RO国服回归玩家研究",
+    group: "RO国服 2026暑期回归研究",
     game: "RO国服",
     region: "国内",
     languages: ["简中"],
@@ -76,7 +76,7 @@ const seedSurveys: Survey[] = [
   {
     id: 5,
     name: "公会战活动满意度回访",
-    group: "RO国服公会战活动回访",
+    group: "RO国服 公会战赛季回访",
     game: "RO国服",
     region: "国内",
     languages: ["简中"],
@@ -351,40 +351,6 @@ export default function Home() {
                   <em>{count}</em>
                 </button>
               ))}
-              <p className="sidebar-label with-action">
-                项目分组 <button aria-label="搜索项目" onClick={() => setShowProjectPicker((current) => !current)}>⌕</button>
-              </p>
-              <button className={!activeProjectGroup ? "active" : ""} onClick={() => setActiveProjectGroup(null)}>
-                <span className="folder-icon">▱</span>
-                <span>全部项目</span>
-                <em>{projectGroups.reduce((total, group) => total + group.count, 0)}</em>
-              </button>
-              {projectGroups.slice(0, 3).map((group) => (
-                <button
-                  key={group.name}
-                  className={activeProjectGroup === group.name ? "active" : ""}
-                  onClick={() => {
-                    setActiveProjectGroup(group.name);
-                    setActiveGroup("全部问卷");
-                  }}
-                >
-                  <span className="folder-icon">▹</span>
-                  <span>{group.name}</span>
-                  <em>{group.count}</em>
-                </button>
-              ))}
-              {showProjectPicker && (
-                <div className="project-picker" role="dialog" aria-label="选择项目分组">
-                  <div className="project-picker-header"><strong>选择项目分组</strong><button aria-label="关闭项目选择" onClick={() => setShowProjectPicker(false)}>×</button></div>
-                  <div className="project-picker-search"><span>⌕</span><input autoFocus value={projectQuery} onChange={(event) => setProjectQuery(event.target.value)} placeholder="搜索项目名称" /></div>
-                  <small>仅展示当前{region}工作空间中的项目</small>
-                  <div className="project-picker-list">
-                    <button className={!activeProjectGroup ? "selected" : ""} onClick={() => { setActiveProjectGroup(null); setShowProjectPicker(false); }}>全部项目 <em>{projectGroups.reduce((total, group) => total + group.count, 0)}</em></button>
-                    {matchingProjectGroups.map((group) => <button key={group.name} className={activeProjectGroup === group.name ? "selected" : ""} onClick={() => { setActiveProjectGroup(group.name); setActiveGroup("全部问卷"); setShowProjectPicker(false); }}><span>{group.name}</span><em>{group.count}</em></button>)}
-                    {!matchingProjectGroups.length && <p>未找到匹配项目</p>}
-                  </div>
-                </div>
-              )}
               <p className="sidebar-label">资源</p>
               <button onClick={() => router.push("/survey/templates")}>
                 <span className="folder-icon">▦</span>
@@ -458,7 +424,21 @@ export default function Home() {
                     aria-label="搜索问卷"
                   />
                 </div>
-                {activeProjectGroup && <button className="project-scope" onClick={() => setActiveProjectGroup(null)}>项目：{activeProjectGroup}<span>×</span></button>}
+                <button className={`project-filter-trigger ${activeProjectGroup ? "selected" : ""}`} onClick={() => setShowProjectPicker((current) => !current)}>
+                  <span>项目</span><strong>{activeProjectGroup || "全部项目"}</strong><i>⌄</i>
+                </button>
+                {showProjectPicker && (
+                  <div className="project-picker" role="dialog" aria-label="选择项目">
+                    <div className="project-picker-header"><strong>选择项目</strong><button aria-label="关闭项目选择" onClick={() => setShowProjectPicker(false)}>×</button></div>
+                    <div className="project-picker-search"><span>⌕</span><input autoFocus value={projectQuery} onChange={(event) => setProjectQuery(event.target.value)} placeholder="搜索项目名称，例如 RO3 3.6" /></div>
+                    <small>项目是问卷的业务归属；状态筛选会在当前项目内生效。</small>
+                    <div className="project-picker-list">
+                      <button className={!activeProjectGroup ? "selected" : ""} onClick={() => { setActiveProjectGroup(null); setShowProjectPicker(false); }}>全部项目 <em>{projectGroups.reduce((total, group) => total + group.count, 0)}</em></button>
+                      {matchingProjectGroups.map((group) => <button key={group.name} className={activeProjectGroup === group.name ? "selected" : ""} onClick={() => { setActiveProjectGroup(group.name); setActiveGroup("全部问卷"); setShowProjectPicker(false); }}><span>{group.name}</span><em>{group.count}</em></button>)}
+                      {!matchingProjectGroups.length && <p>未找到匹配项目</p>}
+                    </div>
+                  </div>
+                )}
                 <div className="filter-tabs" aria-label="状态筛选">
                   {(["全部", "收集中", "草稿", "已结束"] as const).map((item) => (
                     <button
