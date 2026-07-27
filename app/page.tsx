@@ -453,7 +453,6 @@ export default function Home() {
               <div className="survey-table" role="table" aria-label="问卷列表">
                 <div className="table-head" role="row">
                   <div role="columnheader">问卷名称</div>
-                  <div role="columnheader">语言</div>
                   <div role="columnheader">状态</div>
                   <div role="columnheader">回收数</div>
                   <div role="columnheader">最后更新</div>
@@ -473,12 +472,6 @@ export default function Home() {
                           <strong>{survey.name}</strong>
                           <span>{survey.group} · {survey.game}</span>
                         </div>
-                      </div>
-                      <div className="language-list" role="cell">
-                        {survey.languages.slice(0, 2).map((language) => (
-                          <span key={language}>{language}</span>
-                        ))}
-                        {survey.languages.length > 2 && <span>+{survey.languages.length - 2}</span>}
                       </div>
                       <div role="cell">
                         <span className={`status-badge status-${survey.status}`}>

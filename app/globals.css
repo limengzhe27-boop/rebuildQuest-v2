@@ -953,7 +953,7 @@ input:focus-visible {
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: minmax(300px, 2.4fr) 1.05fr 0.82fr 0.66fr 0.88fr 40px;
+  grid-template-columns: minmax(300px, 2.4fr) 0.82fr 0.66fr 0.88fr 40px;
   align-items: center;
   column-gap: 12px;
 }
