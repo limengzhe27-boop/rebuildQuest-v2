@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
@@ -28,7 +28,7 @@ const textTopics = [
 const userDistributions = [
   { title: "国家/地区", field: "submit_address", rows: [["美国", 2486], ["泰国", 1769], ["中国台湾", 1138], ["菲律宾", 842], ["德国", 598], ["其他", 1588]] },
   { title: "问卷语言", field: "locale", rows: [["English", 5226], ["繁體中文", 1632], ["ไทย", 1293], ["简体中文", 270]] },
-  { title: "渠道来源", field: "ext_value", rows: [["Discord", 2738], ["Facebook Ads", 2013], ["Steam 社区", 1398], ["LINE 社群", 1052], ["X / Twitter", 724], ["直接访问", 496]] },
+  { title: "访问来源", field: "ext_value.source", rows: [["Discord（示例）", 2738], ["Facebook Ads（示例）", 2013], ["Steam 社区（示例）", 1398], ["LINE 社群（示例）", 1052], ["X / Twitter（示例）", 724], ["直接访问", 496]] },
   { title: "设备系统", field: "submit_os", rows: [["Windows", 3664], ["Android", 2431], ["iOS", 1987], ["其他", 339]] },
   { title: "账号类型", field: "joy_user_info / line_user_info", rows: [["JoyMaker", 4218], ["LINE", 1867], ["匿名", 2336]] },
 ] as const;
@@ -42,8 +42,6 @@ export default function AnalyticsPage() {
   const [range, setRange] = useState("全部时间");
   const [tab, setTab] = useState<"answers" | "users">("answers");
   const [notice, setNotice] = useState("");
-  const satisfactionMax = useMemo(() => Math.max(...satisfaction.map((item) => item[1])), []);
-
   function flash(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 2200);
@@ -59,9 +57,9 @@ export default function AnalyticsPage() {
       </header>
 
       <section className="analytics-simple-shell">
-        <header className="analytics-simple-heading">
-          <div><span>{tab === "answers" ? "ANSWER STATISTICS" : "USER DISTRIBUTION"}</span><h1>{tab === "answers" ? "答案统计" : "用户分布"}</h1><p>{tab === "answers" ? "按题目展示所有有效答卷的统计结果。" : "按地区、语言、渠道、设备和账号类型查看答卷用户构成。"}</p></div>
-          <div className="answer-total"><small>共收到</small><strong>{totalResponses.toLocaleString()}</strong><span>份答卷</span></div>
+        <header className="analytics-simple-heading report-heading">
+          <div><h1>{tab === "answers" ? "答案统计" : "用户分布"}</h1><p>{tab === "answers" ? "逐题查看回答人数、未回答人数和各答案占比。" : "按地区、语言、访问来源、设备和账号类型查看用户构成。"}</p></div>
+          <div className="answer-total"><small>答卷总数</small><strong>{totalResponses.toLocaleString()}</strong><span>份</span></div>
         </header>
 
         <div className="statistics-view-tabs">
@@ -75,31 +73,30 @@ export default function AnalyticsPage() {
           <span>当前口径：{tab === "answers" ? "有效答卷（无效答卷不计入）" : "全部已提交答卷的用户属性"}</span>
         </div>
 
-        {tab === "answers" ? <div className="question-stat-list">
-          <article className="question-stat-card">
-            <header><div><span>第 1 题 · 单选题</span><h2>您对本次先锋测试的整体体验如何？</h2></div><p><strong>{totalResponses.toLocaleString()}</strong><small>份回答</small></p></header>
+        {tab === "answers" ? <div className="answer-report-list">
+          <article className="answer-report-section">
+            <header><div><span>第 1 题　单选题</span><h2>您对本次先锋测试的整体体验如何？</h2></div><dl><div><dt>回答</dt><dd>{totalResponses.toLocaleString()}</dd></div><div><dt>未回答</dt><dd>0</dd></div></dl></header>
             <table>
-              <thead><tr><th>选项</th><th>人数</th><th>占比</th><th>分布</th></tr></thead>
+              <thead><tr><th>选项</th><th>回答人数</th><th>占本题回答</th></tr></thead>
               <tbody>{satisfaction.map(([label, count]) => {
                 const percent = count / totalResponses * 100;
-                return <tr key={label}><td>{label}</td><td>{count.toLocaleString()}</td><td>{percent.toFixed(1)}%</td><td><i className="plain-stat-bar"><em style={{ width: `${count / satisfactionMax * 100}%` }} /></i></td></tr>;
+                return <tr key={label}><td>{label}</td><td>{count.toLocaleString()}</td><td><strong>{percent.toFixed(1)}%</strong></td></tr>;
               })}</tbody>
             </table>
           </article>
 
-          <article className="question-stat-card">
-            <header><div><span>第 2 题 · NPS</span><h2>您有多大可能向朋友推荐这款游戏？</h2></div><p><strong>42</strong><small>NPS</small></p></header>
-            <div className="nps-plain-summary"><span><small>平均分</small><strong>7.4 / 10</strong></span><span><small>有效回答</small><strong>8,379</strong></span></div>
+          <article className="answer-report-section">
+            <header><div><span>第 2 题　NPS</span><h2>您有多大可能向朋友推荐这款游戏？</h2></div><dl><div><dt>回答</dt><dd>8,379</dd></div><div><dt>未回答</dt><dd>42</dd></div><div><dt>平均分</dt><dd>7.4</dd></div><div><dt>NPS</dt><dd>42</dd></div></dl></header>
             <table>
-              <thead><tr><th>分组</th><th>人数</th><th>占比</th></tr></thead>
+              <thead><tr><th>分组</th><th>回答人数</th><th>占本题回答</th></tr></thead>
               <tbody>{npsGroups.map(([label, count]) => <tr key={label}><td>{label}</td><td>{count.toLocaleString()}</td><td>{(count / 8379 * 100).toFixed(1)}%</td></tr>)}</tbody>
             </table>
           </article>
 
-          <article className="question-stat-card">
-            <header><div><span>第 3 题 · 文本题</span><h2>还有哪些体验可以改进？</h2></div><p><strong>6,924</strong><small>份回答</small></p></header>
+          <article className="answer-report-section">
+            <header><div><span>第 3 题　文本题</span><h2>还有哪些体验可以改进？</h2></div><dl><div><dt>回答</dt><dd>6,924</dd></div><div><dt>未回答</dt><dd>1,497</dd></div></dl></header>
             <table>
-              <thead><tr><th>高频主题</th><th>提及次数</th><th>占文本回答比例</th></tr></thead>
+              <thead><tr><th>高频主题</th><th>提及次数</th><th>占本题回答</th></tr></thead>
               <tbody>{textTopics.map(([label, count]) => <tr key={label}><td>{label}</td><td>{count.toLocaleString()}</td><td>{(count / 6924 * 100).toFixed(1)}%</td></tr>)}</tbody>
             </table>
             <footer className="text-answer-link"><span>文本题只做主题计数，原始回答请在答卷明细中查看。</span><button onClick={() => router.push(`/survey/${surveyId}/responses`)}>查看全部文本答案 →</button></footer>
@@ -112,7 +109,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="user-distribution-grid">
             {userDistributions.map((group) => <article className="user-distribution-card" key={group.title}>
-              <header><div><strong>{group.title}</strong><small>数据字段：{group.field}</small></div><span>{totalResponses.toLocaleString()} 份</span></header>
+              <header><div><strong>{group.title}</strong><small>数据字段：{group.field}{group.title === "访问来源" ? "；当前为原型示例数据" : ""}</small></div><span>{totalResponses.toLocaleString()} 份</span></header>
               <table><thead><tr><th>{group.title}</th><th>答卷数</th><th>占比</th></tr></thead><tbody>{group.rows.map(([label, count]) => <tr key={label}><td>{label}</td><td>{Number(count).toLocaleString()}</td><td>{(Number(count) / totalResponses * 100).toFixed(1)}%</td></tr>)}</tbody></table>
             </article>)}
           </div>

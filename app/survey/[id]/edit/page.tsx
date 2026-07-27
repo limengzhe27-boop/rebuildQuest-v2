@@ -336,7 +336,6 @@ export default function SurveyEditorPage() {
         <SurveyNav surveyId={surveyId} active="edit" onNotice={flash} />
         <div className="editor-actions">
           <button className="secondary-button" onClick={openTemplateSave}>设为模板</button>
-          <button className="primary-button" onClick={() => flash("草稿已保存，可以继续配置发布")}>保存草稿</button>
         </div>
       </header>
 

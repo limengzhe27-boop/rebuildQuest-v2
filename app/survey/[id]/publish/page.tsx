@@ -20,6 +20,14 @@ const languageCodeToLocale: Record<string, string> = {
   ไทย: "th-TH",
 };
 
+type SourceLink = {
+  id: string;
+  name: string;
+  key: string;
+  url: string;
+  createdAt: string;
+};
+
 export default function PublishPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -28,8 +36,9 @@ export default function PublishPage() {
   const [publications, setPublications] = useState<Publication[]>(defaultPublications);
   const [section, setSection] = useState<"release" | "webhook">("release");
   const [languages, setLanguages] = useState(["en-US", "zh-TW", "th-TH"]);
-  const [linkParameter, setLinkParameter] = useState("");
-  const [generatedLinks, setGeneratedLinks] = useState<string[]>([]);
+  const [sourceName, setSourceName] = useState("");
+  const [sourceKey, setSourceKey] = useState("");
+  const [generatedLinks, setGeneratedLinks] = useState<SourceLink[]>([]);
   const [notice, setNotice] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
@@ -44,6 +53,12 @@ export default function PublishPage() {
         const configured = draft.languages.map((item: string) => languageCodeToLocale[item]).filter(Boolean);
         if (configured.length) setLanguages(configured);
       }
+      const savedLinks = JSON.parse(window.localStorage.getItem(`joydata-survey-source-links-${surveyId}`) || "[]");
+      if (Array.isArray(savedLinks)) {
+        setGeneratedLinks(savedLinks.filter((item): item is SourceLink =>
+          Boolean(item && typeof item === "object" && item.id && item.name && item.key && item.url),
+        ));
+      }
     } catch {}
     setHydrated(true);
   }, [surveyId]);
@@ -52,6 +67,11 @@ export default function PublishPage() {
     if (!hydrated) return;
     window.localStorage.setItem(`joydata-survey-publications-${surveyId}`, JSON.stringify(publications));
   }, [publications, surveyId, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    window.localStorage.setItem(`joydata-survey-source-links-${surveyId}`, JSON.stringify(generatedLinks));
+  }, [generatedLinks, surveyId, hydrated]);
 
   const selected = publications[0];
 
@@ -84,15 +104,31 @@ export default function PublishPage() {
   }
 
   function generateParameterizedLink() {
-    const parameter = linkParameter.trim().replace(/^[?&]/, "");
-    if (!parameter) {
-      flash("请输入扩展参数，例如 source=discord");
+    const name = sourceName.trim();
+    const key = sourceKey.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+    if (!name) {
+      flash("请输入来源名称");
       return;
     }
-    const url = `${publicationUrl(selected)}?${parameter}`;
-    setGeneratedLinks((current) => current.includes(url) ? current : [url, ...current]);
-    setLinkParameter("");
-    flash("扩展链接已生成");
+    if (!key) {
+      flash("请输入仅含字母、数字、短横线或下划线的来源标识");
+      return;
+    }
+    if (generatedLinks.some((item) => item.key === key)) {
+      flash("该来源标识已存在");
+      return;
+    }
+    const url = `${publicationUrl(selected)}?source=${encodeURIComponent(key)}`;
+    setGeneratedLinks((current) => [{
+      id: `${Date.now()}`,
+      name,
+      key,
+      url,
+      createdAt: new Date().toLocaleDateString("zh-CN"),
+    }, ...current]);
+    setSourceName("");
+    setSourceKey("");
+    flash("来源链接已生成");
   }
 
   if (!selected) return null;
@@ -158,9 +194,30 @@ export default function PublishPage() {
                   <div className="qr-placeholder"><span>▦</span><small>问卷二维码</small><button onClick={() => flash("二维码已保存")}>保存二维码</button></div>
                 </div>
                 <div className="parameter-link-builder">
-                  <p><strong>生成带参数的链接</strong><small>扩展参数仅用于区分数据来源，不建立“发布渠道”管理层级。</small></p>
-                  <div><span>{publicationUrl(selected)}?</span><input value={linkParameter} onChange={(event) => setLinkParameter(event.target.value)} placeholder="source=discord" /><button onClick={generateParameterizedLink}>生成链接</button></div>
-                  {generatedLinks.map((url) => <article key={url}><span>{url}</span><button onClick={() => copyText(url, "扩展链接已复制")}>复制</button><button onClick={() => setGeneratedLinks((current) => current.filter((item) => item !== url))}>删除</button></article>)}
+                  <p><strong>来源链接</strong><small>为不同投放位置生成独立链接。用户通过链接提交后，答案会自动记录来源；主链接访问记为“直接访问”。</small></p>
+                  <div className="source-link-form">
+                    <label><span>来源名称</span><input value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="例如：Discord 社区" /></label>
+                    <label><span>来源标识</span><div><b>source=</b><input value={sourceKey} onChange={(event) => setSourceKey(event.target.value)} placeholder="discord" /></div></label>
+                    <button className="primary-button" onClick={generateParameterizedLink}>生成来源链接</button>
+                  </div>
+                  <div className="source-link-preview">
+                    <span>链接预览</span>
+                    <code>{publicationUrl(selected)}?source={sourceKey.trim() || "来源标识"}</code>
+                  </div>
+                  {generatedLinks.length ? (
+                    <div className="source-link-table-wrap">
+                      <table className="source-link-table">
+                        <thead><tr><th>来源名称</th><th>来源标识</th><th>链接</th><th>创建时间</th><th>操作</th></tr></thead>
+                        <tbody>{generatedLinks.map((item) => <tr key={item.id}>
+                          <td>{item.name}</td>
+                          <td><code>{item.key}</code></td>
+                          <td><span title={item.url}>{item.url}</span></td>
+                          <td>{item.createdAt}</td>
+                          <td><button onClick={() => copyText(item.url, "来源链接已复制")}>复制</button><button className="danger-text" onClick={() => setGeneratedLinks((current) => current.filter((link) => link.id !== item.id))}>删除</button></td>
+                        </tr>)}</tbody>
+                      </table>
+                    </div>
+                  ) : <div className="source-link-empty">还没有来源链接。需要区分投放位置时再创建即可。</div>}
                 </div>
               </section>
 

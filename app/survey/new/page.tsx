@@ -61,6 +61,7 @@ function NewSurveyWizard() {
   const [mode, setMode] = useState<CreationMode>(initialTemplate ? "template" : "blank");
   const [selectedTemplateId, setSelectedTemplateId] = useState(requestedTemplateId);
   const [templateCategory, setTemplateCategory] = useState("全部分类");
+  const [templateQuery, setTemplateQuery] = useState("");
   const [availableTemplateCategories, setAvailableTemplateCategories] = useState(defaultTemplateCategories);
   const [customTemplates, setCustomTemplates] = useState<Record<string, TemplatePreset>>({});
   const [internalNote, setInternalNote] = useState("");
@@ -82,9 +83,9 @@ function NewSurveyWizard() {
         templateCategory === "全部分类"
         || item.category === templateCategory
         || item.categories?.includes(templateCategory)
-      ),
+      ) && `${item.label}${item.category}${item.categories?.join("") || ""}`.toLowerCase().includes(templateQuery.trim().toLowerCase()),
     ),
-    [allTemplates, region, templateCategory],
+    [allTemplates, region, templateCategory, templateQuery],
   );
 
   useEffect(() => {
@@ -446,9 +447,12 @@ function NewSurveyWizard() {
                   <section className="wizard-template-picker">
                     <header>
                       <div><strong>选择模板</strong><small>仅展示{region}工作区模板</small></div>
-                      <select value={templateCategory} onChange={(event) => setTemplateCategory(event.target.value)}>
-                        {availableTemplateCategories.map((category) => <option key={category}>{category}</option>)}
-                      </select>
+                      <div className="wizard-template-filters">
+                        <label><span>⌕</span><input value={templateQuery} onChange={(event) => setTemplateQuery(event.target.value)} placeholder="搜索模板名称" /></label>
+                        <select value={templateCategory} onChange={(event) => setTemplateCategory(event.target.value)}>
+                          {availableTemplateCategories.map((category) => <option key={category}>{category}</option>)}
+                        </select>
+                      </div>
                     </header>
                     <div>
                       {availableTemplates.map(([id, item]) => (
