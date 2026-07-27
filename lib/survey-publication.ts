@@ -32,10 +32,15 @@ export type Publication = {
   graceMinutes: number;
   totalLimit: number;
   perAccountLimit: number;
+  accountLimitEnabled: boolean;
   deviceLimit: boolean;
+  perDeviceLimit: number;
   ipLimit: boolean;
+  perIpLimit: number;
   anonymous: boolean;
   resumeEnabled: boolean;
+  prefillLastSubmission: boolean;
+  captureUserProfile: boolean;
   accessGate: AccessGate;
   accessPassword: string;
   joymakerLogin: boolean;
@@ -52,6 +57,7 @@ export type Publication = {
   channels: PublicationChannel[];
   webhookEnabled: boolean;
   webhookUrl: string;
+  webhookSecret: string;
   slug: string;
 };
 
@@ -75,10 +81,15 @@ export const defaultPublications: Publication[] = [
     graceMinutes: 10,
     totalLimit: 10000,
     perAccountLimit: 1,
+    accountLimitEnabled: true,
     deviceLimit: true,
+    perDeviceLimit: 1,
     ipLimit: false,
+    perIpLimit: 1,
     anonymous: true,
     resumeEnabled: true,
+    prefillLastSubmission: false,
+    captureUserProfile: false,
     accessGate: "open",
     accessPassword: "",
     joymakerLogin: true,
@@ -96,6 +107,7 @@ export const defaultPublications: Publication[] = [
     ],
     webhookEnabled: false,
     webhookUrl: "",
+    webhookSecret: "",
     slug: "ro3-global-beta",
   },
   {
@@ -114,10 +126,15 @@ export const defaultPublications: Publication[] = [
     graceMinutes: 10,
     totalLimit: 3000,
     perAccountLimit: 1,
+    accountLimitEnabled: true,
     deviceLimit: true,
+    perDeviceLimit: 1,
     ipLimit: false,
+    perIpLimit: 1,
     anonymous: false,
     resumeEnabled: true,
+    prefillLastSubmission: false,
+    captureUserProfile: true,
     accessGate: "account",
     accessPassword: "",
     joymakerLogin: true,
@@ -132,6 +149,7 @@ export const defaultPublications: Publication[] = [
     channels: [],
     webhookEnabled: false,
     webhookUrl: "",
+    webhookSecret: "",
     slug: "ro3-cn-beta",
   },
 ];

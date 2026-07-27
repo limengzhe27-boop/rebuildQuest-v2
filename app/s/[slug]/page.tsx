@@ -90,6 +90,7 @@ export default function PlayerSurvey() {
   const [rules, setRules] = useState<StoredRule[]>([]);
   const [locale, setLocale] = useState<RuntimeLocale>("en-US");
   const [availableLocales, setAvailableLocales] = useState<RuntimeLocale[]>(["zh-CN", "en-US", "zh-TW", "th-TH"]);
+  const [allowLanguageSwitch, setAllowLanguageSwitch] = useState(true);
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
   const [primary, setPrimary] = useState("#356fe6");
   const [closedMessage, setClosedMessage] = useState("");
@@ -119,6 +120,7 @@ export default function PlayerSurvey() {
         window.localStorage.getItem(`joydata-survey-publications-${surveyId}`) || "[]",
       );
       const publication = publications.find((item: { slug: string }) => item.slug === params.slug);
+      if (publication) setAllowLanguageSwitch(publication.allowLanguageSwitch !== false);
       if (publication?.status === "stopped") {
         setClosedMessage(
           publication.closedMessage ||
@@ -266,7 +268,7 @@ export default function PlayerSurvey() {
   if (closedMessage) {
     return (
       <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
-        <LanguageBar locale={locale} availableLocales={availableLocales} onChange={changeLocale} />
+        <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
         <section className="player-closed">
           <span>■</span><small>SURVEY CLOSED</small>
           <h1>{surveyTitle}</h1><p>{closedMessage}</p>
@@ -279,7 +281,7 @@ export default function PlayerSurvey() {
   if (done) {
     return (
       <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
-        <LanguageBar locale={locale} availableLocales={availableLocales} onChange={changeLocale} />
+        <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
         <section className="player-complete">
           <span>✓</span><h1>{copy.done}</h1><p>{copy.doneText}</p>
           <div><small>Response ID</small><strong>{responseId}</strong></div>
@@ -291,7 +293,7 @@ export default function PlayerSurvey() {
 
   return (
     <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
-      <LanguageBar locale={locale} availableLocales={availableLocales} onChange={changeLocale} />
+      <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
       <div className="player-progress"><i style={{ width: `${progress}%` }} /></div>
       <section className="player-survey-card">
         {step === 0 ? (
@@ -323,18 +325,22 @@ export default function PlayerSurvey() {
 function LanguageBar({
   locale,
   availableLocales,
+  allowSwitch,
   onChange,
 }: {
   locale: RuntimeLocale;
   availableLocales: RuntimeLocale[];
+  allowSwitch: boolean;
   onChange: (locale: RuntimeLocale) => void;
 }) {
   return (
     <div className="player-language">
       <span>RO3 · PLAYER RESEARCH</span>
-      <select value={locale} onChange={(event) => onChange(event.target.value as RuntimeLocale)}>
-        {availableLocales.map((code) => <option key={code} value={code}>{runtimeLocales[code]}</option>)}
-      </select>
+      {allowSwitch && availableLocales.length > 1 ? (
+        <select value={locale} onChange={(event) => onChange(event.target.value as RuntimeLocale)}>
+          {availableLocales.map((code) => <option key={code} value={code}>🌐 {runtimeLocales[code]}</option>)}
+        </select>
+      ) : <em>🌐 {runtimeLocales[locale]}</em>}
     </div>
   );
 }
