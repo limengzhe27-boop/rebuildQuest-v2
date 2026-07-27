@@ -669,14 +669,6 @@ export default function Home() {
                 </div>
                 <small className="field-help">玩家打开链接时，将优先匹配渠道和浏览器语言。</small>
               </label>
-              <div className="smart-default">
-                <span>✦</span>
-                <div>
-                  <strong>已启用智能语言匹配</strong>
-                  <p>系统会自动选择最适合玩家的语言，玩家也可以手动切换。</p>
-                </div>
-                <span className="switch-on"><i /></span>
-              </div>
             </div>
             <footer>
               <button className="secondary-button" onClick={() => setShowCreate(false)}>取消</button>

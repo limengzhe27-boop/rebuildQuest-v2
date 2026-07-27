@@ -89,6 +89,7 @@ export default function PlayerSurvey() {
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [rules, setRules] = useState<StoredRule[]>([]);
   const [locale, setLocale] = useState<RuntimeLocale>("en-US");
+  const [availableLocales, setAvailableLocales] = useState<RuntimeLocale[]>(["zh-CN", "en-US", "zh-TW", "th-TH"]);
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
   const [primary, setPrimary] = useState("#356fe6");
   const [closedMessage, setClosedMessage] = useState("");
@@ -125,6 +126,14 @@ export default function PlayerSurvey() {
         );
       }
 
+      const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
+      const draft = drafts.find((item: { id?: number | string }) => String(item.id) === surveyId);
+      const configuredLocales = (draft?.languages || Object.keys(runtimeLocales))
+        .map((item: string) => matchRuntimeLocale(item))
+        .filter((item: RuntimeLocale | null): item is RuntimeLocale => Boolean(item));
+      const uniqueConfigured = Array.from(new Set<RuntimeLocale>(configuredLocales));
+      if (uniqueConfigured.length) setAvailableLocales(uniqueConfigured);
+
       const explicit = matchRuntimeLocale(searchParams.get("lang"));
       const remembered = matchRuntimeLocale(
         window.localStorage.getItem(`joydata-survey-language-${surveyId}`),
@@ -133,7 +142,13 @@ export default function PlayerSurvey() {
         .map(matchRuntimeLocale)
         .find((item): item is RuntimeLocale => Boolean(item));
       const configured = matchRuntimeLocale(publication?.defaultLocale);
-      setLocale(explicit || remembered || browserLocale || configured || "en-US");
+      const fallback = matchRuntimeLocale(
+        window.localStorage.getItem(`joydata-survey-fallback-language-${surveyId}`)
+          || draft?.fallbackLanguage
+          || draft?.defaultLanguage,
+      ) || configured || uniqueConfigured[0] || "en-US";
+      const preferred = explicit || remembered || browserLocale;
+      setLocale(preferred && uniqueConfigured.includes(preferred) ? preferred : fallback);
     } catch {
       setQuestions(defaultQuestions);
     }
@@ -251,7 +266,7 @@ export default function PlayerSurvey() {
   if (closedMessage) {
     return (
       <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
-        <LanguageBar locale={locale} onChange={changeLocale} />
+        <LanguageBar locale={locale} availableLocales={availableLocales} onChange={changeLocale} />
         <section className="player-closed">
           <span>■</span><small>SURVEY CLOSED</small>
           <h1>{surveyTitle}</h1><p>{closedMessage}</p>
@@ -264,7 +279,7 @@ export default function PlayerSurvey() {
   if (done) {
     return (
       <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
-        <LanguageBar locale={locale} onChange={changeLocale} />
+        <LanguageBar locale={locale} availableLocales={availableLocales} onChange={changeLocale} />
         <section className="player-complete">
           <span>✓</span><h1>{copy.done}</h1><p>{copy.doneText}</p>
           <div><small>Response ID</small><strong>{responseId}</strong></div>
@@ -276,7 +291,7 @@ export default function PlayerSurvey() {
 
   return (
     <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
-      <LanguageBar locale={locale} onChange={changeLocale} />
+      <LanguageBar locale={locale} availableLocales={availableLocales} onChange={changeLocale} />
       <div className="player-progress"><i style={{ width: `${progress}%` }} /></div>
       <section className="player-survey-card">
         {step === 0 ? (
@@ -307,16 +322,18 @@ export default function PlayerSurvey() {
 
 function LanguageBar({
   locale,
+  availableLocales,
   onChange,
 }: {
   locale: RuntimeLocale;
+  availableLocales: RuntimeLocale[];
   onChange: (locale: RuntimeLocale) => void;
 }) {
   return (
     <div className="player-language">
       <span>RO3 · PLAYER RESEARCH</span>
       <select value={locale} onChange={(event) => onChange(event.target.value as RuntimeLocale)}>
-        {Object.entries(runtimeLocales).map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+        {availableLocales.map((code) => <option key={code} value={code}>{runtimeLocales[code]}</option>)}
       </select>
     </div>
   );

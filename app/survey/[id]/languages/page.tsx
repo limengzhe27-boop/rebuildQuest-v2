@@ -17,6 +17,9 @@ const localeMeta = [
   { code: "EN", name: "English", native: "英语" },
   { code: "繁中", name: "繁體中文", native: "繁体中文" },
   { code: "ไทย", name: "ภาษาไทย", native: "泰语" },
+  { code: "한국어", name: "한국어", native: "韩语" },
+  { code: "日本語", name: "日本語", native: "日语" },
+  { code: "ID", name: "Bahasa Indonesia", native: "印尼语" },
 ];
 
 const preset: Record<string, Record<string, string>> = {
@@ -42,8 +45,10 @@ export default function LanguagesPage() {
   const [activeLocale, setActiveLocale] = useState("EN");
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>(preset);
   const [verifiedLocales, setVerifiedLocales] = useState<Record<string, boolean>>({});
+  const [configuredLanguages, setConfiguredLanguages] = useState(["简中", "EN", "繁中", "ไทย"]);
+  const [fallbackLanguage, setFallbackLanguage] = useState("简中");
   const [notice, setNotice] = useState("");
-  const hydrated = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
   const sourceScrollRef = useRef<HTMLDivElement>(null);
   const targetScrollRef = useRef<HTMLDivElement>(null);
   const syncingScroll = useRef(false);
@@ -53,17 +58,27 @@ export default function LanguagesPage() {
     try {
       const saved = window.localStorage.getItem(`joydata-survey-translations-${surveyId}`);
       const verified = window.localStorage.getItem(`joydata-survey-translation-verified-${surveyId}`);
+      const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
+      const draft = drafts.find((item: { id?: number | string }) => String(item.id) === surveyId);
       if (saved) setTranslations(JSON.parse(saved));
       if (verified) setVerifiedLocales(JSON.parse(verified));
+      if (draft?.languages?.length) setConfiguredLanguages(draft.languages);
+      setFallbackLanguage(
+        window.localStorage.getItem(`joydata-survey-fallback-language-${surveyId}`)
+          || draft?.fallbackLanguage
+          || draft?.defaultLanguage
+          || "简中",
+      );
     } catch {}
-    hydrated.current = true;
+    setHydrated(true);
   }, [surveyId]);
 
   useEffect(() => {
-    if (!hydrated.current) return;
+    if (!hydrated) return;
     window.localStorage.setItem(`joydata-survey-translations-${surveyId}`, JSON.stringify(translations));
     window.localStorage.setItem(`joydata-survey-translation-verified-${surveyId}`, JSON.stringify(verifiedLocales));
-  }, [translations, verifiedLocales, surveyId]);
+    window.localStorage.setItem(`joydata-survey-fallback-language-${surveyId}`, fallbackLanguage);
+  }, [translations, verifiedLocales, fallbackLanguage, surveyId, hydrated]);
 
   const fields = useMemo<TranslationField[]>(() => {
     const result: TranslationField[] = [
@@ -180,7 +195,7 @@ export default function LanguagesPage() {
         <aside className="locale-sidebar">
           <div className="panel-small-heading"><div><strong>问卷语言</strong><small>选择需要校验的目标语言</small></div><button onClick={() => flash("语言选择器已打开")}>＋</button></div>
           <div className="locale-list">
-            {localeMeta.map((locale) => {
+            {localeMeta.filter((locale) => locale.code === "简中" || configuredLanguages.includes(locale.code)).map((locale) => {
               const isSource = locale.code === "简中";
               const localeValues = translations[locale.code] || {};
               const localeCompleted = fields.filter((field) => localeValues[field.id]?.trim() || (field.legacyId && localeValues[field.legacyId]?.trim())).length;
@@ -195,6 +210,13 @@ export default function LanguagesPage() {
             })}
           </div>
           <button className="add-locale-button" onClick={() => flash("语言选择器已打开")}>＋ 添加语言版本</button>
+          <div className="fallback-language-setting">
+            <span>未匹配时展示</span>
+            <select value={fallbackLanguage} onChange={(event) => setFallbackLanguage(event.target.value)}>
+              {configuredLanguages.map((language) => <option key={language} value={language}>{language}</option>)}
+            </select>
+            <small>用户系统语言不在问卷语言中时使用</small>
+          </div>
           <div className="locale-rule-tip"><span>i</span><p><strong>原文回退规则</strong><br />未翻译内容会先显示原文并标注，发布前必须完成校验。</p></div>
         </aside>
 

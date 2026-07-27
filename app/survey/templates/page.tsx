@@ -14,6 +14,7 @@ type Template = {
   color: string;
   icon: string;
   recommended?: boolean;
+  custom?: boolean;
   region: "global" | "china" | "both";
 };
 
@@ -30,7 +31,7 @@ const templates: Template[] = [
   { id: "blank", name: "空白问卷", category: "基础", description: "从空白画布开始，自由添加题目、逻辑和语言。", questions: 0, languages: ["自定义"], uses: "自由创建", color: "#758197", icon: "＋", region: "both" },
 ];
 
-const categories = ["全部模板", "版本测试", "满意度", "用户洞察", "运营活动", "服务体验"];
+const categories = ["全部模板", "版本测试", "满意度", "用户洞察", "运营活动", "服务体验", "招募筛选", "其他"];
 
 export default function TemplatesPage() {
   const router = useRouter();
@@ -38,18 +39,40 @@ export default function TemplatesPage() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Template | null>(null);
   const [region, setRegion] = useState<"global" | "china">("global");
+  const [customTemplates, setCustomTemplates] = useState<Template[]>([]);
+  const [onlyMine, setOnlyMine] = useState(false);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("region");
     if (requested === "china" || requested === "global") setRegion(requested);
+    try {
+      const saved = JSON.parse(window.localStorage.getItem("joydata-survey-templates") || "[]");
+      setCustomTemplates(saved.map((item: {
+        id: string; label: string; category: string; description: string; questions: number; languages: string[]; region: string;
+      }) => ({
+        id: item.id,
+        name: item.label,
+        category: item.category,
+        description: item.description,
+        questions: item.questions,
+        languages: item.languages,
+        uses: "团队模板",
+        color: "#4B7FE9",
+        icon: "▦",
+        custom: true,
+        region: item.region === "国内" ? "china" : "global",
+      })));
+    } catch {}
   }, []);
 
-  const visible = useMemo(() => templates.filter((item) =>
+  const allTemplates = useMemo(() => [...customTemplates, ...templates], [customTemplates]);
+  const visible = useMemo(() => allTemplates.filter((item) =>
     (item.region === region || item.region === "both") &&
+    (!onlyMine || item.custom) &&
     (category === "全部模板" || item.category === category) &&
     `${item.name}${item.description}`.toLowerCase().includes(query.toLowerCase()),
-  ), [category, query, region]);
+  ), [allTemplates, category, query, region, onlyMine]);
 
   function useTemplate(template: Template) {
     if (template.id === "blank") {
@@ -65,10 +88,10 @@ export default function TemplatesPage() {
   }
 
   return <main className="template-page">
-    <header className="template-topbar"><button onClick={() => router.push("/")}>‹</button><div><span className="wordmark-symbol">✦</span><strong>JoyData 用研中心</strong><i>/</i><span>模板中心</span></div><aside><button onClick={() => flash("我的模板管理已打开")}>我的模板</button><button className="primary-button" onClick={() => router.push("/survey/new")}>＋ 创建空白问卷</button></aside></header>
+    <header className="template-topbar"><button onClick={() => router.push("/")}>‹</button><div><span className="wordmark-symbol">✦</span><strong>JoyData 用研中心</strong><i>/</i><span>模板中心</span></div><aside><button className={onlyMine ? "active" : ""} onClick={() => setOnlyMine(!onlyMine)}>{onlyMine ? "查看全部模板" : "我的模板"}</button><button className="primary-button" onClick={() => router.push("/survey/new")}>＋ 创建空白问卷</button></aside></header>
     <section className="template-hero"><div><span>TEMPLATE LIBRARY</span><h1>从同工作区的用研模板开始</h1><p>国内、海外模板严格隔离，避免数据规则、登录方式和语言配置被错误复用。</p><div className="template-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索模板或研究场景" /></div></div><aside className="template-region-switch"><small>模板工作区</small><div><button className={region === "global" ? "active" : ""} onClick={() => setRegion("global")}>海外 GLOBAL</button><button className={region === "china" ? "active" : ""} onClick={() => setRegion("china")}>国内 CHINA</button></div><p>当前只展示可用于该工作区的模板</p></aside></section>
     <div className="template-body">
-      <aside className="template-categories"><strong>模板分类</strong>{categories.map((item) => <button key={item} className={category === item ? "active" : ""} onClick={() => setCategory(item)}><span>{item === "全部模板" ? "▦" : "▱"}</span>{item}<em>{templates.filter((template) => (template.region === region || template.region === "both") && (item === "全部模板" || template.category === item)).length}</em></button>)}<div><span>✦</span><p><strong>创建团队模板</strong><small>模板保存时必须选择所属数据工作区。</small></p><button onClick={() => flash("保存团队模板功能已打开")}>了解更多</button></div></aside>
+      <aside className="template-categories"><strong>模板分类</strong>{categories.map((item) => <button key={item} className={category === item ? "active" : ""} onClick={() => setCategory(item)}><span>{item === "全部模板" ? "▦" : "▱"}</span>{item}<em>{allTemplates.filter((template) => (template.region === region || template.region === "both") && (!onlyMine || template.custom) && (item === "全部模板" || template.category === item)).length}</em></button>)}<div><span>✦</span><p><strong>创建团队模板</strong><small>在问卷编辑器中点击“设为模板”，并选择模板分类。</small></p></div></aside>
       <section className="template-gallery"><header><div><strong>{category}</strong><small>{visible.length} 个可用模板</small></div><select><option>推荐排序</option><option>使用最多</option><option>最近更新</option></select></header>
         {visible.length ? <div className="template-grid">{visible.map((template) => <article key={template.id}>
           <div className="template-cover" style={{"--card-color":template.color} as React.CSSProperties}><span>{template.icon}</span><i/><i/><i/>{template.recommended && <em>官方推荐</em>}</div>

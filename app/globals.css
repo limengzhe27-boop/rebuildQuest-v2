@@ -6581,8 +6581,257 @@ input:focus-visible {
   font-weight: 400;
 }
 
+.language-fallback-tag {
+  border-radius: 999px;
+  background: #e8f1ff;
+  padding: 3px 7px;
+  color: #2f73f5;
+  font-size: 8px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.language-rule-card select {
+  min-width: 120px;
+  height: 34px;
+  border: 1px solid #ccd7e7;
+  border-radius: 7px;
+  background: #fff;
+  padding: 0 28px 0 10px;
+  color: #3d4b63;
+}
+
+.wizard-template-picker {
+  margin-top: 14px;
+  border: 1px solid #dfe5ee;
+  border-radius: 10px;
+  background: #fafbfc;
+  padding: 13px;
+}
+
+.wizard-template-picker > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.wizard-template-picker > header div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wizard-template-picker > header strong {
+  color: #334158;
+  font-size: 11px;
+}
+
+.wizard-template-picker > header small,
+.wizard-template-picker button small {
+  color: #8d98aa;
+  font-size: 8px;
+}
+
+.wizard-template-picker select {
+  height: 30px;
+  border: 1px solid #d6deea;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0 24px 0 9px;
+  color: #536177;
+  font-size: 9px;
+}
+
+.wizard-template-picker > div {
+  display: grid;
+  max-height: 145px;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  overflow-y: auto;
+}
+
+.wizard-template-picker button {
+  display: grid;
+  min-height: 52px;
+  cursor: pointer;
+  grid-template-columns: 28px 1fr 16px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e0e5ed;
+  border-radius: 7px;
+  background: #fff;
+  padding: 8px;
+  text-align: left;
+}
+
+.wizard-template-picker button.selected {
+  border-color: #77a0ee;
+  background: #f2f7ff;
+}
+
+.wizard-template-picker button > span {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 6px;
+  background: #edf3ff;
+  color: #2f73f5;
+}
+
+.wizard-template-picker button p {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wizard-template-picker button strong {
+  overflow: hidden;
+  color: #425067;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wizard-template-picker button i {
+  color: #2f73f5;
+  font-style: normal;
+}
+
+.wizard-template-empty {
+  margin: 4px 0;
+  color: #8e99aa;
+  font-size: 9px;
+}
+
+.fallback-language-setting {
+  margin-top: 12px;
+  border: 1px solid #dfe7f3;
+  border-radius: 9px;
+  background: #f7faff;
+  padding: 12px;
+}
+
+.fallback-language-setting > span {
+  display: block;
+  margin-bottom: 7px;
+  color: #3d4b62;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fallback-language-setting select {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #cad5e5;
+  border-radius: 7px;
+  background: #fff;
+  padding: 0 9px;
+  color: #43516a;
+}
+
+.fallback-language-setting small {
+  display: block;
+  margin-top: 6px;
+  color: #8995a8;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.template-save-modal {
+  width: min(560px, calc(100vw - 32px));
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 22px 70px rgba(35, 53, 85, .22);
+}
+
+.template-save-modal > header,
+.template-save-modal > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid #e7ebf1;
+}
+
+.template-save-modal > header div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.template-save-modal > header strong {
+  color: #1e2b43;
+  font-size: 17px;
+}
+
+.template-save-modal > header small,
+.template-save-modal > div > p {
+  color: #8793a6;
+  font-size: 12px;
+}
+
+.template-save-modal > header > button {
+  border: 0;
+  background: transparent;
+  color: #7f8a9d;
+  font-size: 22px;
+}
+
+.template-save-modal > div {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+}
+
+.template-save-modal label {
+  display: grid;
+  gap: 7px;
+  color: #49566d;
+  font-size: 13px;
+}
+
+.template-save-modal label b {
+  color: #e34f55;
+}
+
+.template-save-modal input,
+.template-save-modal select,
+.template-save-modal textarea {
+  width: 100%;
+  border: 1px solid #d8dfe9;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 12px;
+  color: #25324a;
+  font: inherit;
+}
+
+.template-save-modal textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.template-save-modal > div > p {
+  margin: 0;
+}
+
+.template-save-modal > footer {
+  justify-content: flex-end;
+  gap: 9px;
+  border-top: 1px solid #e7ebf1;
+  border-bottom: 0;
+}
+
 @media (max-width: 900px) {
   .survey-basic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wizard-template-picker > div {
     grid-template-columns: 1fr;
   }
 }

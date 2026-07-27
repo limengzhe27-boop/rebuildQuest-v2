@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type Region = "海外" | "国内";
@@ -14,6 +14,7 @@ const steps = [
 ];
 
 const globalLanguages = [
+  { code: "简中", name: "简体中文", hint: "简体中文" },
   { code: "EN", name: "English", hint: "英语" },
   { code: "繁中", name: "繁體中文", hint: "繁体中文" },
   { code: "ไทย", name: "ภาษาไทย", hint: "泰语" },
@@ -22,17 +23,21 @@ const globalLanguages = [
   { code: "ID", name: "Bahasa Indonesia", hint: "印尼语" },
 ];
 
-const templatePresets: Record<string, { name: string; label: string; languages: string[]; region: Region }> = {
-  "game-beta": { name: "游戏测试体验调研（副本）", label: "游戏测试体验调研", languages: ["EN", "繁中", "ไทย"], region: "海外" },
-  update: { name: "版本更新满意度（副本）", label: "版本更新满意度", languages: ["EN", "繁中"], region: "海外" },
-  nps: { name: "玩家 NPS 追踪（副本）", label: "玩家 NPS 追踪", languages: ["EN", "繁中", "ไทย"], region: "海外" },
-  churn: { name: "流失玩家召回调研（副本）", label: "流失玩家召回调研", languages: ["EN", "繁中"], region: "海外" },
-  event: { name: "国内运营活动复盘（副本）", label: "国内运营活动复盘", languages: ["简中"], region: "国内" },
-  "cn-satisfaction": { name: "国内玩家满意度（副本）", label: "国内玩家满意度", languages: ["简中"], region: "国内" },
-  "cn-update": { name: "国服版本更新反馈（副本）", label: "国服版本更新反馈", languages: ["简中"], region: "国内" },
-  community: { name: "社区玩家画像（副本）", label: "社区玩家画像", languages: ["EN", "日本語", "한국어"], region: "海外" },
-  support: { name: "客服满意度回访（副本）", label: "客服满意度回访", languages: ["EN", "繁中", "ไทย"], region: "海外" },
+type TemplatePreset = { name: string; label: string; languages: string[]; region: Region; category: string; sourceSurveyId?: string };
+
+const templatePresets: Record<string, TemplatePreset> = {
+  "game-beta": { name: "游戏测试体验调研（副本）", label: "游戏测试体验调研", languages: ["EN", "繁中", "ไทย"], region: "海外", category: "版本测试" },
+  update: { name: "版本更新满意度（副本）", label: "版本更新满意度", languages: ["EN", "繁中"], region: "海外", category: "版本测试" },
+  nps: { name: "玩家 NPS 追踪（副本）", label: "玩家 NPS 追踪", languages: ["EN", "繁中", "ไทย"], region: "海外", category: "满意度" },
+  churn: { name: "流失玩家召回调研（副本）", label: "流失玩家召回调研", languages: ["EN", "繁中"], region: "海外", category: "用户洞察" },
+  event: { name: "国内运营活动复盘（副本）", label: "国内运营活动复盘", languages: ["简中"], region: "国内", category: "运营活动" },
+  "cn-satisfaction": { name: "国内玩家满意度（副本）", label: "国内玩家满意度", languages: ["简中"], region: "国内", category: "满意度" },
+  "cn-update": { name: "国服版本更新反馈（副本）", label: "国服版本更新反馈", languages: ["简中"], region: "国内", category: "版本测试" },
+  community: { name: "社区玩家画像（副本）", label: "社区玩家画像", languages: ["EN", "日本語", "한국어"], region: "海外", category: "用户洞察" },
+  support: { name: "客服满意度回访（副本）", label: "客服满意度回访", languages: ["EN", "繁中", "ไทย"], region: "海外", category: "服务体验" },
 };
+
+const templateCategories = ["全部分类", "版本测试", "满意度", "用户洞察", "运营活动", "服务体验", "其他"];
 
 export default function NewSurveyPage() {
   return <Suspense fallback={<main className="wizard-page" />}><NewSurveyWizard /></Suspense>;
@@ -41,20 +46,26 @@ export default function NewSurveyPage() {
 function NewSurveyWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const template = templatePresets[searchParams.get("template") || ""];
+  const requestedTemplateId = searchParams.get("template") || "";
+  const initialTemplate = templatePresets[requestedTemplateId];
   const requestedRegion: Region = searchParams.get("region") === "china" ? "国内" : "海外";
   const initialProject = searchParams.get("project") || "RO3";
   const initialGroup = searchParams.get("group") || "3.6版本先锋测试";
   const [step, setStep] = useState(1);
-  const [name, setName] = useState(template?.name || "");
+  const [name, setName] = useState(initialTemplate?.name || "");
   const [game, setGame] = useState(initialProject);
   const [projectGroup, setProjectGroup] = useState(initialGroup);
-  const [region, setRegion] = useState<Region>(template?.region || requestedRegion);
-  const [languages, setLanguages] = useState(template?.languages || ["EN", "繁中"]);
-  const [defaultLanguage, setDefaultLanguage] = useState("EN");
-  const [mode, setMode] = useState<CreationMode>(template ? "template" : "blank");
+  const [region, setRegion] = useState<Region>(initialTemplate?.region || requestedRegion);
+  const [languages, setLanguages] = useState(initialTemplate?.languages || ["简中"]);
+  const [defaultLanguage, setDefaultLanguage] = useState(initialTemplate?.languages[0] || "简中");
+  const [mode, setMode] = useState<CreationMode>(initialTemplate ? "template" : "blank");
+  const [selectedTemplateId, setSelectedTemplateId] = useState(requestedTemplateId);
+  const [templateCategory, setTemplateCategory] = useState("全部分类");
+  const [customTemplates, setCustomTemplates] = useState<Record<string, TemplatePreset>>({});
   const [internalNote, setInternalNote] = useState("");
   const [error, setError] = useState("");
+  const allTemplates = useMemo(() => ({ ...templatePresets, ...customTemplates }), [customTemplates]);
+  const template = allTemplates[selectedTemplateId];
 
   const availableLanguages = useMemo(
     () =>
@@ -63,6 +74,46 @@ function NewSurveyWizard() {
         : globalLanguages,
     [region],
   );
+
+  const availableTemplates = useMemo(
+    () => Object.entries(allTemplates).filter(([, item]) =>
+      item.region === region && (templateCategory === "全部分类" || item.category === templateCategory),
+    ),
+    [allTemplates, region, templateCategory],
+  );
+
+  useEffect(() => {
+    try {
+      const savedTemplates = JSON.parse(window.localStorage.getItem("joydata-survey-templates") || "[]");
+      setCustomTemplates(Object.fromEntries(savedTemplates.map((item: TemplatePreset & { id: string }) => [item.id, item])));
+      const requestedCustom = savedTemplates.find((item: TemplatePreset & { id: string }) => item.id === requestedTemplateId);
+      if (requestedCustom) {
+        setMode("template");
+        setName(requestedCustom.name);
+        setRegion(requestedCustom.region);
+        setLanguages(requestedCustom.languages);
+        setDefaultLanguage(requestedCustom.languages[0]);
+      }
+    } catch {}
+
+    if (initialTemplate) return;
+    const uiLocale = (
+      window.localStorage.getItem("joydata-ui-language")
+      || document.documentElement.lang
+      || window.navigator.language
+      || "zh-CN"
+    ).toLowerCase();
+    const matched = uiLocale.startsWith("zh-tw") || uiLocale.startsWith("zh-hk") ? "繁中"
+      : uiLocale.startsWith("zh") ? "简中"
+      : uiLocale.startsWith("th") ? "ไทย"
+      : uiLocale.startsWith("ko") ? "한국어"
+      : uiLocale.startsWith("ja") ? "日本語"
+      : uiLocale.startsWith("id") ? "ID"
+      : "EN";
+    const currentLanguage = region === "国内" ? "简中" : matched;
+    setLanguages([currentLanguage]);
+    setDefaultLanguage(currentLanguage);
+  }, []);
 
   function chooseRegion(next: Region) {
     if (template && template.region !== next) {
@@ -75,9 +126,13 @@ function NewSurveyWizard() {
       setLanguages(["简中"]);
       setDefaultLanguage("简中");
     } else {
-      setLanguages(["EN", "繁中"]);
-      setDefaultLanguage("EN");
+      const uiLocale = window.navigator.language.toLowerCase();
+      const currentLanguage = uiLocale.startsWith("zh") ? "简中" : "EN";
+      setLanguages([currentLanguage]);
+      setDefaultLanguage(currentLanguage);
     }
+    setSelectedTemplateId("");
+    setMode("blank");
   }
 
   function toggleLanguage(code: string) {
@@ -101,7 +156,21 @@ function NewSurveyWizard() {
     setStep((current) => Math.min(4, current + 1));
   }
 
+  function chooseTemplate(id: string) {
+    const selected = allTemplates[id];
+    if (!selected) return;
+    setSelectedTemplateId(id);
+    setMode("template");
+    setLanguages(selected.languages);
+    setDefaultLanguage(selected.languages[0]);
+    setError("");
+  }
+
   function createSurvey() {
+    if (mode === "template" && !template) {
+      setError("请选择一个模板后再创建问卷");
+      return;
+    }
     const draft = {
       id: Date.now(),
       name: name.trim(),
@@ -114,7 +183,9 @@ function NewSurveyWizard() {
       updated: "刚刚",
       owner: "李孟哲",
       defaultLanguage,
+      fallbackLanguage: defaultLanguage,
       creationMode: mode,
+      templateId: mode === "template" ? selectedTemplateId : undefined,
       note: internalNote.trim(),
       createdAt: new Date().toISOString(),
     };
@@ -124,6 +195,10 @@ function NewSurveyWizard() {
       window.localStorage.setItem(key, JSON.stringify([draft, ...existing]));
     } catch {
       window.localStorage.setItem(key, JSON.stringify([draft]));
+    }
+    if (mode === "template" && template?.sourceSurveyId) {
+      const sourceSchema = window.localStorage.getItem(`joydata-survey-schema-${template.sourceSurveyId}`);
+      if (sourceSchema) window.localStorage.setItem(`joydata-survey-schema-${draft.id}`, sourceSchema);
     }
     router.push(`/survey/${draft.id}/edit`);
   }
@@ -260,7 +335,7 @@ function NewSurveyWizard() {
                     <p>面向海外玩家，支持多语言、海外登录与区域化隐私政策。</p>
                     <ul>
                       <li>海外数据存储</li>
-                      <li>多语言智能匹配</li>
+                      <li>多语言问卷与人工校验</li>
                       <li>JM / Line 登录</li>
                     </ul>
                   </button>
@@ -296,7 +371,7 @@ function NewSurveyWizard() {
                   <span>03</span>
                   <div>
                     <h2>配置问卷语言</h2>
-                    <p>玩家打开问卷时会优先匹配渠道、账号或浏览器语言。</p>
+                    <p>已默认选择当前 JoyData 界面语言，可继续添加玩家需要的其他语言。</p>
                   </div>
                 </div>
                 <div className="language-config-list">
@@ -313,28 +388,20 @@ function NewSurveyWizard() {
                           <strong>{language.name}</strong>
                           <small>{language.hint}</small>
                         </div>
-                        {selected && (
-                          <label onClick={(event) => event.stopPropagation()}>
-                            <input
-                              type="radio"
-                              name="default-language"
-                              checked={defaultLanguage === language.code}
-                              onChange={() => setDefaultLanguage(language.code)}
-                            />
-                            默认语言
-                          </label>
-                        )}
+                        {defaultLanguage === language.code && <em className="language-fallback-tag">兜底语言</em>}
                       </button>
                     );
                   })}
                 </div>
                 <div className="language-rule-card">
-                  <span>✦</span>
+                  <span>译</span>
                   <div>
-                    <strong>智能语言匹配</strong>
-                    <p>渠道指定语言 → 玩家账号语言 → 浏览器语言 → 默认语言</p>
+                    <strong>用户语言未匹配时展示</strong>
+                    <p>当用户的系统语言不在上述已选语言中，统一展示这里选择的语言。</p>
                   </div>
-                  <span className="switch-on"><i /></span>
+                  <select value={defaultLanguage} onChange={(event) => setDefaultLanguage(event.target.value)}>
+                    {languages.map((language) => <option key={language} value={language}>{language}</option>)}
+                  </select>
                 </div>
               </div>
             )}
@@ -359,13 +426,37 @@ function NewSurveyWizard() {
                   </button>
                   <button
                     className={mode === "template" ? "selected" : ""}
-                    onClick={() => template ? setMode("template") : router.push(`/survey/templates?region=${region === "国内" ? "china" : "global"}`)}
+                    onClick={() => setMode("template")}
                   >
                     <span>▦</span>
-                    <div><strong>从模板创建</strong><p>{template ? `已选「${template.label}」` : "前往模板中心选择满意度、招募、版本反馈等标准模板。"}</p></div>
+                    <div><strong>从模板创建</strong><p>{template ? `已选「${template.label}」` : "在下方选择同工作区的模板。"}</p></div>
                     <i>{mode === "template" ? "✓" : ""}</i>
                   </button>
                 </div>
+                {mode === "template" && (
+                  <section className="wizard-template-picker">
+                    <header>
+                      <div><strong>选择模板</strong><small>仅展示{region}工作区模板</small></div>
+                      <select value={templateCategory} onChange={(event) => setTemplateCategory(event.target.value)}>
+                        {templateCategories.map((category) => <option key={category}>{category}</option>)}
+                      </select>
+                    </header>
+                    <div>
+                      {availableTemplates.map(([id, item]) => (
+                        <button
+                          key={id}
+                          className={selectedTemplateId === id ? "selected" : ""}
+                          onClick={() => chooseTemplate(id)}
+                        >
+                          <span>▦</span>
+                          <p><strong>{item.label}</strong><small>{item.category} · {item.languages.join(" / ")}</small></p>
+                          <i>{selectedTemplateId === id ? "✓" : ""}</i>
+                        </button>
+                      ))}
+                    </div>
+                    {!availableTemplates.length && <p className="wizard-template-empty">当前分类暂无可用模板。</p>}
+                  </section>
+                )}
                 <div className="creation-summary">
                   <h3>创建信息确认</h3>
                   <div><span>问卷名称</span><strong>{name}</strong></div>
@@ -374,7 +465,7 @@ function NewSurveyWizard() {
                   {template && <div><span>使用模板</span><strong>{template.label}</strong></div>}
                   <div><span>工作空间</span><strong>{region}</strong></div>
                   <div><span>问卷语言</span><strong>{languages.join("、")}</strong></div>
-                  <div><span>默认语言</span><strong>{defaultLanguage}</strong></div>
+                  <div><span>未匹配时展示</span><strong>{defaultLanguage}</strong></div>
                   {internalNote.trim() && <div><span>内部备注</span><strong>{internalNote.trim()}</strong></div>}
                 </div>
               </div>

@@ -26,6 +26,10 @@ export function matchRuntimeLocale(
 ): RuntimeLocale | null {
   if (!requested) return null;
   const normalized = requested.toLowerCase();
+  if (requested === "简中") return "zh-CN";
+  if (requested === "繁中") return "zh-TW";
+  if (requested === "ไทย") return "th-TH";
+  if (normalized === "en") return "en-US";
   if (normalized.startsWith("zh-tw") || normalized.startsWith("zh-hk")) return "zh-TW";
   if (normalized.startsWith("zh")) return "zh-CN";
   if (normalized.startsWith("th")) return "th-TH";
