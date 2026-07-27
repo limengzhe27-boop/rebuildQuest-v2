@@ -636,11 +636,9 @@ input:focus-visible {
 }
 
 .owner-filter { height: 34px; padding: 0 9px; border: 1px solid #dce3ec; border-radius: 6px; background: #fff; color: #5b687d; font-size: 10px; }
-.workspace-more { position: relative; }
-.workspace-more-menu { position: absolute; z-index: 40; top: 39px; right: 0; width: 150px; padding: 6px; border: 1px solid #e1e6ed; border-radius: 7px; background: #fff; box-shadow: 0 10px 28px rgba(34,54,84,.15); }
-.workspace-more-menu button { width: 100%; height: 32px; display: flex; align-items: center; justify-content: space-between; padding: 0 9px; border: 0; border-radius: 5px; background: transparent; color: #56647a; font-size: 10px; cursor: pointer; }
-.workspace-more-menu button:hover { background: #f5f7fa; color: #d65d5d; }
-.workspace-more-menu em { min-width: 19px; padding: 2px 5px; border-radius: 9px; background: #f0f3f7; color: #8792a3; font-size: 8px; font-style: normal; }
+.quiet-action-button { height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #778398; font-size: 10px; cursor: pointer; }
+.quiet-action-button:hover { background: #f2f5f9; color: #d45e5e; }
+.quiet-action-button em { min-width: 18px; padding: 2px 5px; border-radius: 9px; background: #eef1f5; color: #8792a3; font-size: 8px; font-style: normal; }
 
 .page-heading {
   display: flex;

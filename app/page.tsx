@@ -117,7 +117,6 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"全部" | Status>("全部");
   const [ownerScope, setOwnerScope] = useState<"全部创建人" | "我创建的">("全部创建人");
-  const [showWorkspaceMore, setShowWorkspaceMore] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<Survey | null>(null);
   const [surveys, setSurveys] = useState(seedSurveys);
@@ -388,7 +387,7 @@ export default function Home() {
                 <p>{activeGroup === "回收站" ? "已删除的问卷会保留 30 天，可恢复后继续使用。" : "创建、发布并查看面向全球玩家的多语言问卷。"}</p>
               </div>
               <div className="heading-actions">
-                {activeGroup === "回收站" ? <button className="secondary-button" onClick={() => setActiveGroup("全部问卷")}>← 返回工作台</button> : <><button className="secondary-button" onClick={() => router.push("/survey/templates")}>
+                {activeGroup === "回收站" ? <button className="secondary-button" onClick={() => setActiveGroup("全部问卷")}>← 返回工作台</button> : <><button className="quiet-action-button" onClick={() => { setActiveGroup("回收站"); setStatus("全部"); }}>⌫ 回收站{trashedIds.length > 0 && <em>{trashedIds.length}</em>}</button><button className="secondary-button" onClick={() => router.push("/survey/templates")}>
                   ▦ 模板中心
                 </button><button className="primary-button" onClick={() => router.push(`/survey/new?project=${encodeURIComponent(activeBusinessProject === "全部项目" ? "RO3" : activeBusinessProject)}${activeProjectGroup ? `&group=${encodeURIComponent(activeProjectGroup)}` : ""}`)}>
                   ＋ 创建问卷
@@ -472,14 +471,6 @@ export default function Home() {
                       <span className="filter-count">{statusCounts[item]}</span>
                     </button>
                   ))}
-                </div>
-                <button className="filter-button" onClick={() => notify("更多筛选已打开")}>
-                  ≡ 筛选
-                </button>
-                <button className="icon-button" aria-label="刷新" onClick={() => notify("数据已刷新")}>↻</button>
-                <div className="workspace-more">
-                  <button className="icon-button" aria-label="更多操作" onClick={() => setShowWorkspaceMore((current) => !current)}>•••</button>
-                  {showWorkspaceMore && <div className="workspace-more-menu"><button onClick={() => { setActiveGroup("回收站"); setStatus("全部"); setShowWorkspaceMore(false); }}>⌫ 回收站 <em>{trashedIds.length}</em></button></div>}
                 </div>
               </div>
 
