@@ -1,44 +1,166 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { defaultQuestions, loadQuestions, Question } from "@/lib/survey-builder";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
-type Appearance = { theme:string; primary:string; radius:number; density:"compact"|"comfortable"; progress:boolean; questionNumber:boolean; cover:boolean; logo:boolean; background:"plain"|"soft"|"dark" };
-const defaults: Appearance = { theme:"RO3 先锋",primary:"#356FE6",radius:10,density:"comfortable",progress:true,questionNumber:true,cover:true,logo:true,background:"soft" };
-const themes=[["RO3 先锋","#356FE6","soft"],["JoyData 简洁","#2F73F5","plain"],["暗夜游戏","#7C6FF0","dark"],["活力橙","#F06E3A","plain"]];
+type Appearance = {
+  theme: string;
+  primary: string;
+  radius: number;
+  density: "compact" | "comfortable";
+  fontSize: "standard" | "large";
+  buttonStyle: "filled" | "outline";
+  progress: boolean;
+  questionNumber: boolean;
+  cover: boolean;
+  logo: boolean;
+  requiredMark: boolean;
+  background: "plain" | "soft" | "dark";
+};
 
-export default function AppearancePage(){
-  const router=useRouter();const params=useParams<{id:string}>();const surveyId=params.id;
-  const [config,setConfig]=useState<Appearance>(defaults);const [device,setDevice]=useState<"mobile"|"desktop">("mobile");const [notice,setNotice]=useState("");
-  const surveyTitle=useSurveyTitle(surveyId);
-  useEffect(()=>{const saved=window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`);if(saved)setConfig(JSON.parse(saved))},[surveyId]);
-  useEffect(()=>window.localStorage.setItem(`joydata-survey-appearance-${surveyId}`,JSON.stringify(config)),[config,surveyId]);
-  function update(patch:Partial<Appearance>){setConfig(current=>({...current,...patch}))}
-  function flash(message:string){setNotice(message);window.setTimeout(()=>setNotice(""),2200)}
-  return <main className="appearance-page">
-    <header className="editor-topbar"><button className="editor-back" onClick={()=>router.push("/")}>‹</button><div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="saved"/>外观设置自动保存</small></div></div><SurveyNav surveyId={surveyId} active="appearance" onNotice={flash}/><div className="editor-actions"><button className="secondary-button" onClick={()=>setConfig(defaults)}>恢复默认</button><button className="primary-button" onClick={()=>router.push(`/s/ro3-global-beta?surveyId=${surveyId}`)}>玩家端预览</button></div></header>
-    <div className="appearance-layout">
-      <aside className="appearance-settings">
-        <header><strong>外观与品牌</strong><small>不影响问卷内容和逻辑</small></header>
-        <section><h3>主题模板</h3><div className="theme-grid">{themes.map(([name,color,bg])=><button key={name} className={config.theme===name?"active":""} onClick={()=>update({theme:name,primary:color,background:bg as Appearance["background"]})}><i style={{background:color}}/><span style={{background:color}}/><strong>{name}</strong><em>{config.theme===name?"✓":""}</em></button>)}</div></section>
-        <section><h3>品牌颜色</h3><div className="color-setting"><input type="color" value={config.primary} onChange={(e)=>update({primary:e.target.value})}/><input value={config.primary} onChange={(e)=>update({primary:e.target.value})}/><button onClick={()=>update({primary:"#356FE6"})}>↺</button></div></section>
-        <section><h3>页面布局</h3><label className="segmented-setting"><span>内容密度</span><div><button className={config.density==="compact"?"active":""} onClick={()=>update({density:"compact"})}>紧凑</button><button className={config.density==="comfortable"?"active":""} onClick={()=>update({density:"comfortable"})}>舒适</button></div></label><label className="range-setting"><span>圆角大小 <em>{config.radius}px</em></span><input type="range" min="0" max="20" value={config.radius} onChange={(e)=>update({radius:Number(e.target.value)})}/></label></section>
-        <section><h3>填写页组件</h3>{[["显示封面","cover"],["显示品牌标识","logo"],["显示进度条","progress"],["显示题号","questionNumber"]].map(([label,key])=><div className="appearance-toggle" key={key}><span>{label}</span><button className={`mini-switch ${config[key as keyof Appearance]?"on":""}`} onClick={()=>update({[key]:!config[key as keyof Appearance]})}><i/></button></div>)}</section>
-      </aside>
-      <section className={`appearance-preview ${config.background}`} style={{"--theme":config.primary,"--radius":`${config.radius}px`} as React.CSSProperties}>
-        <div className="preview-device-toggle"><button className={device==="desktop"?"active":""} onClick={()=>setDevice("desktop")}>▱ 桌面端</button><button className={device==="mobile"?"active":""} onClick={()=>setDevice("mobile")}>▯ 移动端</button><span>English</span></div>
-        <div className={`survey-device ${device} ${config.density}`}>
-          <div className="player-mini-page">
-            {config.progress&&<div className="mini-progress"><i/></div>}
-            <header>{config.logo&&<span>RO3 · PLAYER RESEARCH</span>}{config.cover&&<><h1>{surveyTitle}</h1><p>感谢您参与本次先锋测试。问卷预计需要 3–5 分钟完成。</p></>}</header>
-            <main><small>{config.questionNumber&&"01 / 03"} · 单选题</small><h2>您对本次先锋测试的整体体验如何？<b>*</b></h2><p>请选择最符合您感受的一项</p>{["非常满意","满意","一般","不满意","非常不满意"].map((item,index)=><button key={item} className={index===0?"selected":""}><i>{index===0?"●":"○"}</i>{item}</button>)}<footer><span>已自动保存</span><button>下一题 →</button></footer></main>
+const defaults: Appearance = {
+  theme: "RO3 先锋",
+  primary: "#356FE6",
+  radius: 10,
+  density: "comfortable",
+  fontSize: "standard",
+  buttonStyle: "filled",
+  progress: true,
+  questionNumber: true,
+  cover: true,
+  logo: true,
+  requiredMark: true,
+  background: "soft",
+};
+
+const themes = [
+  ["RO3 先锋", "#356FE6", "soft"],
+  ["JoyData 简洁", "#2F73F5", "plain"],
+  ["暗夜游戏", "#7C6FF0", "dark"],
+  ["活力橙", "#F06E3A", "plain"],
+] as const;
+
+export default function AppearancePage() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const surveyId = params.id;
+  const surveyTitle = useSurveyTitle(surveyId);
+  const [config, setConfig] = useState<Appearance>(defaults);
+  const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
+  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+  const [pageIndex, setPageIndex] = useState(0);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`);
+    if (saved) setConfig({ ...defaults, ...JSON.parse(saved) });
+    setQuestions(loadQuestions(surveyId));
+  }, [surveyId]);
+
+  useEffect(() => {
+    window.localStorage.setItem(`joydata-survey-appearance-${surveyId}`, JSON.stringify(config));
+  }, [config, surveyId]);
+
+  const pages = useMemo(() => {
+    const result: Question[][] = [[]];
+    questions.forEach((question) => {
+      if (question.type === "pageBreak") {
+        if (result[result.length - 1].length) result.push([]);
+      } else {
+        result[result.length - 1].push(question);
+      }
+    });
+    return result.filter((page) => page.length);
+  }, [questions]);
+
+  const hasPagination = pages.length > 1;
+  const visibleQuestions = hasPagination ? pages[Math.min(pageIndex, pages.length - 1)] : pages.flat();
+
+  function update(patch: Partial<Appearance>) {
+    setConfig((current) => ({ ...current, ...patch }));
+  }
+
+  function flash(message: string) {
+    setNotice(message);
+    window.setTimeout(() => setNotice(""), 2200);
+  }
+
+  function renderQuestion(question: Question, index: number) {
+    const overallIndex = questions.filter((item) => item.type !== "pageBreak").findIndex((item) => item.id === question.id);
+    if (question.type === "divider") return <div className="appearance-divider" key={question.id} />;
+    if (question.type === "description") return <div className="appearance-description" key={question.id}>{question.title}</div>;
+    if (question.type === "imageDisplay" || question.type === "carousel") return <div className="appearance-image-block" key={question.id}>▧ {question.type === "carousel" ? "图片轮播" : "图片展示"}</div>;
+    return (
+      <article className="appearance-question-preview" key={question.id}>
+        <small>{config.questionNumber ? `${String(overallIndex + 1).padStart(2, "0")} · ` : ""}{question.type === "nps" ? "NPS" : "问题"}</small>
+        <h2>{question.title}{config.requiredMark && question.required && <b>*</b>}</h2>
+        {question.description && <p>{question.description}</p>}
+        {question.options?.slice(0, 5).map((option, optionIndex) => <button key={`${question.id}-${optionIndex}`} className={optionIndex === 0 ? "selected" : ""}><i>{question.type === "multiple" ? "□" : "○"}</i>{option}</button>)}
+        {(question.type === "text" || question.type === "textarea" || question.type === "phone") && <div className="appearance-input">{question.type === "phone" ? "请输入手机号" : "请输入您的回答"}</div>}
+        {(question.type === "rating" || question.type === "nps") && <div className="appearance-score-row">{Array.from({ length: Math.min(11, (question.max || 5) - (question.min || 0) + 1) }, (_, score) => <span key={score}>{score + (question.min || 0)}</span>)}</div>}
+        {!question.options && !["text", "textarea", "phone", "rating", "nps"].includes(question.type) && <div className="appearance-input">请填写或选择内容</div>}
+      </article>
+    );
+  }
+
+  return (
+    <main className="appearance-page">
+      <header className="editor-topbar">
+        <button className="editor-back" onClick={() => router.push("/")}>‹</button>
+        <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="saved" />外观设置自动保存</small></div></div>
+        <SurveyNav surveyId={surveyId} active="appearance" />
+        <div className="editor-actions"><button className="secondary-button" onClick={() => setConfig(defaults)}>恢复默认</button><button className="primary-button" onClick={() => router.push(`/s/ro3-global-beta?surveyId=${surveyId}`)}>玩家端预览</button></div>
+      </header>
+
+      <div className="appearance-layout appearance-layout-simple">
+        <aside className="appearance-settings">
+          <header><strong>外观设置</strong><small>实时预览完整问卷填写页</small></header>
+          <section><h3>主题模板</h3><div className="theme-grid">{themes.map(([name, color, background]) => <button key={name} className={config.theme === name ? "active" : ""} onClick={() => update({ theme: name, primary: color, background })}><i style={{ background: color }} /><span style={{ background: color }} /><strong>{name}</strong><em>{config.theme === name ? "✓" : ""}</em></button>)}</div></section>
+          <section><h3>品牌颜色</h3><div className="color-setting"><input type="color" value={config.primary} onChange={(event) => update({ primary: event.target.value })} /><input value={config.primary} onChange={(event) => update({ primary: event.target.value })} /><button onClick={() => update({ primary: "#356FE6" })}>↺</button></div></section>
+          <section>
+            <h3>内容布局</h3>
+            <label className="segmented-setting"><span>内容密度</span><div><button className={config.density === "compact" ? "active" : ""} onClick={() => update({ density: "compact" })}>紧凑</button><button className={config.density === "comfortable" ? "active" : ""} onClick={() => update({ density: "comfortable" })}>舒适</button></div></label>
+            <label className="segmented-setting appearance-segment-gap"><span>正文字号</span><div><button className={config.fontSize === "standard" ? "active" : ""} onClick={() => update({ fontSize: "standard" })}>标准</button><button className={config.fontSize === "large" ? "active" : ""} onClick={() => update({ fontSize: "large" })}>大号</button></div></label>
+            <label className="segmented-setting appearance-segment-gap"><span>主按钮</span><div><button className={config.buttonStyle === "filled" ? "active" : ""} onClick={() => update({ buttonStyle: "filled" })}>填充</button><button className={config.buttonStyle === "outline" ? "active" : ""} onClick={() => update({ buttonStyle: "outline" })}>描边</button></div></label>
+            <label className="range-setting"><span>圆角大小 <em>{config.radius}px</em></span><input type="range" min="0" max="20" value={config.radius} onChange={(event) => update({ radius: Number(event.target.value) })} /></label>
+          </section>
+          <section><h3>填写页显示</h3>{[
+            ["显示封面", "cover"],
+            ["显示品牌标识", "logo"],
+            ["显示进度条", "progress"],
+            ["显示题号", "questionNumber"],
+            ["显示必填标记", "requiredMark"],
+          ].map(([label, key]) => <div className="appearance-toggle" key={key}><span>{label}</span><button className={`mini-switch ${config[key as keyof Appearance] ? "on" : ""}`} onClick={() => update({ [key]: !config[key as keyof Appearance] })}><i /></button></div>)}</section>
+        </aside>
+
+        <section className={`appearance-preview ${config.background}`} style={{ "--theme": config.primary, "--radius": `${config.radius}px` } as React.CSSProperties}>
+          <div className="preview-device-toggle">
+            <button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")}>▱ 桌面端</button>
+            <button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")}>▯ 移动端</button>
+            <span>{hasPagination ? `分页问卷 · 第 ${pageIndex + 1}/${pages.length} 页` : "连续滚动问卷"}</span>
           </div>
-        </div>
-      </section>
-      <aside className="appearance-guide"><header><strong>体验检查</strong><small>基于当前主题自动检测</small></header><div className="appearance-score"><span>96</span><p><strong>体验良好</strong><small>颜色、字号与触控区域均符合建议</small></p></div><ul><li><span>✓</span><p><strong>文字对比度</strong><small>符合 WCAG AA</small></p></li><li><span>✓</span><p><strong>移动端触控</strong><small>最小触控区域 44px</small></p></li><li><span>✓</span><p><strong>多语言适配</strong><small>泰语与繁中文字未溢出</small></p></li><li className="warn"><span>!</span><p><strong>品牌标识</strong><small>建议上传正式游戏 Logo</small></p></li></ul><button onClick={()=>flash("上传入口已打开，可使用 PNG 或 WebP")}>＋ 上传品牌 Logo</button></aside>
-    </div>
-    {notice&&<div className="toast" role="status"><span>✓</span>{notice}</div>}
-  </main>
+          <div className={`survey-device ${device} ${config.density} font-${config.fontSize} button-${config.buttonStyle}`}>
+            <div className="player-mini-page player-scroll-page">
+              {config.progress && <div className="mini-progress"><i style={{ width: hasPagination ? `${(pageIndex + 1) / pages.length * 100}%` : "100%" }} /></div>}
+              {config.cover && <header>{config.logo && <span>RO3 · PLAYER RESEARCH</span>}<h1>{surveyTitle}</h1><p>感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。</p></header>}
+              <main className="appearance-form-content">
+                {visibleQuestions.map(renderQuestion)}
+                <footer className="appearance-form-footer">
+                  <span>{hasPagination ? `第 ${pageIndex + 1} / ${pages.length} 页` : `共 ${visibleQuestions.length} 题`}</span>
+                  <div>
+                    {hasPagination && pageIndex > 0 && <button className="appearance-back-button" onClick={() => setPageIndex(pageIndex - 1)}>上一页</button>}
+                    <button onClick={() => hasPagination && pageIndex < pages.length - 1 ? setPageIndex(pageIndex + 1) : flash("这是提交按钮的预览效果")}>{hasPagination && pageIndex < pages.length - 1 ? "下一页" : "提交问卷"}</button>
+                  </div>
+                </footer>
+              </main>
+            </div>
+          </div>
+        </section>
+      </div>
+      {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
+    </main>
+  );
 }
