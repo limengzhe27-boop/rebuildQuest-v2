@@ -118,7 +118,6 @@ export default function Home() {
   const [status, setStatus] = useState<"全部" | Status>("全部");
   const [ownerScope, setOwnerScope] = useState<"全部创建人" | "我创建的">("全部创建人");
   const [showCreate, setShowCreate] = useState(false);
-  const [selected, setSelected] = useState<Survey | null>(null);
   const [surveys, setSurveys] = useState(seedSurveys);
   const [trashedIds, setTrashedIds] = useState<number[]>([]);
   const [menuSurvey, setMenuSurvey] = useState<Survey | null>(null);
@@ -315,9 +314,18 @@ export default function Home() {
     setSurveys((current) =>
       current.map((item) => (item.id === survey.id ? updatedSurvey : item)),
     );
-    setSelected((current) => (current?.id === survey.id ? updatedSurvey : current));
     setMenuSurvey(null);
     notify(nextStatus === "已结束" ? "问卷收集已结束" : "问卷已重新开始收集");
+  }
+
+  function openSurvey(survey: Survey) {
+    if (activeGroup === "回收站") return;
+    setMenuSurvey(null);
+    router.push(
+      survey.status === "草稿"
+        ? `/survey/${survey.id}/edit`
+        : `/survey/${survey.id}/analytics`,
+    );
   }
 
   function moveToTrash(survey: Survey) {
@@ -326,7 +334,6 @@ export default function Home() {
     window.localStorage.setItem("joydata-survey-trash", JSON.stringify(next));
     setConfirmDelete(null);
     setMenuSurvey(null);
-    setSelected(null);
     notify("已移入回收站，可在 30 天内恢复");
   }
 
@@ -493,12 +500,12 @@ export default function Home() {
                   <div role="columnheader" aria-label="操作" />
                 </div>
                 {visible.length ? (
-                  visible.map((survey) => (
+                  visible.map((survey, index) => (
                     <div
                       className="table-row"
                       role="row"
                       key={survey.id}
-                      onClick={() => setSelected(survey)}
+                      onClick={() => openSurvey(survey)}
                     >
                       <div className="survey-name-cell" role="cell">
                         <div className="survey-doc-icon">▤</div>
@@ -529,7 +536,15 @@ export default function Home() {
                           •••
                         </button>
                         {menuSurvey?.id === survey.id && (
-                          <div className="survey-operation-menu" onClick={(event) => event.stopPropagation()}>
+                          <div
+                            className={`survey-operation-menu ${
+                              index === visible.length - 1 ||
+                              (visible.length > 4 && index >= visible.length - 2)
+                                ? "menu-up"
+                                : ""
+                            }`}
+                            onClick={(event) => event.stopPropagation()}
+                          >
                             {activeGroup === "回收站" ? (
                               <button onClick={() => restoreSurvey(survey)}>↺ 恢复问卷</button>
                             ) : (
@@ -686,52 +701,6 @@ export default function Home() {
           <section className="project-delete-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
             <span className="delete-warning">!</span><h2>删除“{projectToDelete.name}”分组吗？</h2><p>{projectToDelete.count ? `该分组属于 ${projectToDelete.project}，包含 ${projectToDelete.count} 份问卷。删除后问卷会保留并转移至“未归入分组”，答卷数据不会受影响。` : `该分组属于 ${projectToDelete.project}，当前暂无问卷，删除后不可恢复。`}</p><footer><button className="secondary-button" onClick={() => setProjectToDelete(null)}>取消</button><button className="danger-button" onClick={deleteProject}>确认删除</button></footer>
           </section>
-        </div>
-      )}
-
-      {selected && (
-        <div className="drawer-backdrop" onMouseDown={() => setSelected(null)}>
-          <aside
-            className="survey-drawer"
-            aria-label="问卷详情"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <header>
-              <div className="survey-doc-icon large">▤</div>
-              <button aria-label="关闭详情" onClick={() => setSelected(null)}>×</button>
-            </header>
-            <div className="drawer-title">
-              <span className={`status-badge status-${selected.status}`}><i /> {selected.status}</span>
-              <h2>{selected.name}</h2>
-              <p>{selected.group}</p>
-            </div>
-            <div className="drawer-metrics">
-              <div><span>回收数</span><strong>{formatNumber(selected.responses)}</strong></div>
-              <div><span>语言</span><strong>{selected.languages.length}</strong></div>
-            </div>
-            <div className="drawer-section">
-              <h3>语言版本</h3>
-              {selected.languages.map((language, index) => (
-                <div className="language-row" key={language}>
-                  <span>{language}</span>
-                  <small>{index === 0 ? "默认语言" : "翻译已完成"}</small>
-                  <i>✓</i>
-                </div>
-              ))}
-            </div>
-            <div className="drawer-section">
-              <h3>发布信息</h3>
-              <div className="detail-line"><span>工作空间</span><strong>{selected.region}</strong></div>
-              <div className="detail-line"><span>所属项目</span><strong>{selected.game}</strong></div>
-              <div className="detail-line"><span>创建人</span><strong>{selected.owner}</strong></div>
-              <div className="detail-line"><span>最后更新</span><strong>{selected.updated}</strong></div>
-            </div>
-            <div className="drawer-actions">
-              <button className="secondary-button" onClick={() => notify("已复制问卷链接")}>复制链接</button>
-              <button className="secondary-button" onClick={() => router.push(`/survey/${selected.id}/edit`)}>进入编辑器</button>
-              <button className="primary-button" onClick={() => router.push(`/survey/${selected.id}/analytics`)}>查看数据看板 →</button>
-            </div>
-          </aside>
         </div>
       )}
 

@@ -862,7 +862,7 @@ input:focus-visible {
 
 .survey-panel {
   margin-top: 16px;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--line);
   border-radius: 11px;
   background: #fff;
