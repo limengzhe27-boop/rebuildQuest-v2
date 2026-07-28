@@ -61,8 +61,6 @@ export default function ResponsesPage() {
   const [notice, setNotice] = useState("");
   const [showExport, setShowExport] = useState(false);
   const [showFeishuExport, setShowFeishuExport] = useState(false);
-  const [feishuTableUrl, setFeishuTableUrl] = useState("");
-  const [feishuMode, setFeishuMode] = useState<"new" | "existing">("existing");
   const [showColumns, setShowColumns] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [visibleColumns, setVisibleColumns] = useState(defaultVisibleBaseColumns);
@@ -192,18 +190,15 @@ export default function ResponsesPage() {
   }
 
   function saveFeishuExport() {
-    if (feishuMode === "existing" && !feishuTableUrl.trim()) {
-      flash("请粘贴飞书多维表格链接");
-      return;
-    }
+    const tableName = `${surveyTitle}-答卷明细-${new Date().toISOString().slice(0, 10)}`;
     window.localStorage.setItem(`joydata-feishu-export-${surveyId}`, JSON.stringify({
-      mode: feishuMode,
-      tableUrl: feishuTableUrl.trim(),
+      mode: "new",
+      tableName,
       columns: visibleColumns,
       updatedAt: new Date().toISOString(),
     }));
     setShowFeishuExport(false);
-    flash("飞书导出配置已保存，等待服务端企业应用授权后即可执行同步");
+    flash("已提交新建飞书多维表格任务");
   }
 
   return (
@@ -216,7 +211,7 @@ export default function ResponsesPage() {
           <button className="secondary-button" onClick={() => router.push(`/survey/${surveyId}/analytics`)}>返回统计</button>
           <div className="export-menu-wrap">
             <button className="primary-button" onClick={() => setShowExport(!showExport)}>⇩ 导出明细⌄</button>
-            {showExport && <div className="export-format-menu"><button onClick={exportExcel}><span>XL</span><p><strong>Excel</strong><small>.xls · 保留中文与列结构</small></p></button><button onClick={exportCsv}><span>CSV</span><p><strong>CSV</strong><small>.csv · 适合数据分析工具</small></p></button><button onClick={() => { setShowExport(false); setShowFeishuExport(true); }}><span>飞</span><p><strong>飞书多维表格</strong><small>将当前字段同步到指定数据表</small></p></button></div>}
+            {showExport && <div className="export-format-menu"><button onClick={exportExcel}><span>XL</span><p><strong>Excel</strong><small>.xls · 保留中文与列结构</small></p></button><button onClick={exportCsv}><span>CSV</span><p><strong>CSV</strong><small>.csv · 适合数据分析工具</small></p></button><button onClick={() => { setShowExport(false); setShowFeishuExport(true); }}><span>飞</span><p><strong>飞书多维表格</strong><small>新建多维表格并写入当前数据</small></p></button></div>}
           </div>
         </div>
       </header>
@@ -271,14 +266,13 @@ export default function ResponsesPage() {
         <p className="schema-note">对应数据库：fm_user_form_data 的 original_data、serial_number、submit_request_ip、submit_address、submit_os、submit_browser、complete_time、ext_value、joy_user_info、line_user_info 与 create_time。</p>
       </section>
       {showFeishuExport && <div className="preview-backdrop" onMouseDown={() => setShowFeishuExport(false)}><section className="feishu-export-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-        <header><div><strong>导出到飞书多维表格</strong><small>共 {rows.length} 份答卷 · {selectedColumns.length} 个字段</small></div><button onClick={() => setShowFeishuExport(false)}>×</button></header>
+        <header><div><strong>新建飞书多维表格</strong><small>共 {rows.length} 份答卷 · {selectedColumns.length} 个字段</small></div><button onClick={() => setShowFeishuExport(false)}>×</button></header>
         <div className="feishu-export-body">
-          <div className="completion-mode"><button className={feishuMode === "existing" ? "active" : ""} onClick={() => setFeishuMode("existing")}>写入已有多维表格</button><button className={feishuMode === "new" ? "active" : ""} onClick={() => setFeishuMode("new")}>新建多维表格</button></div>
-          {feishuMode === "existing" && <label><span>多维表格链接 <b>*</b></span><input value={feishuTableUrl} onChange={(event) => setFeishuTableUrl(event.target.value)} placeholder="https://huanle.feishu.cn/base/..." /><small>系统会从链接中识别 App Token 与 Table ID。</small></label>}
+          <div className="feishu-new-table-info"><span>将新建表格</span><strong>{surveyTitle}-答卷明细-{new Date().toISOString().slice(0, 10)}</strong><small>不会修改或覆盖任何已有的飞书多维表格。</small></div>
           <div className="feishu-export-summary"><span>同步范围</span><strong>当前筛选结果与已选择字段</strong><small>{selectedColumns.map((column) => column.label).join("、")}</small></div>
           <p className="feishu-security-note">需要由 JoyData 服务端使用公司飞书企业应用完成授权和写入，浏览器不会保存 App Secret。</p>
         </div>
-        <footer><button className="secondary-button" onClick={() => setShowFeishuExport(false)}>取消</button><button className="primary-button" onClick={saveFeishuExport}>保存导出配置</button></footer>
+        <footer><button className="secondary-button" onClick={() => setShowFeishuExport(false)}>取消</button><button className="primary-button" onClick={saveFeishuExport}>新建并导出</button></footer>
       </section></div>}
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
     </main>

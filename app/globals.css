@@ -5595,6 +5595,30 @@ input:focus-visible {
   color: #dd762a !important;
 }
 
+.feishu-new-table-info {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #dce8ff;
+  border-radius: 8px;
+  background: #f5f8ff;
+  padding: 14px 16px;
+}
+
+.feishu-new-table-info > span {
+  color: #77849a;
+  font-size: 9px;
+}
+
+.feishu-new-table-info > strong {
+  color: #2f5ea9;
+  font-size: 12px;
+}
+
+.feishu-new-table-info > small {
+  color: #8995a7;
+  font-size: 9px;
+}
+
 .settings-tabs {
   margin-top: 18px;
 }
