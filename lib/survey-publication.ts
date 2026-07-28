@@ -28,6 +28,9 @@ export type Publication = {
   startAt: string;
   endAt: string;
   scheduleEnabled: boolean;
+  dailyWindowEnabled: boolean;
+  dailyStartTime: string;
+  dailyEndTime: string;
   quotaEnabled: boolean;
   graceMinutes: number;
   totalLimit: number;
@@ -78,6 +81,9 @@ export const defaultPublications: Publication[] = [
     startAt: now,
     endAt: nextMonth,
     scheduleEnabled: true,
+    dailyWindowEnabled: false,
+    dailyStartTime: "09:00",
+    dailyEndTime: "22:00",
     quotaEnabled: true,
     graceMinutes: 10,
     totalLimit: 10000,
@@ -124,6 +130,9 @@ export const defaultPublications: Publication[] = [
     startAt: now,
     endAt: nextMonth,
     scheduleEnabled: true,
+    dailyWindowEnabled: false,
+    dailyStartTime: "09:00",
+    dailyEndTime: "22:00",
     quotaEnabled: true,
     graceMinutes: 10,
     totalLimit: 3000,

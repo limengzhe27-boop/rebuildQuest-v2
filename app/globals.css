@@ -5003,6 +5003,24 @@ input:focus-visible {
   line-height: 1.5;
 }
 
+.daily-time-range {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 5px;
+}
+
+.collection-condition-list .daily-time-range input {
+  min-width: 0;
+  width: 100%;
+  padding: 0 4px;
+}
+
+.daily-time-range > span {
+  color: #8a95a6;
+  font-size: 8px;
+}
+
 .analytics-simple-shell,
 .response-table-shell {
   height: calc(100vh - 60px);

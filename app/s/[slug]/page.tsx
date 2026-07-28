@@ -94,6 +94,7 @@ export default function PlayerSurvey() {
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
   const [primary, setPrimary] = useState("#356fe6");
   const [closedMessage, setClosedMessage] = useState("");
+  const [closedReason, setClosedReason] = useState<"ended" | "outside-hours">("ended");
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[] | number>>({});
   const [consent, setConsent] = useState(false);
@@ -125,10 +126,22 @@ export default function PlayerSurvey() {
         setAllowLanguageSwitch(publication.allowLanguageSwitch !== false);
       }
       if (publication?.status === "stopped") {
+        setClosedReason("ended");
         setClosedMessage(
           publication.closedMessage ||
             "This survey has ended. Thank you for your interest.",
         );
+      } else if (publication?.dailyWindowEnabled) {
+        const currentTime = new Date().toTimeString().slice(0, 5);
+        const start = publication.dailyStartTime || "00:00";
+        const end = publication.dailyEndTime || "23:59";
+        const allowed = start <= end
+          ? currentTime >= start && currentTime <= end
+          : currentTime >= start || currentTime <= end;
+        if (!allowed) {
+          setClosedReason("outside-hours");
+          setClosedMessage(`本问卷每天仅在 ${start}–${end} 开放，请在允许时段内再次访问。`);
+        }
       }
 
       const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
@@ -273,9 +286,9 @@ export default function PlayerSurvey() {
       <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
         <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
         <section className="player-closed">
-          <span>■</span><small>SURVEY CLOSED</small>
+          <span>{closedReason === "outside-hours" ? "◷" : "■"}</span><small>{closedReason === "outside-hours" ? "CURRENTLY UNAVAILABLE" : "SURVEY CLOSED"}</small>
           <h1>{surveyTitle}</h1><p>{closedMessage}</p>
-          <div><strong>本次问卷收集已结束</strong><small>如有疑问，请联系问卷发布方。</small></div>
+          <div><strong>{closedReason === "outside-hours" ? "当前不在允许访问时段" : "本次问卷收集已结束"}</strong><small>{closedReason === "outside-hours" ? "到达开放时间后，使用原链接即可继续访问。" : "如有疑问，请联系问卷发布方。"}</small></div>
         </section>
       </main>
     );

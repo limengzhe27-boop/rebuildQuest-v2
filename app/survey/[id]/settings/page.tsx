@@ -113,7 +113,7 @@ export default function SurveySettingsPage() {
                   <button className={selected.completionMode === "redirect" ? "active" : ""} onClick={() => updateSelected({ completionMode: "redirect" })}>↗ 跳转指定网页</button>
                 </div>
                 {selected.completionMode === "message" ? (
-                  <label className="large-config-field"><span>完成提示语</span><textarea value={selected.completionMessage} onChange={(event) => updateSelected({ completionMessage: event.target.value })} /></label>
+                  <label className="large-config-field"><span>提交成功提示语</span><textarea value={selected.completionMessage} onChange={(event) => updateSelected({ completionMessage: event.target.value })} /></label>
                 ) : (
                   <label className="large-config-field"><span>跳转地址</span><input placeholder="https://" value={selected.redirectUrl} onChange={(event) => updateSelected({ redirectUrl: event.target.value })} /></label>
                 )}
@@ -148,10 +148,6 @@ export default function SurveySettingsPage() {
                 )}
               </section>
 
-              <section className="config-card">
-                <header><div><strong>问卷结束页</strong><small>手动结束、定时结束或达到数量上限后展示</small></div></header>
-                <label className="large-config-field"><span>结束提示语</span><textarea value={selected.closedMessage} onChange={(event) => updateSelected({ closedMessage: event.target.value })} /></label>
-              </section>
             </div>
           ) : (
             <div className="publish-config-stack">
@@ -182,11 +178,26 @@ export default function SurveySettingsPage() {
                     <div className="condition-number"><input type="number" disabled={!selected.quotaEnabled} value={selected.totalLimit} onChange={(event) => updateSelected({ totalLimit: Number(event.target.value) })} /><span>份</span></div>
                     <button className={`mini-switch ${selected.quotaEnabled ? "on" : ""}`} onClick={() => updateSelected({ quotaEnabled: !selected.quotaEnabled })}><i /></button>
                   </article>
+                  <article>
+                    <div className="condition-icon">◴</div>
+                    <p><strong>每日允许访问时段</strong><small>每天仅在设定时间段内允许打开和填写问卷</small></p>
+                    <div className="daily-time-range">
+                      <input type="time" disabled={!selected.dailyWindowEnabled} value={selected.dailyStartTime} onChange={(event) => updateSelected({ dailyStartTime: event.target.value })} />
+                      <span>至</span>
+                      <input type="time" disabled={!selected.dailyWindowEnabled} value={selected.dailyEndTime} onChange={(event) => updateSelected({ dailyEndTime: event.target.value })} />
+                    </div>
+                    <button className={`mini-switch ${selected.dailyWindowEnabled ? "on" : ""}`} onClick={() => updateSelected({ dailyWindowEnabled: !selected.dailyWindowEnabled })}><i /></button>
+                  </article>
                 </div>
                 <div className="collection-start-row">
                   <label><span>开始时间</span><input type="datetime-local" disabled={!selected.scheduleEnabled} value={selected.startAt} onChange={(event) => updateSelected({ startAt: event.target.value })} /></label>
                   <label><span>结束时间</span><input type="datetime-local" disabled={!selected.scheduleEnabled} value={selected.endAt} onChange={(event) => updateSelected({ endAt: event.target.value })} /></label>
                 </div>
+              </section>
+
+              <section className="config-card">
+                <header><div><strong>停止收集后页面</strong><small>手动结束、定时结束、达到数量上限或当前不在允许访问时段时展示</small></div></header>
+                <label className="large-config-field"><span>停止收集提示语</span><textarea value={selected.closedMessage} onChange={(event) => updateSelected({ closedMessage: event.target.value })} /></label>
               </section>
 
               <section className="config-card">
