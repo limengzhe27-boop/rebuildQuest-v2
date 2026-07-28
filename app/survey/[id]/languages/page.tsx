@@ -49,6 +49,7 @@ export default function LanguagesPage() {
   const [configuredLanguages, setConfiguredLanguages] = useState(["简中", "EN", "繁中", "ไทย"]);
   const [fallbackLanguage, setFallbackLanguage] = useState("简中");
   const [publication, setPublication] = useState<Publication | null>(null);
+  const [resultTab, setResultTab] = useState<"completion" | "limit">("completion");
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const sourceScrollRef = useRef<HTMLDivElement>(null);
@@ -77,6 +78,10 @@ export default function LanguagesPage() {
   }, [surveyId]);
 
   useEffect(() => {
+    if (publication?.completionMode === "redirect") setResultTab("limit");
+  }, [publication?.completionMode]);
+
+  useEffect(() => {
     if (!hydrated) return;
     window.localStorage.setItem(`joydata-survey-translations-${surveyId}`, JSON.stringify(translations));
     window.localStorage.setItem(`joydata-survey-translation-verified-${surveyId}`, JSON.stringify(verifiedLocales));
@@ -93,7 +98,9 @@ export default function LanguagesPage() {
       if (question.description.trim()) result.push({ id: `${question.id}:description`, source: question.description });
       question.options?.forEach((option, index) => result.push({ id: `${question.id}:option:${index}`, source: option }));
     });
-    result.push({ id: "form:completion", source: publication?.completionMessage || "感谢您的参与，问卷已成功提交。" });
+    if (publication?.completionMode !== "redirect") {
+      result.push({ id: "form:completion", source: publication?.completionMessage || "感谢您的参与，问卷已成功提交。" });
+    }
     const sourceLocale = publication?.defaultLocale || "zh-CN";
     const limitContent = publication?.limitPageContent?.[sourceLocale];
     if (limitContent?.title) result.push({ id: "limit:title", source: limitContent.title });
@@ -115,7 +122,6 @@ export default function LanguagesPage() {
 
   const completed = fields.filter((field) => rawTranslation(field.id, field.legacyId).trim()).length;
   const missing = fields.length - completed;
-  const progress = Math.round(completed / Math.max(fields.length, 1) * 100);
   const verified = Boolean(verifiedLocales[activeLocale]);
 
   function flash(message: string) {
@@ -238,11 +244,7 @@ export default function LanguagesPage() {
         <section className="language-compare-main">
           <header className="language-compare-heading">
             <div><div className="breadcrumb">多语言 <span>/</span> {activeLocale}</div><h1>原文与翻译对照校验</h1><p>在右侧移动端页面直接修改翻译，两侧滚动位置自动保持一致。</p></div>
-            <div className="language-review-summary">
-              <span><small>翻译进度</small><strong>{completed}/{fields.length}</strong><i><em style={{ width: `${progress}%` }} /></i></span>
-              <span className={missing ? "has-missing" : ""}><small>未翻译</small><strong>{missing}</strong></span>
-              <label className={verified ? "verified" : ""}><button className={`mini-switch ${verified ? "on" : ""}`} onClick={toggleVerified}><i /></button><span><strong>校验完成</strong><small>{verified ? "可用于发布与外观预览" : "完成翻译后人工确认"}</small></span></label>
-            </div>
+            <label className={`language-verify-control ${verified ? "verified" : ""}`}><button className={`mini-switch ${verified ? "on" : ""}`} onClick={toggleVerified}><i /></button><span><strong>翻译校验完成</strong><small>{verified ? "已确认，可用于发布" : "完成翻译后由人工确认"}</small></span></label>
           </header>
 
           <div className="dual-phone-stage">
@@ -250,55 +252,63 @@ export default function LanguagesPage() {
               <header><div><span>原</span><p><strong>简体中文</strong><small>源语言 · 只读</small></p></div><em>原文</em></header>
               <div className="language-phone-frame">
                 <div className="language-phone-scroll" ref={sourceScrollRef} onScroll={(event) => targetScrollRef.current && synchronizeScroll(event.currentTarget, targetScrollRef.current)}>
-                  <div className="translation-phone-cover"><span>RO3 · PLAYER RESEARCH</span><h1>{surveyTitle}</h1><p>感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。</p></div>
-                  <div className="translation-phone-content">{questions.map(sourceQuestion)}</div>
-                  <div className="translation-page-break"><span>结果页面</span><p>以下内容不属于答题页，仅在提交完成或触发重复限制时展示。</p></div>
-                  <div className="translation-result-pages">
-                    <section>
-                      <small>提交完成页 · 原文</small>
-                      <div className="translation-phone-complete"><span>✓</span><strong>{publication?.completionMessage || "感谢您的参与，问卷已成功提交。"}</strong></div>
-                    </section>
-                    <section className="translation-result-section">
-                      <small>重复填写限制页 · 原文</small>
-                      {sourceLimitContent.title && <h2>{sourceLimitContent.title}</h2>}
-                      <p>{sourceLimitPlainText}</p>
-                    </section>
-                  </div>
-                </div>
+                   <div className="translation-phone-cover"><span>RO3 · PLAYER RESEARCH</span><h1>{surveyTitle}</h1><p>感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。</p></div>
+                   <div className="translation-phone-content">{questions.map(sourceQuestion)}</div>
+                 </div>
               </div>
             </section>
 
             <div className="scroll-sync-indicator"><span>⇅</span><strong>同步滚动</strong><small>任一侧滚动，另一侧自动跟随</small></div>
 
             <section className="language-phone-column target">
-              <header><div><span>译</span><p><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></p></div><em>{missing ? `${missing} 项未翻译` : verified ? "已校验" : "待校验"}</em></header>
+              <header><div><span>译</span><p><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></p></div><em>{verified ? "已校验" : "编辑中"}</em></header>
               <div className="language-phone-frame">
                 <div className="language-phone-scroll" ref={targetScrollRef} onScroll={(event) => sourceScrollRef.current && synchronizeScroll(event.currentTarget, sourceScrollRef.current)}>
                   <div className="translation-phone-cover editable-cover">
                     <span>RO3 · PLAYER RESEARCH</span>
                     {editableField("form:title", surveyTitle, "问卷标题")}
                     {editableField("form:intro", "感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。", "问卷说明")}
-                  </div>
-                  <div className="translation-phone-content">{questions.map(targetQuestion)}</div>
-                  <div className="translation-page-break"><span>结果页面</span><p>与答题内容分区校验；未填写翻译时仍显示原文并标注。</p></div>
-                  <div className="translation-result-pages">
-                    <section>
-                      <small>提交完成页 · 翻译</small>
-                      <div className="translation-phone-complete editable-complete">{editableField("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。", "完成提示")}</div>
-                    </section>
-                    <section className="translation-result-section editable">
-                      <small>重复填写限制页 · 翻译</small>
-                      {sourceLimitContent.title && editableField("limit:title", sourceLimitContent.title, "标题（可留空）")}
-                      {editableField("limit:body", sourceLimitContent.body, "正文")}
-                      {sourceLimitContent.links.map((link, index) => editableField(`limit:link:${link.id}`, link.text, `链接 ${index + 1} 文字`))}
-                      <p className="translation-token-tip">正文中的 {"{{link-id}}"} 是链接位置标记，请保留；链接地址沿用原文设置，无需重复填写。</p>
-                    </section>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-        </section>
+                   </div>
+                   <div className="translation-phone-content">{questions.map(targetQuestion)}</div>
+                 </div>
+               </div>
+             </section>
+           </div>
+
+           <section className="language-result-workspace">
+             <header>
+               <div><strong>结果展示页翻译</strong><small>结果页与问卷答题内容分别校验，不参与上方同步滚动。</small></div>
+               <nav>
+                 {publication?.completionMode !== "redirect" && <button className={resultTab === "completion" ? "active" : ""} onClick={() => setResultTab("completion")}>提交完成页</button>}
+                 <button className={resultTab === "limit" ? "active" : ""} onClick={() => setResultTab("limit")}>重复填写限制页</button>
+               </nav>
+             </header>
+             {publication?.completionMode === "redirect" && <div className="result-redirect-notice"><span>↗</span><p><strong>提交后跳转指定网页</strong><small>当前不展示提交完成页，因此无需配置该页面的多语言内容。</small></p></div>}
+             <div className="result-translation-pair">
+               <article>
+                 <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
+                 {resultTab === "completion" && publication?.completionMode !== "redirect" ? (
+                   <div className="standalone-result-preview"><i>✓</i><strong>{publication?.completionMessage || "感谢您的参与，问卷已成功提交。"}</strong></div>
+                 ) : (
+                   <div className="standalone-result-preview limit">{sourceLimitContent.title && <h2>{sourceLimitContent.title}</h2>}<p>{sourceLimitPlainText}</p></div>
+                 )}
+               </article>
+               <article className="translated">
+                 <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
+                 {resultTab === "completion" && publication?.completionMode !== "redirect" ? (
+                   <div className="standalone-result-editor">{editableField("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。", "完成提示")}</div>
+                 ) : (
+                   <div className="standalone-result-editor">
+                     {sourceLimitContent.title && editableField("limit:title", sourceLimitContent.title, "标题（可留空）")}
+                     {editableField("limit:body", sourceLimitContent.body, "正文")}
+                     {sourceLimitContent.links.map((link, index) => editableField(`limit:link:${link.id}`, link.text, `链接 ${index + 1} 文字`))}
+                     {sourceLimitContent.links.length > 0 && <p className="translation-token-tip">正文中的链接位置标记请保留；链接地址沿用原文设置。</p>}
+                   </div>
+                 )}
+               </article>
+             </div>
+           </section>
+         </section>
       </section>
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
     </main>

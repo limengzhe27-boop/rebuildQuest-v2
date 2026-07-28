@@ -8,7 +8,7 @@ const tabs = [
   ["appearance", "外观"],
   ["settings", "设置"],
   ["publish", "发布"],
-  ["analytics", "答案统计"],
+  ["analytics", "统计"],
   ["responses", "答卷明细"],
 ] as const;
 

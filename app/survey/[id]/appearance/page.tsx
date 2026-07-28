@@ -14,6 +14,7 @@ type Appearance = {
   density: "compact" | "comfortable";
   fontSize: "standard" | "large";
   buttonStyle: "filled" | "outline";
+  contentWidth: "narrow" | "standard" | "wide";
   progress: boolean;
   languageSwitch: boolean;
   background: "plain" | "soft" | "dark";
@@ -26,6 +27,7 @@ const defaults: Appearance = {
   density: "comfortable",
   fontSize: "standard",
   buttonStyle: "filled",
+  contentWidth: "standard",
   progress: true,
   languageSwitch: true,
   background: "soft",
@@ -137,6 +139,35 @@ export default function AppearancePage() {
     if (question.type === "divider") return <div className="appearance-divider" key={question.id} />;
     if (question.type === "description") return <div className="appearance-description" key={question.id}>{translated(`${question.id}:title`, question.title, question.id)}</div>;
     if (question.type === "imageDisplay" || question.type === "carousel") return <div className="appearance-image-block" key={question.id}>▧ {question.type === "carousel" ? "图片轮播" : "图片展示"}</div>;
+    const options = question.options || [];
+    const rows = question.matrixRows?.length ? question.matrixRows : ["行 1", "行 2", "行 3"];
+    const columns = question.matrixColumns?.length ? question.matrixColumns : options.length ? options : ["选项 1", "选项 2", "选项 3"];
+    const isMatrix = ["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"].includes(question.type);
+    const choicePreview = ["single", "multiple", "image", "tableSelect"].includes(question.type);
+    let inputPreview: React.ReactNode = null;
+
+    if (isMatrix) {
+      inputPreview = <div className="appearance-matrix-preview">
+        <div className="appearance-matrix-head"><span>题目/选项</span>{columns.slice(0, 4).map((column) => <span key={column}>{column}</span>)}</div>
+        {rows.slice(0, 4).map((row) => <div className="appearance-matrix-row" key={row}><strong>{row}</strong>{columns.slice(0, 4).map((column) => <i key={column}>{question.type === "matrixFill" ? "—" : question.type === "matrixDropdown" ? "请选择⌄" : "○"}</i>)}</div>)}
+      </div>;
+    } else if (choicePreview) {
+      inputPreview = options.slice(0, 5).map((option, optionIndex) => <button key={`${question.id}-${optionIndex}`} className={optionIndex === 0 ? "selected" : ""}><i>{question.type === "multiple" ? "□" : "○"}</i>{translated(`${question.id}:option:${optionIndex}`, option)}</button>);
+    } else if (question.type === "dropdown" || question.type === "cascade" || question.type === "appointmentSlot") {
+      inputPreview = <div className="appearance-select-preview">请选择 <span>⌄</span></div>;
+    } else if (question.type === "sort") {
+      inputPreview = <div className="appearance-sort-preview">{options.slice(0, 4).map((option, optionIndex) => <span key={option}><b>{optionIndex + 1}</b>{option}<i>⠿</i></span>)}</div>;
+    } else if (question.type === "rating" || question.type === "nps") {
+      inputPreview = <div className="appearance-score-row">{Array.from({ length: Math.min(11, (question.max ?? 5) - (question.min ?? 0) + 1) }, (_, score) => <span key={score}>{score + (question.min ?? 0)}</span>)}</div>;
+    } else if (["file", "imageUpload", "ocr"].includes(question.type)) {
+      inputPreview = <div className="appearance-upload-preview">＋ {question.type === "file" ? "选择文件" : "上传图片"}</div>;
+    } else if (["date", "appointmentDate"].includes(question.type)) {
+      inputPreview = <div className="appearance-select-preview">请选择日期 <span>▣</span></div>;
+    } else if (["provinceCity", "globalProvinceCity", "city"].includes(question.type)) {
+      inputPreview = <div className="appearance-region-preview"><span>请选择地区⌄</span><span>请选择城市⌄</span></div>;
+    } else {
+      inputPreview = <div className="appearance-input">{question.type === "phone" ? "请输入手机号" : ["text", "textarea"].includes(question.type) ? "请输入您的回答" : "请填写或选择内容"}</div>;
+    }
     return (
       <article className="appearance-question-preview" key={question.id}>
         <small>{questionLabels[question.type]}</small>
@@ -145,10 +176,7 @@ export default function AppearancePage() {
         {question.type === "multiple" && <div className="appearance-selection-rule">{question.maxSelections ? `最多选择 ${question.maxSelections} 项` : "可选择多个选项"}</div>}
         {question.helpText && <div className="appearance-question-help">ⓘ {translated(`${question.id}:help`, question.helpText)}</div>}
         {question.referenceImage && <div className="appearance-reference-image"><img src={question.referenceImage} alt="题目参考图" /></div>}
-        {question.options?.slice(0, 5).map((option, optionIndex) => <button key={`${question.id}-${optionIndex}`} className={optionIndex === 0 ? "selected" : ""}><i>{question.type === "multiple" ? "□" : "○"}</i>{translated(`${question.id}:option:${optionIndex}`, option)}</button>)}
-        {(question.type === "text" || question.type === "textarea" || question.type === "phone") && <div className="appearance-input">{question.type === "phone" ? "请输入手机号" : "请输入您的回答"}</div>}
-        {(question.type === "rating" || question.type === "nps") && <div className="appearance-score-row">{Array.from({ length: Math.min(11, (question.max || 5) - (question.min || 0) + 1) }, (_, score) => <span key={score}>{score + (question.min || 0)}</span>)}</div>}
-        {!question.options && !["text", "textarea", "phone", "rating", "nps"].includes(question.type) && <div className="appearance-input">请填写或选择内容</div>}
+        {inputPreview}
       </article>
     );
   }
@@ -168,9 +196,12 @@ export default function AppearancePage() {
           <section><h3>品牌颜色</h3><div className="color-setting"><input type="color" value={config.primary} onChange={(event) => update({ primary: event.target.value })} /><input value={config.primary} onChange={(event) => update({ primary: event.target.value })} /><button onClick={() => update({ primary: "#356FE6" })}>↺</button></div></section>
           <section>
             <h3>内容布局</h3>
-            <label className="segmented-setting"><span>内容密度</span><div><button className={config.density === "compact" ? "active" : ""} onClick={() => update({ density: "compact" })}>紧凑</button><button className={config.density === "comfortable" ? "active" : ""} onClick={() => update({ density: "comfortable" })}>舒适</button></div></label>
-            <label className="segmented-setting appearance-segment-gap"><span>正文字号</span><div><button className={config.fontSize === "standard" ? "active" : ""} onClick={() => update({ fontSize: "standard" })}>标准</button><button className={config.fontSize === "large" ? "active" : ""} onClick={() => update({ fontSize: "large" })}>大号</button></div></label>
-            <label className="segmented-setting appearance-segment-gap"><span>主按钮</span><div><button className={config.buttonStyle === "filled" ? "active" : ""} onClick={() => update({ buttonStyle: "filled" })}>填充</button><button className={config.buttonStyle === "outline" ? "active" : ""} onClick={() => update({ buttonStyle: "outline" })}>描边</button></div></label>
+            <div className="appearance-control-list">
+              <label><span><strong>内容宽度</strong><small>控制桌面端问卷主体宽度</small></span><div><button className={config.contentWidth === "narrow" ? "active" : ""} onClick={() => update({ contentWidth: "narrow" })}>窄</button><button className={config.contentWidth === "standard" ? "active" : ""} onClick={() => update({ contentWidth: "standard" })}>标准</button><button className={config.contentWidth === "wide" ? "active" : ""} onClick={() => update({ contentWidth: "wide" })}>宽</button></div></label>
+              <label><span><strong>题目间距</strong><small>调整连续题目之间的留白</small></span><div><button className={config.density === "compact" ? "active" : ""} onClick={() => update({ density: "compact" })}>紧凑</button><button className={config.density === "comfortable" ? "active" : ""} onClick={() => update({ density: "comfortable" })}>舒适</button></div></label>
+              <label><span><strong>正文字号</strong><small>影响题目、说明和选项文字</small></span><div><button className={config.fontSize === "standard" ? "active" : ""} onClick={() => update({ fontSize: "standard" })}>标准</button><button className={config.fontSize === "large" ? "active" : ""} onClick={() => update({ fontSize: "large" })}>大号</button></div></label>
+              <label><span><strong>主按钮样式</strong><small>用于下一页和提交问卷按钮</small></span><div><button className={config.buttonStyle === "filled" ? "active" : ""} onClick={() => update({ buttonStyle: "filled" })}>填充</button><button className={config.buttonStyle === "outline" ? "active" : ""} onClick={() => update({ buttonStyle: "outline" })}>描边</button></div></label>
+            </div>
             <label className="range-setting"><span>圆角大小 <em>{config.radius}px</em></span><input type="range" min="0" max="20" value={config.radius} onChange={(event) => update({ radius: Number(event.target.value) })} /></label>
           </section>
           <section>
@@ -197,7 +228,7 @@ export default function AppearancePage() {
             </div>
             <label className="appearance-language-preview"><span>预览语言</span><select value={previewLocale} onChange={(event) => { setPreviewLocale(event.target.value); setPageIndex(0); }}>{availablePreviewLocales.map((locale) => <option key={locale} value={locale}>{previewLocaleNames[locale] || locale}</option>)}</select></label>
           </div>
-          <div className={`survey-device ${device} ${config.density} font-${config.fontSize} button-${config.buttonStyle}`}>
+          <div className={`survey-device ${device} ${config.density} font-${config.fontSize} button-${config.buttonStyle} width-${config.contentWidth}`}>
             {previewState === "form" ? <div
               className="player-mini-page player-scroll-page"
               onScroll={(event) => {

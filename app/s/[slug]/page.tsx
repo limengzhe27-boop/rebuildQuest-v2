@@ -105,6 +105,7 @@ export default function PlayerSurvey() {
     density: "comfortable",
     fontSize: "standard",
     buttonStyle: "filled",
+    contentWidth: "standard",
     background: "soft",
   });
   const [surveyDescription, setSurveyDescription] = useState("");
@@ -145,6 +146,7 @@ export default function PlayerSurvey() {
         density: appearance.density === "compact" ? "compact" : "comfortable",
         fontSize: appearance.fontSize === "large" ? "large" : "standard",
         buttonStyle: appearance.buttonStyle === "outline" ? "outline" : "filled",
+        contentWidth: ["narrow", "wide"].includes(appearance.contentWidth) ? appearance.contentWidth : "standard",
         background: ["plain", "soft", "dark"].includes(appearance.background) ? appearance.background : "soft",
       }));
       if (typeof appearance.languageSwitch === "boolean") setAllowLanguageSwitch(appearance.languageSwitch);
@@ -421,7 +423,7 @@ export default function PlayerSurvey() {
     setDone(true);
   }
 
-  const surveyShellClass = `player-survey-shell appearance-${appearanceConfig.background} density-${appearanceConfig.density} font-${appearanceConfig.fontSize} button-${appearanceConfig.buttonStyle}`;
+  const surveyShellClass = `player-survey-shell appearance-${appearanceConfig.background} density-${appearanceConfig.density} font-${appearanceConfig.fontSize} button-${appearanceConfig.buttonStyle} width-${appearanceConfig.contentWidth}`;
   const surveyShellStyle = {
     "--player": primary,
     "--player-radius": `${appearanceConfig.radius}px`,
@@ -605,6 +607,10 @@ function QuestionInput({
       return <div className="player-matrix-sliders">{rows.map((row) => <label key={row}><span>{row}</span><input type="range" min={min} max={max} value={Number(matrixValue[row] ?? min)} onChange={(event) => updateMatrix(row, Number(event.target.value))} /><strong>{matrixValue[row] ?? min}</strong></label>)}</div>;
     }
 
+    if (question.type === "matrixDropdown") {
+      return <div className="player-matrix-dropdowns">{rows.map((row) => <label key={row}><span>{row}</span><select value={String(matrixValue[row] ?? "")} onChange={(event) => updateMatrix(row, event.target.value)}><option value="">请选择</option>{columns.map((option) => <option key={option}>{option}</option>)}</select></label>)}</div>;
+    }
+
     return (
       <div className="player-matrix-scroll">
         <div className={`player-matrix-table ${question.type}`} style={{ gridTemplateColumns: `minmax(120px, 1.3fr) repeat(${columns.length}, minmax(72px, 1fr))` }}>
@@ -618,11 +624,6 @@ function QuestionInput({
                 if (question.type === "matrixFill") {
                   return <input key={column} aria-label={`${row} ${column}`} value={String(matrixValue[cellKey] ?? "")} onChange={(event) => updateMatrix(cellKey, event.target.value)} />;
                 }
-                if (question.type === "matrixDropdown") {
-                  return column === columns[0]
-                    ? <select key={column} value={String(matrixValue[row] ?? "")} onChange={(event) => updateMatrix(row, event.target.value)}><option value="">请选择</option>{columns.map((option) => <option key={option}>{option}</option>)}</select>
-                    : <span className="matrix-empty-cell" key={column} />;
-                }
                 const storedValue = matrixValue[row];
                 const normalizedValue = question.type === "matrixScale" ? Number(column) : column;
                 const selected = storedValue === normalizedValue;
@@ -634,7 +635,7 @@ function QuestionInput({
       </div>
     );
   }
-  if (["single", "image", "sort", "dropdown", "cascade", "tableSelect"].includes(question.type)) {
+  if (["single", "image", "tableSelect"].includes(question.type)) {
     return <div className="player-options">{question.options?.map((option, index) => {
       const sourceValue = defaultQuestions.find((item) => item.id === question.id)?.options?.[index] || option;
       return <button key={option} className={value === sourceValue ? "selected" : ""} onClick={() => onChange(sourceValue)}><i>{value === sourceValue ? "●" : "○"}</i>{option}</button>;
@@ -649,10 +650,37 @@ function QuestionInput({
       return <button key={option} disabled={reachedLimit} className={isSelected ? "selected" : ""} onClick={() => onChange(isSelected ? selected.filter((item) => item !== option) : [...selected, option])}><i>{isSelected ? "■" : "□"}</i>{option}</button>;
     })}</div></>;
   }
+  if (question.type === "dropdown" || question.type === "cascade") {
+    return <select className="player-select-input" value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)}><option value="">请选择</option>{question.options?.map((option) => <option key={option}>{option}</option>)}</select>;
+  }
+  if (question.type === "sort") {
+    return <div className="player-sort-list">{question.options?.map((option, index) => <button type="button" key={option}><strong>{index + 1}</strong><span>{option}</span><i>⠿</i></button>)}</div>;
+  }
   if (question.type === "nps" || question.type === "rating") {
     const min = question.min ?? 0;
     const max = question.max ?? 10;
     return <><div className="player-nps">{Array.from({ length: Math.min(21, max - min + 1) }, (_, index) => index + min).map((score) => <button key={score} className={value === score ? "selected" : ""} onClick={() => onChange(score)}>{score}</button>)}</div><div className="nps-labels"><span>{question.minLabel || min}</span><span>{question.maxLabel || max}</span></div></>;
   }
+  if (question.type === "text" || question.type === "phone") {
+    return <div className="player-inline-field"><input type={question.type === "phone" ? "tel" : "text"} value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)} placeholder={question.type === "phone" ? "请输入手机号" : placeholder} />{question.type === "phone" && <button type="button">发送验证码</button>}</div>;
+  }
+  if (question.type === "date" || question.type === "appointmentDate") {
+    return <input className="player-select-input" type="date" value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)} />;
+  }
+  if (question.type === "appointmentSlot") {
+    return <select className="player-select-input" value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)}><option value="">请选择预约时段</option><option>10:00–11:00</option><option>14:00–15:00</option><option>19:00–20:00</option></select>;
+  }
+  if (["provinceCity", "globalProvinceCity", "city"].includes(question.type)) {
+    return <div className="player-region-fields"><select><option>{question.type === "globalProvinceCity" ? "请选择国家/地区" : "请选择省份"}</option></select><select><option>请选择城市</option></select></div>;
+  }
+  if (["file", "imageUpload", "ocr"].includes(question.type)) {
+    return <label className="player-upload-field"><input type="file" accept={question.type === "file" ? undefined : "image/*"} onChange={(event) => onChange(event.target.files?.[0]?.name || "")} /><span>＋ {question.type === "file" ? "选择文件" : question.type === "ocr" ? "上传图片并识别" : "上传图片"}</span><small>{typeof value === "string" && value ? value : "尚未选择文件"}</small></label>;
+  }
+  if (question.type === "location") return <button type="button" className="player-action-field" onClick={() => onChange("已获取当前位置")}>⌖ 获取当前位置</button>;
+  if (question.type === "product") return <div className="player-product-field"><span>商品信息</span><strong>¥ 0.00</strong><button type="button" onClick={() => onChange("已选择")}>选择</button></div>;
+  if (question.type === "description") return <div className="player-description-block">{question.title}</div>;
+  if (question.type === "divider") return <hr className="player-divider-block" />;
+  if (question.type === "imageDisplay" || question.type === "carousel") return <div className="player-image-placeholder">▧ {question.type === "carousel" ? "图片轮播" : "图片展示"}</div>;
+  if (question.type === "button") return <button type="button" className="player-action-field">{question.title || "按钮"}</button>;
   return <><textarea value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} maxLength={1000} /><div className="text-count">{typeof value === "string" ? value.length : 0} / 1000</div></>;
 }

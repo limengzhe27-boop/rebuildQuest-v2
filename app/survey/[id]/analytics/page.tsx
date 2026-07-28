@@ -98,13 +98,13 @@ export default function AnalyticsPage() {
 
       <section className="analytics-simple-shell">
         <header className="analytics-simple-heading report-heading">
-          <div><h1>{tab === "answers" ? "答案统计" : "用户分布"}</h1><p>{tab === "answers" ? "逐题查看回答人数、未回答人数和各答案占比。" : "查看收集趋势、平均答题时间，以及地区、语言、设备和账号构成。"}</p></div>
+          <div><h1>统计</h1><p>{tab === "answers" ? "逐题查看回答人数、未回答人数和各答案占比。" : "查看收集趋势、平均答题时间，以及地区、语言、设备和账号构成。"}</p></div>
           <div className="answer-total"><small>答卷总数</small><strong>{totalResponses.toLocaleString()}</strong><span>份</span></div>
         </header>
 
         <div className="statistics-view-tabs">
           <button className={tab === "answers" ? "active" : ""} onClick={() => setTab("answers")}><strong>答案统计</strong><small>每道题的选项、人数与占比</small></button>
-          <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}><strong>用户分布</strong><small>收集趋势、地区、语言、设备与账号</small></button>
+          <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}><strong>用户统计</strong><small>收集趋势、地区、语言、设备与账号</small></button>
         </div>
 
         <div className="analytics-simple-filters">
@@ -163,21 +163,36 @@ export default function AnalyticsPage() {
             </article>
           ))}
         </div> : <div className="user-distribution-content">
+          <div className="user-distribution-summary">
+            <span><small>识别用户</small><strong>6,982</strong><em>JoyaMaker 或 LINE 去重</em></span>
+            <span><small>平均答题时间</small><strong>3 分 42 秒</strong><em>基于有效答卷</em></span>
+            <span><small>覆盖国家/地区</small><strong>42</strong><em>基于提交 IP</em></span>
+          </div>
           <article className="collection-trend-card">
             <header>
               <div><strong>收集趋势</strong><small>按提交日期统计有效答卷数量</small></div>
-              <div className="collection-average"><span>平均答题时间</span><strong>3 分 42 秒</strong><small>基于有效答卷</small></div>
+              <span className="trend-total">近 7 天共收集 <strong>8,421</strong> 份</span>
             </header>
-            <table>
-              <thead><tr><th>日期</th><th>星期</th><th>当日收集量</th><th>趋势</th></tr></thead>
-              <tbody>{collectionTrend.map(([date, weekday, count]) => <tr key={date}><td>2026-{date}</td><td>{weekday}</td><td><strong>{count.toLocaleString()}</strong> 份</td><td><i><em style={{ width: `${count / 1409 * 100}%` }} /></i></td></tr>)}</tbody>
-            </table>
+            <div className="collection-line-chart">
+              <div className="trend-grid-lines"><i /><i /><i /><i /></div>
+              <div
+                className="trend-area"
+                style={{ clipPath: "polygon(0% 74%, 16.66% 52%, 33.33% 31%, 50% 40%, 66.66% 16%, 83.33% 8%, 100% 37%, 100% 100%, 0 100%)" }}
+              />
+              <div
+                className="trend-line"
+                style={{ clipPath: "polygon(0% 72%, 16.66% 50%, 33.33% 29%, 50% 38%, 66.66% 14%, 83.33% 6%, 100% 35%, 100% 39%, 83.33% 10%, 66.66% 18%, 50% 42%, 33.33% 33%, 16.66% 54%, 0% 76%)" }}
+              />
+              <div className="trend-points">
+                {collectionTrend.map(([date, weekday, count]) => (
+                  <span key={date} style={{ bottom: `${8 + count / 1409 * 72}%` }}>
+                    <i><strong>{count.toLocaleString()}</strong> 份<small>{weekday}</small></i>
+                  </span>
+                ))}
+              </div>
+              <div className="trend-axis">{collectionTrend.map(([date]) => <span key={date}>{date}</span>)}</div>
+            </div>
           </article>
-          <div className="user-distribution-summary">
-            <span><small>识别用户</small><strong>6,982</strong><em>JoyaMaker 或 LINE 去重</em></span>
-            <span><small>匿名答卷</small><strong>2,336</strong><em>无账号标识</em></span>
-            <span><small>覆盖国家/地区</small><strong>42</strong><em>基于提交地址</em></span>
-          </div>
           <div className="user-distribution-grid">
             {userDistributions.map((group) => <article className="user-distribution-card" key={group.title}>
               <header><div><strong>{group.title}</strong><small>数据字段：{group.field}</small></div><span>{totalResponses.toLocaleString()} 份</span></header>
