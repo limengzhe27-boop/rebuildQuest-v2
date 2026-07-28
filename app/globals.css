@@ -4968,6 +4968,41 @@ input:focus-visible {
   font-size: 9px;
 }
 
+.preview-device-toggle .appearance-language-preview > span {
+  position: static;
+  color: #7d899b;
+  font-size: 9px;
+}
+
+.appearance-language-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid #dfe6f0;
+  border-radius: 8px;
+  background: #f7faff;
+  padding: 12px;
+}
+
+.appearance-language-setting > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.appearance-language-setting strong {
+  color: #425068;
+  font-size: 10px;
+}
+
+.appearance-language-setting small {
+  color: #8793a6;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
 .analytics-simple-shell,
 .response-table-shell {
   height: calc(100vh - 60px);
@@ -7643,6 +7678,28 @@ input:focus-visible {
   background: rgba(255, 255, 255, .96);
   padding: 6px 9px;
   color: #4f5e75;
+  font-size: 9px;
+}
+
+.appearance-player-language {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+}
+
+.appearance-player-language > span {
+  color: #66758b;
+  font-size: 10px;
+}
+
+.appearance-player-language select {
+  height: 30px;
+  max-width: 155px;
+  border: 0;
+  background: transparent;
+  color: #4f5e75;
+  outline: 0;
   font-size: 9px;
 }
 

@@ -138,7 +138,6 @@ export default function AppearancePage() {
         <button className="editor-back" onClick={() => router.push("/")}>‹</button>
         <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="saved" />外观设置自动保存</small></div></div>
         <SurveyNav surveyId={surveyId} active="appearance" />
-        <div className="editor-actions"><button className="secondary-button" onClick={() => setConfig(defaults)}>恢复默认</button><button className="primary-button" onClick={() => router.push(`/s/ro3-global-beta?surveyId=${surveyId}`)}>玩家端预览</button></div>
       </header>
 
       <div className="appearance-layout appearance-layout-simple">
@@ -153,13 +152,19 @@ export default function AppearancePage() {
             <label className="segmented-setting appearance-segment-gap"><span>主按钮</span><div><button className={config.buttonStyle === "filled" ? "active" : ""} onClick={() => update({ buttonStyle: "filled" })}>填充</button><button className={config.buttonStyle === "outline" ? "active" : ""} onClick={() => update({ buttonStyle: "outline" })}>描边</button></div></label>
             <label className="range-setting"><span>圆角大小 <em>{config.radius}px</em></span><input type="range" min="0" max="20" value={config.radius} onChange={(event) => update({ radius: Number(event.target.value) })} /></label>
           </section>
+          <section>
+            <h3>语言切换</h3>
+            <div className="appearance-language-setting">
+              <div><strong>允许用户切换语言</strong><small>开启后，玩家可在问卷右上角切换已添加并完成校验的语言。</small></div>
+              <button className={`mini-switch ${config.languageSwitch ? "on" : ""}`} onClick={() => update({ languageSwitch: !config.languageSwitch })}><i /></button>
+            </div>
+          </section>
           <section><h3>填写页显示</h3>{[
             ["显示封面", "cover"],
             ["显示品牌标识", "logo"],
             ["显示进度条", "progress"],
             ["显示题号", "questionNumber"],
             ["显示必填标记", "requiredMark"],
-            ["允许用户切换语言", "languageSwitch"],
           ].map(([label, key]) => <div className="appearance-toggle" key={key}><span>{label}</span><button className={`mini-switch ${config[key as keyof Appearance] ? "on" : ""}`} onClick={() => update({ [key]: !config[key as keyof Appearance] })}><i /></button></div>)}</section>
         </aside>
 
@@ -168,11 +173,17 @@ export default function AppearancePage() {
             <button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")}>▱ 桌面端</button>
             <button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")}>▯ 移动端</button>
             <label className="appearance-language-preview"><span>预览语言</span><select value={previewLocale} onChange={(event) => { setPreviewLocale(event.target.value); setPageIndex(0); }}>{availablePreviewLocales.map((locale) => <option key={locale} value={locale}>{previewLocaleNames[locale] || locale}</option>)}</select></label>
-            <span>{hasPagination ? `分页问卷 · 第 ${pageIndex + 1}/${pages.length} 页` : "连续滚动问卷"}</span>
           </div>
           <div className={`survey-device ${device} ${config.density} font-${config.fontSize} button-${config.buttonStyle}`}>
             <div className="player-mini-page player-scroll-page">
-              {config.languageSwitch && <div className="appearance-player-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}⌄</div>}
+              {config.languageSwitch && (
+                <label className="appearance-player-language">
+                  <span>🌐</span>
+                  <select value={previewLocale} onChange={(event) => { setPreviewLocale(event.target.value); setPageIndex(0); }}>
+                    {availablePreviewLocales.map((locale) => <option key={locale} value={locale}>{previewLocaleNames[locale] || locale}</option>)}
+                  </select>
+                </label>
+              )}
               {config.progress && <div className="mini-progress"><i style={{ width: hasPagination ? `${(pageIndex + 1) / pages.length * 100}%` : "100%" }} /></div>}
               {config.cover && <header>{config.logo && <span>RO3 · PLAYER RESEARCH</span>}<h1>{translated("form:title", surveyTitle)}</h1><p>{translated("form:intro", "感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。")}</p></header>}
               <main className="appearance-form-content">
