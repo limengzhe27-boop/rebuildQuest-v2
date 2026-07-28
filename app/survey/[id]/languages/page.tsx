@@ -93,8 +93,11 @@ export default function LanguagesPage() {
       if (question.description.trim()) result.push({ id: `${question.id}:description`, source: question.description });
       question.options?.forEach((option, index) => result.push({ id: `${question.id}:option:${index}`, source: option }));
     });
-    result.push({ id: "form:closed", source: publication?.closedMessage || "本次问卷收集已结束，感谢您的关注。" });
     const sourceLocale = publication?.defaultLocale || "zh-CN";
+    const closedContent = publication?.closedPageContent?.[sourceLocale];
+    if (closedContent?.title) result.push({ id: "closed:title", source: closedContent.title });
+    if (closedContent?.body) result.push({ id: "closed:body", source: closedContent.body, legacyId: "form:closed" });
+    closedContent?.links?.forEach((link) => result.push({ id: `closed:link:${link.id}`, source: link.text }));
     const limitContent = publication?.limitPageContent?.[sourceLocale];
     if (limitContent?.title) result.push({ id: "limit:title", source: limitContent.title });
     if (limitContent?.body) result.push({ id: "limit:body", source: limitContent.body });
@@ -107,6 +110,12 @@ export default function LanguagesPage() {
   const sourceLimitPlainText = sourceLimitContent.links.reduce(
     (text, link) => text.replaceAll(`{{${link.id}}}`, link.text),
     sourceLimitContent.body,
+  );
+  const sourceClosedContent = publication?.closedPageContent?.[publication?.defaultLocale || "zh-CN"]
+    || { title: "本次问卷收集已结束", body: publication?.closedMessage || "本次问卷收集已结束，感谢您的关注。", links: [] };
+  const sourceClosedPlainText = sourceClosedContent.links.reduce(
+    (text, link) => text.replaceAll(`{{${link.id}}}`, link.text),
+    sourceClosedContent.body,
   );
 
   function rawTranslation(id: string, legacyId?: string) {
@@ -274,16 +283,14 @@ export default function LanguagesPage() {
                <div className="result-translation-pair">
                  <article>
                    <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
-                   <div className="standalone-result-preview full-page closed">
-                     {publication?.closedImage && <img src={publication.closedImage} alt="" />}
-                     <i>■</i><h2>本次问卷收集已结束</h2><p>{publication?.closedMessage || "本次问卷收集已结束，感谢您的关注。"}</p>
-                   </div>
+                   <div className="standalone-result-preview full-page closed">{sourceClosedContent.title && <h2>{sourceClosedContent.title}</h2>}<p>{sourceClosedPlainText}</p></div>
                  </article>
                  <article className="translated">
                    <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
                    <div className="standalone-result-editor full-page">
-                     {publication?.closedImage && <img src={publication.closedImage} alt="" />}
-                     {editableField("form:closed", publication?.closedMessage || "本次问卷收集已结束，感谢您的关注。", "停止收集提示")}
+                     {sourceClosedContent.title && editableField("closed:title", sourceClosedContent.title, "标题（可留空）")}
+                     {editableField("closed:body", sourceClosedContent.body, "正文")}
+                     {sourceClosedContent.links.map((link, index) => editableField(`closed:link:${link.id}`, link.text, `链接 ${index + 1} 文字`))}
                    </div>
                  </article>
                </div>

@@ -121,7 +121,11 @@ export default function PlayerSurvey() {
     background: string;
     content: Record<string, LimitPageContent>;
   }>({ backgroundMode: "common", background: "", content: {} });
-  const [closedImage, setClosedImage] = useState("");
+  const [closedPage, setClosedPage] = useState<{
+    backgroundMode: "common" | "custom";
+    background: string;
+    content: Record<string, LimitPageContent>;
+  }>({ backgroundMode: "common", background: "", content: {} });
   const [identityMismatch, setIdentityMismatch] = useState(false);
   const [closedMessage, setClosedMessage] = useState("");
   const [closedReason, setClosedReason] = useState<"ended" | "not-started" | "outside-hours">("ended");
@@ -184,7 +188,11 @@ export default function PlayerSurvey() {
           background: publication.limitPageBackground || "",
           content: publication.limitPageContent || {},
         });
-        setClosedImage(publication.closedImage || "");
+        setClosedPage({
+          backgroundMode: publication.closedPageBackgroundMode || "common",
+          background: publication.closedPageBackground || "",
+          content: publication.closedPageContent || {},
+        });
         const existingResponses = JSON.parse(window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`) || "[]") as LiveSurveyResponse[];
         const boundIdentity =
           searchParams.get("bound_user_id")
@@ -484,17 +492,26 @@ export default function PlayerSurvey() {
   } as React.CSSProperties;
 
   if (closedMessage) {
+    const baseContent = closedPage.content[locale] || closedPage.content["en-US"] || closedPage.content["zh-CN"] || {
+      title: closedReason === "not-started" ? "问卷尚未开始" : closedReason === "outside-hours" ? "当前不在允许访问时段" : "本次问卷收集已结束",
+      body: closedMessage,
+      links: [],
+    };
+    const translationLocale = locale === "en-US" ? "EN" : locale === "zh-TW" ? "繁中" : locale === "th-TH" ? "ไทย" : "简中";
+    const resultTranslations = translations[translationLocale] || {};
+    const content: LimitPageContent = {
+      ...baseContent,
+      title: resultTranslations["closed:title"] || baseContent.title,
+      body: resultTranslations["closed:body"] || resultTranslations["form:closed"] || baseContent.body,
+      links: (baseContent.links || []).map((link) => ({ ...link, text: resultTranslations[`closed:link:${link.id}`] || link.text })),
+    };
     return (
-      <main className={surveyShellClass} style={surveyShellStyle}>
+      <main className={`player-limit-shell ${closedPage.backgroundMode}`} style={closedPage.backgroundMode === "custom" && closedPage.background ? { backgroundImage: `url(${closedPage.background})` } : undefined}>
         <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
-        <section className="player-closed">
-          {closedImage && <img className="player-closed-image" src={closedImage} alt="" />}
-          <span>{closedReason === "ended" ? "■" : "◷"}</span><small>{closedReason === "ended" ? "SURVEY CLOSED" : "CURRENTLY UNAVAILABLE"}</small>
-          <h1>{surveyTitle}</h1><p>{closedMessage}</p>
-          <div>
-            <strong>{closedReason === "not-started" ? "问卷尚未开始" : closedReason === "outside-hours" ? "当前不在允许访问时段" : "本次问卷收集已结束"}</strong>
-            <small>{closedReason === "ended" ? "如有疑问，请联系问卷发布方。" : "到达开放时间后，使用原链接即可继续访问。"}</small>
-          </div>
+        <section className="player-limit-card">
+          {content.title && <h1>{content.title}</h1>}
+          <p><InlineLimitText content={content} /></p>
+          <small>{closedReason === "not-started" ? "问卷尚未开始" : closedReason === "outside-hours" ? "当前不在允许访问时段" : "本次问卷收集已结束"}</small>
         </section>
       </main>
     );

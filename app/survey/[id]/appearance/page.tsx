@@ -137,6 +137,15 @@ export default function AppearancePage() {
       text: translated(`limit:link:${link.id}`, link.text),
     })),
   };
+  const closedContent = publication?.closedPageContent?.[previewRuntimeLocale]
+    || publication?.closedPageContent?.[publication?.defaultLocale || "zh-CN"]
+    || { title: "本次问卷收集已结束", body: publication?.closedMessage || "本次问卷收集已结束，感谢您的关注。", links: [] };
+  const previewClosedContent: LimitPageContent = {
+    ...closedContent,
+    title: translated("closed:title", closedContent.title),
+    body: translated("closed:body", closedContent.body, "form:closed"),
+    links: (closedContent.links || []).map((link) => ({ ...link, text: translated(`closed:link:${link.id}`, link.text) })),
+  };
 
   function translated(fieldId: string, fallback: string, legacyId?: string) {
     if (previewLocale === "简中") return fallback;
@@ -309,13 +318,11 @@ export default function AppearancePage() {
                 </article>
               </div>
             ) : previewState === "closed" ? (
-              <div className="appearance-result-preview closed">
+              <div className={`appearance-result-preview closed ${publication?.closedPageBackgroundMode === "custom" && publication.closedPageBackground ? "custom" : ""}`} style={publication?.closedPageBackgroundMode === "custom" && publication.closedPageBackground ? { backgroundImage: `url(${publication.closedPageBackground})` } : undefined}>
                 {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
                 <article>
-                  {publication?.closedImage && <img className="appearance-completion-image" src={publication.closedImage} alt="" />}
-                  <i>■</i>
-                  <h1>{translated("form:closed:title", "本次问卷收集已结束")}</h1>
-                  <p>{translated("form:closed", publication?.closedMessage || "本次问卷收集已结束，感谢您的关注。")}</p>
+                  {previewClosedContent.title && <h1>{previewClosedContent.title}</h1>}
+                  <p><InlinePreviewContent content={previewClosedContent} /></p>
                   <small>手动结束、定时结束、达到数量上限或当前不在允许访问时段时展示</small>
                 </article>
               </div>

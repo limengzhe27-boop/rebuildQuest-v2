@@ -73,6 +73,10 @@ export type Publication = {
   completionImage: string;
   closedMessage: string;
   closedImage: string;
+  closedPageBackgroundMode: "common" | "custom";
+  closedPageBackgroundTemplateId: string;
+  closedPageBackground: string;
+  closedPageContent: Record<string, LimitPageContent>;
   limitPageBackgroundMode: "common" | "custom";
   limitPageBackgroundTemplateId: string;
   limitPageBackground: string;
@@ -143,6 +147,15 @@ export const defaultPublications: Publication[] = [
     completionImage: "",
     closedMessage: "This survey has ended. Thank you for your interest.",
     closedImage: "",
+    closedPageBackgroundMode: "common",
+    closedPageBackgroundTemplateId: "project-default",
+    closedPageBackground: "",
+    closedPageContent: {
+      "en-US": { title: "This survey has ended", body: "Thank you for your interest. This survey is no longer accepting responses.", links: [] },
+      "zh-CN": { title: "本次问卷收集已结束", body: "感谢您的关注，本次问卷暂不再接收新的答卷。", links: [] },
+      "zh-TW": { title: "本次問卷收集已結束", body: "感謝您的關注，本次問卷暫不再接收新的答卷。", links: [] },
+      "th-TH": { title: "แบบสำรวจนี้สิ้นสุดแล้ว", body: "ขอบคุณที่สนใจ แบบสำรวจนี้ไม่รับคำตอบเพิ่มเติมแล้ว", links: [] },
+    },
     limitPageBackgroundMode: "common",
     limitPageBackgroundTemplateId: "project-default",
     limitPageBackground: "",
@@ -214,6 +227,15 @@ export const defaultPublications: Publication[] = [
     completionImage: "",
     closedMessage: "本次问卷收集已结束，感谢您的关注。",
     closedImage: "",
+    closedPageBackgroundMode: "common",
+    closedPageBackgroundTemplateId: "project-default",
+    closedPageBackground: "",
+    closedPageContent: {
+      "zh-CN": { title: "本次问卷收集已结束", body: "感谢您的关注，本次问卷暂不再接收新的答卷。", links: [] },
+      "en-US": { title: "This survey has ended", body: "Thank you for your interest. This survey is no longer accepting responses.", links: [] },
+      "zh-TW": { title: "本次問卷收集已結束", body: "感謝您的關注，本次問卷暫不再接收新的答卷。", links: [] },
+      "th-TH": { title: "แบบสำรวจนี้สิ้นสุดแล้ว", body: "ขอบคุณที่สนใจ แบบสำรวจนี้ไม่รับคำตอบเพิ่มเติมแล้ว", links: [] },
+    },
     limitPageBackgroundMode: "common",
     limitPageBackgroundTemplateId: "project-default",
     limitPageBackground: "",
@@ -259,6 +281,13 @@ function normalizePublication(item: Publication): Publication {
   return {
     ...merged,
     limitPageContent: normalizeLimitContent(merged.limitPageContent),
+    closedPageContent: normalizeLimitContent(merged.closedPageContent || {
+      [merged.defaultLocale || "zh-CN"]: {
+        title: merged.defaultLocale === "en-US" ? "This survey has ended" : "本次问卷收集已结束",
+        body: merged.closedMessage || "本次问卷收集已结束，感谢您的关注。",
+        links: [],
+      },
+    }),
   };
 }
 

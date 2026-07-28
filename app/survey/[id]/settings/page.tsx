@@ -28,13 +28,15 @@ export default function SurveySettingsPage() {
   ]);
   const [backgroundFileName, setBackgroundFileName] = useState("");
   const [backgroundTemplateName, setBackgroundTemplateName] = useState("");
+  const [closedBackgroundTemplateName, setClosedBackgroundTemplateName] = useState("");
   const [backgroundTemplates, setBackgroundTemplates] = useState<Array<{ id: string; name: string; image: string }>>([]);
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
   const limitBodyRef = useRef<HTMLTextAreaElement>(null);
+  const closedBodyRef = useRef<HTMLTextAreaElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
-  const closedImageInputRef = useRef<HTMLInputElement>(null);
+  const closedBackgroundInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setPublications(loadPublications(surveyId));
@@ -162,6 +164,48 @@ export default function SurveySettingsPage() {
     });
   }
 
+  function currentClosedContent(): LimitPageContent {
+    const content = selected.closedPageContent?.[sourceLocale];
+    return {
+      title: content?.title || "",
+      body: content?.body || selected.closedMessage || "",
+      links: Array.isArray(content?.links) ? content.links : [],
+    };
+  }
+
+  function updateClosedContent(patch: Partial<LimitPageContent>) {
+    updateSelected({
+      closedPageContent: {
+        ...selected.closedPageContent,
+        [sourceLocale]: { ...currentClosedContent(), ...patch },
+      },
+      ...(patch.body !== undefined ? { closedMessage: patch.body } : {}),
+    });
+  }
+
+  function insertClosedLink() {
+    const content = currentClosedContent();
+    const id = `closed-link-${Date.now()}`;
+    const token = `{{${id}}}`;
+    const start = closedBodyRef.current?.selectionStart ?? content.body.length;
+    const end = closedBodyRef.current?.selectionEnd ?? start;
+    updateClosedContent({ body: `${content.body.slice(0, start)}${token}${content.body.slice(end)}`, links: [...content.links, { id, text: "链接文字", url: "" }] });
+    window.requestAnimationFrame(() => {
+      closedBodyRef.current?.focus();
+      closedBodyRef.current?.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
+
+  function updateClosedLink(linkId: string, patch: Partial<LimitPageContent["links"][number]>) {
+    const content = currentClosedContent();
+    updateClosedContent({ links: content.links.map((link) => link.id === linkId ? { ...link, ...patch } : link) });
+  }
+
+  function removeClosedLink(linkId: string) {
+    const content = currentClosedContent();
+    updateClosedContent({ body: content.body.replaceAll(`{{${linkId}}}`, ""), links: content.links.filter((link) => link.id !== linkId) });
+  }
+
   function uploadLimitBackground(file?: File) {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -181,7 +225,7 @@ export default function SurveySettingsPage() {
     reader.readAsDataURL(file);
   }
 
-  function uploadClosedImage(file?: File) {
+  function uploadClosedBackground(file?: File) {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       flash("请选择图片文件");
@@ -193,8 +237,8 @@ export default function SurveySettingsPage() {
     }
     const reader = new FileReader();
     reader.onload = () => {
-      updateSelected({ closedImage: String(reader.result || "") });
-      flash("停止收集页图片已上传");
+      updateSelected({ closedPageBackgroundMode: "custom", closedPageBackgroundTemplateId: "custom-upload", closedPageBackground: String(reader.result || "") });
+      flash("停止收集页背景已上传");
     };
     reader.readAsDataURL(file);
   }
@@ -235,6 +279,30 @@ export default function SurveySettingsPage() {
     updateSelected({ limitPageBackgroundMode: "custom", limitPageBackgroundTemplateId: template.id });
     setBackgroundTemplateName("");
     flash("结束页背景已保存为模板");
+  }
+
+  function applyClosedBackgroundTemplate(templateId: string) {
+    if (templateId === "project-default") {
+      updateSelected({ closedPageBackgroundMode: "common", closedPageBackgroundTemplateId: templateId, closedPageBackground: "" });
+      return;
+    }
+    const template = backgroundTemplates.find((item) => item.id === templateId);
+    if (template) updateSelected({ closedPageBackgroundMode: "custom", closedPageBackgroundTemplateId: template.id, closedPageBackground: template.image });
+  }
+
+  function saveClosedBackgroundAsTemplate() {
+    const name = closedBackgroundTemplateName.trim();
+    if (!selected.closedPageBackground || !name) {
+      flash("请先上传背景并填写模板名称");
+      return;
+    }
+    const template = { id: `closed-bg-${Date.now()}`, name, image: selected.closedPageBackground };
+    const next = [...backgroundTemplates, template];
+    setBackgroundTemplates(next);
+    window.localStorage.setItem("joydata-survey-end-background-templates", JSON.stringify(next));
+    updateSelected({ closedPageBackgroundMode: "custom", closedPageBackgroundTemplateId: template.id });
+    setClosedBackgroundTemplateName("");
+    flash("停止收集页背景已保存为模板");
   }
 
   function addRedirectRule() {
@@ -327,6 +395,59 @@ export default function SurveySettingsPage() {
             <article>{content.title && <h3>{content.title}</h3>}<p>{renderInlineLimitText(content)}</p><small>提交成功／达到重复填写限制</small></article>
           </div>
         </div>
+      </section>
+    );
+  }
+
+  function renderClosedPageEditor() {
+    const content = currentClosedContent();
+    const activeTemplate = selected.closedPageBackgroundMode === "common"
+      ? "project-default"
+      : selected.closedPageBackgroundTemplateId || "custom-upload";
+    return (
+      <section className="config-card limit-result-config end-page-config">
+        <header><div><strong>停止收集后页面</strong><small>手动结束、定时结束、达到数量上限或不在允许访问时段时展示</small></div><span className="auto-stop-tag active">独立页面</span></header>
+        <div className="limit-result-layout">
+          <div className="limit-result-fields">
+            <label>
+              <span>背景模板</span>
+              <select value={activeTemplate} onChange={(event) => applyClosedBackgroundTemplate(event.target.value)}>
+                <option value="project-default">项目默认模板</option>
+                {backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+                {activeTemplate === "custom-upload" && <option value="custom-upload">当前自定义背景</option>}
+              </select>
+            </label>
+            <div className="limit-background-upload">
+              <input ref={closedBackgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadClosedBackground(event.target.files?.[0])} />
+              <button type="button" onClick={() => closedBackgroundInputRef.current?.click()}>▧ 上传自定义背景</button>
+              <div><strong>{selected.closedPageBackground ? "已使用自定义背景" : "当前使用项目默认模板"}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>
+              {selected.closedPageBackground && <button className="text-danger" type="button" onClick={() => updateSelected({ closedPageBackgroundMode: "common", closedPageBackgroundTemplateId: "project-default", closedPageBackground: "" })}>恢复默认</button>}
+            </div>
+            {selected.closedPageBackgroundMode === "custom" && selected.closedPageBackground && (
+              <div className="save-background-template">
+                <input value={closedBackgroundTemplateName} onChange={(event) => setClosedBackgroundTemplateName(event.target.value)} placeholder="输入模板名称" />
+                <button type="button" onClick={saveClosedBackgroundAsTemplate}>保存为模板</button>
+              </div>
+            )}
+            <label><span>标题（选填）</span><input value={content.title} onChange={(event) => updateClosedContent({ title: event.target.value })} placeholder="例如：本次问卷收集已结束" /></label>
+            <label><span>说明正文</span><textarea ref={closedBodyRef} value={content.body} onChange={(event) => updateClosedContent({ body: event.target.value })} /><small>将光标放在正文任意位置，可插入多个链接。</small></label>
+            <button className="insert-inline-link" type="button" onClick={insertClosedLink}>＋ 在正文光标处插入链接</button>
+            {content.links.length > 0 && <div className="limit-inline-links">{content.links.map((link, index) => <div key={link.id}><span>链接 {index + 1}</span><input value={link.text} onChange={(event) => updateClosedLink(link.id, { text: event.target.value })} placeholder="链接文字" /><input value={link.url} onChange={(event) => updateClosedLink(link.id, { url: event.target.value })} placeholder="https://" /><button type="button" onClick={() => removeClosedLink(link.id)} aria-label={`删除链接 ${index + 1}`}>×</button></div>)}</div>}
+          </div>
+          <div className={`limit-result-preview ${selected.closedPageBackgroundMode === "custom" && selected.closedPageBackground ? "custom" : ""}`} style={selected.closedPageBackgroundMode === "custom" && selected.closedPageBackground ? { backgroundImage: `url(${selected.closedPageBackground})` } : undefined}>
+            <article>{content.title && <h3>{content.title}</h3>}<p>{renderInlineLimitText(content)}</p><small>停止收集／尚未开始／当前时段不可访问</small></article>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  function renderIdentityValidation() {
+    return (
+      <section className="config-card identity-validation-card">
+        <header><div><strong>登录身份一致性校验</strong><small>防止玩家转发带登录态的链接后，由其他账号继续填写</small></div><button className={`mini-switch ${selected.identityValidationEnabled ? "on" : ""}`} onClick={() => updateSelected({ identityValidationEnabled: !selected.identityValidationEnabled, joymakerLogin: true })}><i /></button></header>
+        <div className="identity-validation-explanation"><span>校验规则</span><p>链接绑定的玩家身份与当前 JoyaMaker / JoyID 登录身份不一致时，由技术服务按玩家语言匹配官网；未匹配到时使用备用语言官网。</p></div>
+        {selected.identityValidationEnabled && <div className="identity-fallback-setting"><label><span>备用官网语言</span><select value={selected.identityMismatchFallbackLocale || selected.defaultLocale} onChange={(event) => updateSelected({ identityMismatchFallbackLocale: event.target.value })}><option value="zh-CN">简体中文</option><option value="en-US">English</option><option value="zh-TW">繁體中文</option><option value="th-TH">ไทย</option></select></label><p>这里只配置兜底语言，不维护官网地址。语言与官网映射由技术侧统一管理。</p></div>}
       </section>
     );
   }
@@ -430,34 +551,6 @@ export default function SurveySettingsPage() {
                 </div>
               </section>
 
-              <section className="config-card identity-validation-card">
-                <header>
-                  <div><strong>登录身份一致性校验</strong><small>防止玩家转发带登录态的链接后，由其他账号继续填写</small></div>
-                  <button className={`mini-switch ${selected.identityValidationEnabled ? "on" : ""}`} onClick={() => updateSelected({ identityValidationEnabled: !selected.identityValidationEnabled, joymakerLogin: true })}><i /></button>
-                </header>
-                <div className="identity-validation-explanation">
-                  <span>校验规则</span>
-                  <p>链接绑定的玩家身份与当前 JoyaMaker / JoyID 登录身份不一致时，由技术服务按玩家语言匹配官网；未匹配到时使用备用语言官网。</p>
-                </div>
-                {selected.identityValidationEnabled && (
-                  <div className="identity-fallback-setting">
-                    <label>
-                      <span>备用官网语言</span>
-                      <select
-                        value={selected.identityMismatchFallbackLocale || selected.defaultLocale}
-                        onChange={(event) => updateSelected({ identityMismatchFallbackLocale: event.target.value })}
-                      >
-                        <option value="zh-CN">简体中文</option>
-                        <option value="en-US">English</option>
-                        <option value="zh-TW">繁體中文</option>
-                        <option value="th-TH">ไทย</option>
-                      </select>
-                    </label>
-                    <p>这里只配置兜底语言，不维护官网地址。语言与官网映射由技术侧统一管理。</p>
-                  </div>
-                )}
-              </section>
-
               <section className="config-card">
                 <header><div><strong>答卷数量上限</strong><small>有效答卷达到设定数量后自动结束收集</small></div></header>
                 <div className="collection-condition-list">
@@ -494,17 +587,7 @@ export default function SurveySettingsPage() {
                 </div>
               </section>
 
-              <section className="config-card">
-                <header><div><strong>停止收集后页面</strong><small>手动结束、定时结束、达到数量上限或当前不在允许访问时段时展示</small></div></header>
-                <label className="large-config-field"><span>停止收集提示语</span><textarea value={selected.closedMessage} onChange={(event) => updateSelected({ closedMessage: event.target.value })} /></label>
-                <div className="completion-image-setting">
-                  <input ref={closedImageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadClosedImage(event.target.files?.[0])} />
-                  <button type="button" onClick={() => closedImageInputRef.current?.click()}>▧ {selected.closedImage ? "更换页面图片" : "上传页面图片"}</button>
-                  <div><strong>{selected.closedImage ? "已上传停止收集页图片" : "尚未上传图片"}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>
-                  {selected.closedImage && <button className="text-danger" type="button" onClick={() => updateSelected({ closedImage: "" })}>移除</button>}
-                </div>
-                {selected.closedImage && <div className="completion-preview"><img src={selected.closedImage} alt="停止收集页图片预览" /></div>}
-              </section>
+              {renderClosedPageEditor()}
 
               <section className="config-card">
                 <header><div><strong>提交次数限制</strong><small>按用户、IP 或设备分别设置最多可成功提交的次数</small></div></header>
@@ -514,6 +597,8 @@ export default function SurveySettingsPage() {
                   <div className="setting-with-input"><p><strong>每个 IP / 设备最多提交</strong><small>同时校验网络地址与匿名设备标识，任一达到上限即限制提交</small></p><div className="submission-limit-input"><input disabled={!(selected.ipLimit || selected.deviceLimit)} type="number" min={1} value={selected.perIpLimit} onChange={(event) => updateSelected({ perIpLimit: Math.max(1, Number(event.target.value)), perDeviceLimit: Math.max(1, Number(event.target.value)) })} /><span>次</span></div><button className={`mini-switch ${(selected.ipLimit || selected.deviceLimit) ? "on" : ""}`} onClick={() => updateSelected({ ipLimit: !(selected.ipLimit || selected.deviceLimit), deviceLimit: !(selected.ipLimit || selected.deviceLimit), perDeviceLimit: selected.perIpLimit })}><i /></button></div>
                 </div>
               </section>
+
+              {renderIdentityValidation()}
 
             </div>
           )}
