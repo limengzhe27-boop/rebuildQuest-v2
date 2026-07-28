@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultQuestions, loadQuestions, Question, questionLabels } from "@/lib/survey-builder";
 import { LimitPageContent, loadPublications, Publication } from "@/lib/survey-publication";
@@ -15,6 +15,9 @@ type Appearance = {
   fontSize: "standard" | "large";
   buttonStyle: "filled" | "outline";
   contentWidth: "narrow" | "standard" | "wide";
+  pageMode: "continuous" | "one-question";
+  headerImage: string;
+  curtainImage: string;
   progress: boolean;
   languageSwitch: boolean;
   background: "plain" | "soft" | "dark";
@@ -28,6 +31,9 @@ const defaults: Appearance = {
   fontSize: "standard",
   buttonStyle: "filled",
   contentWidth: "standard",
+  pageMode: "continuous",
+  headerImage: "",
+  curtainImage: "",
   progress: true,
   languageSwitch: true,
   background: "soft",
@@ -74,6 +80,8 @@ export default function AppearancePage() {
   const [notice, setNotice] = useState("");
   const [publication, setPublication] = useState<Publication | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const headerImageInputRef = useRef<HTMLInputElement>(null);
+  const curtainImageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`);
@@ -93,6 +101,9 @@ export default function AppearancePage() {
   }, [config, surveyId]);
 
   const pages = useMemo(() => {
+    if (config.pageMode === "one-question") {
+      return questions.filter((question) => question.type !== "pageBreak").map((question) => [question]);
+    }
     const result: Question[][] = [[]];
     questions.forEach((question) => {
       if (question.type === "pageBreak") {
@@ -102,7 +113,7 @@ export default function AppearancePage() {
       }
     });
     return result.filter((page) => page.length);
-  }, [questions]);
+  }, [config.pageMode, questions]);
 
   const hasPagination = pages.length > 1;
   const visibleQuestions = hasPagination ? pages[Math.min(pageIndex, pages.length - 1)] : pages.flat();
@@ -133,6 +144,17 @@ export default function AppearancePage() {
   function flash(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 2200);
+  }
+
+  function uploadAppearanceImage(field: "headerImage" | "curtainImage", file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
+      flash("请选择不超过 5MB 的图片");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => update({ [field]: String(reader.result || "") });
+    reader.readAsDataURL(file);
   }
 
   function renderQuestion(question: Question, index: number) {
@@ -203,6 +225,18 @@ export default function AppearancePage() {
               <label><span><strong>主按钮样式</strong><small>用于下一页和提交问卷按钮</small></span><div><button className={config.buttonStyle === "filled" ? "active" : ""} onClick={() => update({ buttonStyle: "filled" })}>填充</button><button className={config.buttonStyle === "outline" ? "active" : ""} onClick={() => update({ buttonStyle: "outline" })}>描边</button></div></label>
             </div>
             <label className="range-setting"><span>圆角大小 <em>{config.radius}px</em></span><input type="range" min="0" max="20" value={config.radius} onChange={(event) => update({ radius: Number(event.target.value) })} /></label>
+            <div className="appearance-control-list appearance-page-mode">
+              <label><span><strong>答题分页方式</strong><small>连续滚动或每页只展示一道题</small></span><div><button className={config.pageMode === "continuous" ? "active" : ""} onClick={() => { update({ pageMode: "continuous" }); setPageIndex(0); }}>连续</button><button className={config.pageMode === "one-question" ? "active" : ""} onClick={() => { update({ pageMode: "one-question" }); setPageIndex(0); }}>一页一题</button></div></label>
+            </div>
+          </section>
+          <section>
+            <h3>图片与幕布</h3>
+            <div className="appearance-image-settings">
+              <input ref={headerImageInputRef} type="file" accept="image/*" hidden onChange={(event) => uploadAppearanceImage("headerImage", event.target.files?.[0])} />
+              <article><div><strong>问卷头图</strong><small>展示在标题和开场说明上方</small></div><button onClick={() => headerImageInputRef.current?.click()}>{config.headerImage ? "更换" : "上传"}</button>{config.headerImage && <button className="remove" onClick={() => update({ headerImage: "" })}>移除</button>}</article>
+              <input ref={curtainImageInputRef} type="file" accept="image/*" hidden onChange={(event) => uploadAppearanceImage("curtainImage", event.target.files?.[0])} />
+              <article><div><strong>幕布背景</strong><small>问卷白色内容层会透出底层幕布</small></div><button onClick={() => curtainImageInputRef.current?.click()}>{config.curtainImage ? "更换" : "上传"}</button>{config.curtainImage && <button className="remove" onClick={() => update({ curtainImage: "" })}>移除</button>}</article>
+            </div>
           </section>
           <section>
             <h3>填写页组件</h3>
@@ -217,7 +251,7 @@ export default function AppearancePage() {
           </section>
         </aside>
 
-        <section className={`appearance-preview ${config.background}`} style={{ "--theme": config.primary, "--radius": `${config.radius}px` } as React.CSSProperties}>
+        <section className={`appearance-preview ${config.background} ${config.curtainImage ? "has-curtain" : ""}`} style={{ "--theme": config.primary, "--radius": `${config.radius}px`, ...(config.curtainImage ? { backgroundImage: `url(${config.curtainImage})` } : {}) } as React.CSSProperties}>
           <div className="preview-device-toggle">
             <button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")}>▱ 桌面端</button>
             <button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")}>▯ 移动端</button>
@@ -247,7 +281,7 @@ export default function AppearancePage() {
                   </select>
                 </label>
               )}
-              <header><h1>{translated("form:title", surveyTitle)}</h1><p>{translated("form:intro", "感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。")}</p></header>
+              <header>{config.headerImage && <img className="appearance-header-image" src={config.headerImage} alt="" />}<h1>{translated("form:title", surveyTitle)}</h1><p>{translated("form:intro", "感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。")}</p></header>
               <main className="appearance-form-content">
                 {visibleQuestions.map(renderQuestion)}
                 <footer className="appearance-form-footer">

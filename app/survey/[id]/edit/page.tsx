@@ -81,6 +81,11 @@ const defaultTemplateCategories = ["版本测试", "满意度", "用户洞察", 
 const defaultSurveyIntro = "感谢您参与本次调研。请根据实际体验完成以下问题，您的反馈将帮助我们持续优化产品体验。";
 
 type LogicCondition = NonNullable<Question["displayLogic"]>["conditions"][number];
+type ComponentTemplate = {
+  id: string;
+  name: string;
+  question: Question;
+};
 
 export default function SurveyEditorPage() {
   const router = useRouter();
@@ -105,6 +110,8 @@ export default function SurveyEditorPage() {
   const [logicQuestionId, setLogicQuestionId] = useState<string | null>(null);
   const [logicDraft, setLogicDraft] = useState<NonNullable<Question["displayLogic"]> | null>(null);
   const [moreQuestionId, setMoreQuestionId] = useState<string | null>(null);
+  const [componentTemplates, setComponentTemplates] = useState<ComponentTemplate[]>([]);
+  const [headerImage, setHeaderImage] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -139,6 +146,11 @@ export default function SurveyEditorPage() {
     try {
       const savedCategories = JSON.parse(window.localStorage.getItem("joydata-template-categories") || "[]");
       if (savedCategories.length) setAvailableTemplateCategories(Array.from(new Set([...defaultTemplateCategories, ...savedCategories])));
+    } catch {}
+    try {
+      setComponentTemplates(JSON.parse(window.localStorage.getItem("joydata-survey-component-templates") || "[]"));
+      const appearance = JSON.parse(window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`) || "{}");
+      setHeaderImage(appearance.headerImage || "");
     } catch {}
     hydrated.current = true;
   }, [editingTemplateId, surveyId]);
@@ -259,6 +271,63 @@ export default function SurveyEditorPage() {
       () => document.getElementById(`question-${question.id}`)?.scrollIntoView({ behavior: "smooth" }),
       30,
     );
+  }
+
+  function addComponentTemplate(template: ComponentTemplate) {
+    const nextQuestion: Question = {
+      ...template.question,
+      id: `${template.question.type}-${Date.now()}`,
+      options: template.question.options ? [...template.question.options] : undefined,
+      matrixRows: template.question.matrixRows ? [...template.question.matrixRows] : undefined,
+      matrixColumns: template.question.matrixColumns ? [...template.question.matrixColumns] : undefined,
+      displayLogic: undefined,
+    };
+    setQuestions((current) => [...current, nextQuestion]);
+    setSelectedId(nextQuestion.id);
+    window.setTimeout(() => document.getElementById(`question-${nextQuestion.id}`)?.scrollIntoView({ behavior: "smooth" }), 30);
+  }
+
+  function saveQuestionAsComponent(question: Question) {
+    const template: ComponentTemplate = {
+      id: `component-${Date.now()}`,
+      name: question.title.trim() || questionLabels[question.type],
+      question: {
+        ...question,
+        options: question.options ? [...question.options] : undefined,
+        matrixRows: question.matrixRows ? [...question.matrixRows] : undefined,
+        matrixColumns: question.matrixColumns ? [...question.matrixColumns] : undefined,
+        displayLogic: undefined,
+      },
+    };
+    const next = [template, ...componentTemplates];
+    setComponentTemplates(next);
+    window.localStorage.setItem("joydata-survey-component-templates", JSON.stringify(next));
+    setMoreQuestionId(null);
+    flash("已保存为自定义组件，可从左侧直接添加");
+  }
+
+  function removeComponentTemplate(id: string) {
+    const next = componentTemplates.filter((template) => template.id !== id);
+    setComponentTemplates(next);
+    window.localStorage.setItem("joydata-survey-component-templates", JSON.stringify(next));
+  }
+
+  function uploadHeaderImage(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
+      flash("请选择不超过 5MB 的图片");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = String(reader.result || "");
+      setHeaderImage(value);
+      const key = `joydata-survey-appearance-${surveyId}`;
+      const current = JSON.parse(window.localStorage.getItem(key) || "{}");
+      window.localStorage.setItem(key, JSON.stringify({ ...current, headerImage: value }));
+      flash("问卷头图已更新");
+    };
+    reader.readAsDataURL(file);
   }
 
   function updateSelected(patch: Partial<Question>) {
@@ -511,6 +580,19 @@ export default function SurveyEditorPage() {
             <div><strong>题型组件</strong><small>点击添加到问卷</small></div>
           </div>
           <div className="component-search"><span>⌕</span><input placeholder="搜索题型" /></div>
+          {componentTemplates.length > 0 && (
+            <section className="component-group custom-component-group">
+              <h3>自定义组件</h3>
+              <div className="custom-component-list">
+                {componentTemplates.map((template) => (
+                  <div key={template.id}>
+                    <button onClick={() => addComponentTemplate(template)}><span>◇</span><p><strong>{template.name}</strong><small>{questionLabels[template.question.type]} · 保留已配置内容</small></p></button>
+                    <button aria-label={`删除自定义组件 ${template.name}`} onClick={() => removeComponentTemplate(template.id)}>×</button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           {palette.map((group) => (
             <section className="component-group" key={group.title}>
               <h3>{group.title}</h3>
@@ -530,10 +612,11 @@ export default function SurveyEditorPage() {
           <div className="builder-scroll">
             <div className="survey-canvas">
               <header className="survey-cover">
+                {headerImage && <img className="survey-cover-image" src={headerImage} alt="" />}
                 <span>RO3 · PLAYER RESEARCH</span>
                 <input className="survey-cover-title-input" value={surveyName} onChange={(event) => setSurveyName(event.target.value)} aria-label="问卷标题" />
                 <textarea className="survey-cover-intro-input" value={surveyDescription} onChange={(event) => setSurveyDescription(event.target.value)} aria-label="问卷开场说明" />
-                <div><i /> 当前语言：English（默认）<button onClick={() => router.push(`/survey/${surveyId}/languages`)}>管理语言</button></div>
+                <div><i /> 当前语言：English（默认）<button onClick={() => router.push(`/survey/${surveyId}/languages`)}>管理语言</button><label className="survey-cover-image-upload">▧ {headerImage ? "更换头图" : "添加头图"}<input type="file" accept="image/*" onChange={(event) => { uploadHeaderImage(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label>{headerImage && <button onClick={() => { setHeaderImage(""); const key = `joydata-survey-appearance-${surveyId}`; const current = JSON.parse(window.localStorage.getItem(key) || "{}"); window.localStorage.setItem(key, JSON.stringify({ ...current, headerImage: "" })); }}>移除头图</button>}</div>
               </header>
 
               <div className="question-list">
@@ -610,6 +693,10 @@ export default function SurveyEditorPage() {
                                 <span>⌘</span>
                                 <p><strong>题目显示逻辑</strong><small>根据前置题目的答案决定是否显示</small></p>
                                 {question.displayLogic && <em>{question.displayLogic.conditions.length}</em>}
+                              </button>
+                              <button onClick={() => saveQuestionAsComponent(question)}>
+                                <span>◇</span>
+                                <p><strong>设为自定义组件</strong><small>保存题目、选项和当前配置</small></p>
                               </button>
                             </div>
                           )}

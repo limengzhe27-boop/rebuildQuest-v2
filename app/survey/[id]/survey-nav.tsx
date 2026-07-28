@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 const tabs = [
   ["edit", "编辑器"],
   ["languages", "多语言"],
-  ["appearance", "外观"],
   ["settings", "设置"],
+  ["appearance", "外观"],
   ["publish", "发布"],
   ["analytics", "统计"],
   ["responses", "答卷明细"],

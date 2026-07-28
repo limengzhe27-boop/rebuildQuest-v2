@@ -107,6 +107,9 @@ export default function PlayerSurvey() {
     buttonStyle: "filled",
     contentWidth: "standard",
     background: "soft",
+    pageMode: "continuous",
+    headerImage: "",
+    curtainImage: "",
   });
   const [surveyDescription, setSurveyDescription] = useState("");
   const [completionImage, setCompletionImage] = useState("");
@@ -149,6 +152,9 @@ export default function PlayerSurvey() {
         buttonStyle: appearance.buttonStyle === "outline" ? "outline" : "filled",
         contentWidth: ["narrow", "wide"].includes(appearance.contentWidth) ? appearance.contentWidth : "standard",
         background: ["plain", "soft", "dark"].includes(appearance.background) ? appearance.background : "soft",
+        pageMode: appearance.pageMode === "one-question" ? "one-question" : "continuous",
+        headerImage: appearance.headerImage || "",
+        curtainImage: appearance.curtainImage || "",
       }));
       if (typeof appearance.languageSwitch === "boolean") setAllowLanguageSwitch(appearance.languageSwitch);
       if (typeof appearance.progress === "boolean") setShowProgress(appearance.progress);
@@ -191,18 +197,21 @@ export default function PlayerSurvey() {
           return;
         }
         const joymakerId = currentIdentity || boundIdentity;
+        const lineId = searchParams.get("line_user_id") || searchParams.get("line_id") || window.localStorage.getItem("joydata-line-user-id") || "";
         const clientIp = searchParams.get("client_ip") || "preview-device-ip";
         const joymakerCount = joymakerId ? existingResponses.filter((item) => item.joymakerId === joymakerId).length : 0;
+        const lineCount = lineId ? existingResponses.filter((item) => item.lineId === lineId).length : 0;
         const ipCount = existingResponses.filter((item) => item.clientIp === clientIp).length;
         const triggeredByAccount = publication.accountLimitEnabled && joymakerId && joymakerCount >= (publication.perAccountLimit || 1);
+        const triggeredByLine = publication.lineLimitEnabled && lineId && lineCount >= (publication.perLineLimit || 1);
         const triggeredByIp = publication.ipLimit && ipCount >= (publication.perIpLimit || 1);
         const triggeredByDevice = publication.deviceLimit && existingResponses.length >= (publication.perDeviceLimit || 1);
-        if (triggeredByAccount || triggeredByIp || triggeredByDevice) {
+        if (triggeredByAccount || triggeredByLine || triggeredByIp || triggeredByDevice) {
           setLimitPage({
             backgroundMode: publication.limitPageBackgroundMode || "common",
             background: publication.limitPageBackground || "",
             content: publication.limitPageContent || {},
-            reason: triggeredByAccount ? "JoyaMaker / JoyID 用户提交次数已达上限" : triggeredByIp ? "IP 提交次数已达上限" : "设备提交次数已达上限",
+            reason: triggeredByAccount ? "JoyaMaker / JoyID 用户提交次数已达上限" : triggeredByLine ? "LINE 用户提交次数已达上限" : "IP / 设备提交次数已达上限",
           });
         }
       }
@@ -415,6 +424,7 @@ export default function PlayerSurvey() {
       })),
       source: searchParams.get("ext_value") || searchParams.get("source") || "Direct",
       joymakerId: searchParams.get("joyamaker_id") || searchParams.get("joymaker_id") || window.localStorage.getItem("joydata-joyamaker-id") || window.localStorage.getItem("joydata-joymaker-id") || undefined,
+      lineId: searchParams.get("line_user_id") || searchParams.get("line_id") || window.localStorage.getItem("joydata-line-user-id") || undefined,
       clientIp: searchParams.get("client_ip") || "preview-device-ip",
       status: "valid",
     };
@@ -425,10 +435,30 @@ export default function PlayerSurvey() {
     setDone(true);
   }
 
+  function submitContinuous() {
+    const missingRequired = visibleQuestions.find((question) => {
+      if (["divider", "description", "imageDisplay", "carousel", "pageBreak", "button"].includes(question.type)) return false;
+      const answer = answers[question.id];
+      return isRequired(question) && (
+        answer === undefined
+        || answer === ""
+        || (Array.isArray(answer) && !answer.length)
+        || (typeof answer === "object" && !Array.isArray(answer) && !Object.keys(answer).length)
+      );
+    });
+    if (missingRequired) {
+      setValidation(`请完成必答题：${localizedQuestion(missingRequired).title}`);
+      document.getElementById(`player-question-${missingRequired.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    submitResponse();
+  }
+
   const surveyShellClass = `player-survey-shell appearance-${appearanceConfig.background} density-${appearanceConfig.density} font-${appearanceConfig.fontSize} button-${appearanceConfig.buttonStyle} width-${appearanceConfig.contentWidth}`;
   const surveyShellStyle = {
     "--player": primary,
     "--player-radius": `${appearanceConfig.radius}px`,
+    ...(appearanceConfig.curtainImage ? { backgroundImage: `url(${appearanceConfig.curtainImage})` } : {}),
   } as React.CSSProperties;
 
   if (closedMessage) {
@@ -512,10 +542,30 @@ export default function PlayerSurvey() {
       <section className="player-survey-card">
         {step === 0 ? (
           <div className="player-cover">
+            {appearanceConfig.headerImage && <img className="player-header-image" src={appearanceConfig.headerImage} alt="" />}
             <span>RO3 · PLAYER RESEARCH</span><h1>{surveyTitle}</h1><p>{surveyDescription || copy.intro}</p>
             <ul><li><i>◷</i>3–5 min</li><li><i>▤</i>{visibleQuestions.length} questions</li><li><i>⌾</i>Global data region</li></ul>
             <label><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>{copy.consent}</span></label>
             <button disabled={!consent} onClick={() => setStep(1)}>{copy.start} →</button>
+          </div>
+        ) : appearanceConfig.pageMode === "continuous" ? (
+          <div className="player-continuous-form">
+            {visibleQuestions.filter((question) => question.type !== "pageBreak").map((question, index, list) => {
+              const localized = localizedQuestion(question);
+              if (question.type === "divider") return <hr key={question.id} className="player-divider-block" />;
+              if (question.type === "description") return <div key={question.id} className="player-description-block">{localized.title}</div>;
+              return (
+                <article id={`player-question-${question.id}`} key={question.id} className="player-question continuous">
+                  <small>{String(index + 1).padStart(2, "0")} / {String(list.length).padStart(2, "0")} · {questionLabels[question.type]}</small>
+                  <h2>{localized.title}{isRequired(question) && <b>*</b>}</h2>
+                  {localized.description && <p>{localized.description}</p>}
+                  {localized.referenceImage && <div className="player-reference-image"><img src={localized.referenceImage} alt="题目参考图" /></div>}
+                  <QuestionInput question={localized} value={answers[question.id]} onChange={(value) => { setAnswers((previous) => ({ ...previous, [question.id]: value })); setValidation(""); }} placeholder={copy.placeholder} />
+                </article>
+              );
+            })}
+            {validation && <div className="player-validation">! {validation}</div>}
+            <footer className="player-continuous-footer"><span>✓ {copy.saved}</span><button onClick={submitContinuous}>{copy.submit} ✓</button></footer>
           </div>
         ) : current && currentLocalized ? (
           <div className="player-question">

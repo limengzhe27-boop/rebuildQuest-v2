@@ -22,6 +22,7 @@ export type LiveSurveyResponse = {
   questions: Pick<Question, "id" | "title" | "type">[];
   source: string;
   joymakerId?: string;
+  lineId?: string;
   clientIp?: string;
   status: "valid";
 };

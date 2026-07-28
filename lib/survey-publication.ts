@@ -53,6 +53,8 @@ export type Publication = {
   perDeviceLimit: number;
   ipLimit: boolean;
   perIpLimit: number;
+  lineLimitEnabled: boolean;
+  perLineLimit: number;
   anonymous: boolean;
   resumeEnabled: boolean;
   prefillLastSubmission: boolean;
@@ -115,6 +117,8 @@ export const defaultPublications: Publication[] = [
     perDeviceLimit: 1,
     ipLimit: false,
     perIpLimit: 1,
+    lineLimitEnabled: false,
+    perLineLimit: 1,
     anonymous: true,
     resumeEnabled: true,
     prefillLastSubmission: false,
@@ -183,6 +187,8 @@ export const defaultPublications: Publication[] = [
     perDeviceLimit: 1,
     ipLimit: false,
     perIpLimit: 1,
+    lineLimitEnabled: false,
+    perLineLimit: 1,
     anonymous: false,
     resumeEnabled: true,
     prefillLastSubmission: false,
