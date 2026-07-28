@@ -119,6 +119,7 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"全部" | Status>("全部");
   const [ownerScope, setOwnerScope] = useState<"全部创建人" | "我创建的">("全部创建人");
+  const [pageSize, setPageSize] = useState(50);
   const [showCreate, setShowCreate] = useState(false);
   const [surveys, setSurveys] = useState(seedSurveys);
   const [trashedIds, setTrashedIds] = useState<number[]>([]);
@@ -403,6 +404,7 @@ export default function Home() {
         })),
       useCount: 0,
       updatedAt: new Date().toISOString(),
+      updatedBy: "李孟哲",
     };
     try {
       const saved = JSON.parse(window.localStorage.getItem("joydata-survey-templates") || "[]");
@@ -503,7 +505,7 @@ export default function Home() {
         </header>
 
         <div className="content-layout">
-          <section className="main-content">
+          <section className="main-content compact-list-content">
             <div className="page-heading compact-page-heading">
               <div className="compact-heading-copy">
                 <div className="breadcrumb">用研中心 <span>/</span> {activeGroup === "回收站" ? "回收站" : "问卷工作台"}</div>
@@ -593,7 +595,7 @@ export default function Home() {
                   <div role="columnheader" aria-label="操作" />
                 </div>
                 {visible.length ? (
-                  visible.map((survey, index) => (
+                  visible.slice(0, pageSize).map((survey, index) => (
                     <div
                       className="table-row"
                       role="row"
@@ -632,7 +634,7 @@ export default function Home() {
                           <div
                             className={`survey-operation-menu ${
                               index === visible.length - 1 ||
-                              (visible.length > 4 && index >= visible.length - 2)
+                              (visible.length > 4 && index >= Math.min(visible.length, pageSize) - 2)
                                 ? "menu-up"
                                 : ""
                             }`}
@@ -696,7 +698,7 @@ export default function Home() {
                   <button disabled>‹</button>
                   <button className="active">1</button>
                   <button disabled>›</button>
-                  <button className="page-size">10 条/页⌄</button>
+                  <select className="page-size-select" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}><option value={20}>20 条/页</option><option value={50}>50 条/页</option><option value={100}>100 条/页</option></select>
                 </div>
               </footer>
             </section>

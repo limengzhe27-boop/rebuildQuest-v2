@@ -1,4 +1,4 @@
-export type ResponseStatus = "valid" | "review" | "invalid";
+export type ResponseStatus = "valid" | "invalid";
 
 export type SurveyResponse = {
   id: string;
@@ -35,7 +35,7 @@ const baseResponses: BaseResponse[] = [
   { id: "RSP-008421", submittedAt: "2026-07-24 14:31:28", playerId: "JM-5839201", country: "美国", locale: "English", channel: "Discord", device: "Windows", duration: "04:26", status: "valid", satisfaction: "非常满意", nps: 9, feedback: "The battle flow feels much smoother. I hope controller rebinding can be added." },
   { id: "RSP-008420", submittedAt: "2026-07-24 14:29:54", playerId: "LINE-8f2a***", country: "泰国", locale: "ไทย", channel: "Facebook Ads", device: "Android", duration: "03:18", status: "valid", satisfaction: "满意", nps: 8, feedback: "อยากให้ปรับปรุงเวลาโหลดในฉากหลัก" },
   { id: "RSP-008419", submittedAt: "2026-07-24 14:28:07", playerId: "Anonymous", country: "中国台湾", locale: "繁體中文", channel: "Discord", device: "iOS", duration: "02:44", status: "valid", satisfaction: "满意", nps: 9, feedback: "戰鬥很流暢，但新手教學的文字有點多。" },
-  { id: "RSP-008418", submittedAt: "2026-07-24 14:21:33", playerId: "JM-9821044", country: "日本", locale: "English", channel: "X / Twitter", device: "Windows", duration: "00:31", status: "review", satisfaction: "一般", nps: 5, feedback: "ok" },
+  { id: "RSP-008418", submittedAt: "2026-07-24 14:21:33", playerId: "JM-9821044", country: "日本", locale: "English", channel: "X / Twitter", device: "Windows", duration: "00:31", status: "invalid", satisfaction: "一般", nps: 5, feedback: "ok" },
   { id: "RSP-008417", submittedAt: "2026-07-24 14:16:42", playerId: "JM-2357810", country: "德国", locale: "English", channel: "Steam 社区", device: "Windows", duration: "05:07", status: "valid", satisfaction: "非常满意", nps: 10, feedback: "Great visual direction and combat feedback. Please improve matchmaking." },
   { id: "RSP-008416", submittedAt: "2026-07-24 14:02:19", playerId: "LINE-71cc***", country: "泰国", locale: "ไทย", channel: "Line 社群", device: "Android", duration: "01:48", status: "invalid", satisfaction: "满意", nps: 7, feedback: "" },
   { id: "RSP-008415", submittedAt: "2026-07-24 13:54:11", playerId: "Anonymous", country: "菲律宾", locale: "English", channel: "Facebook Ads", device: "Android", duration: "03:51", status: "valid", satisfaction: "满意", nps: 8, feedback: "More graphics options for lower-end phones would be helpful." },
@@ -72,8 +72,8 @@ export const surveyResponses: SurveyResponse[] = baseResponses.map((item, index)
   answerCount: item.feedback ? 3 : 2,
   formVersion: "v3.6",
   qualityReason:
-    item.status === "review"
-      ? "填写时长仅 31 秒，触发极速提交规则"
+    item.id === "RSP-008418"
+      ? "填写时长仅 31 秒，触发极速提交规则，判定为无效"
       : item.status === "invalid"
         ? "同一 LINE 账号与设备重复提交，人工复核后判为无效"
         : "必答题完整，未命中重复、极速或异常答案规则",
@@ -81,6 +81,5 @@ export const surveyResponses: SurveyResponse[] = baseResponses.map((item, index)
 
 export const responseStatusLabel: Record<ResponseStatus, string> = {
   valid: "有效",
-  review: "待复核",
   invalid: "无效",
 };

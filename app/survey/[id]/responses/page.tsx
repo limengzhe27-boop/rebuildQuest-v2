@@ -45,7 +45,6 @@ export default function ResponsesPage() {
   const [locale, setLocale] = useState("all");
   const [status, setStatus] = useState("all");
   const [notice, setNotice] = useState("");
-  const [showRules, setShowRules] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showFeishuExport, setShowFeishuExport] = useState(false);
   const [feishuTableUrl, setFeishuTableUrl] = useState("");
@@ -171,21 +170,10 @@ export default function ResponsesPage() {
           <div><small>共</small><strong>{(8421 + liveResponses.length).toLocaleString()}</strong><span>份答卷</span></div>
         </header>
 
-        <div className="quality-rule-bar">
-          <span>i</span>
-          <p><strong>状态由“系统质量规则 + 人工复核”共同判定</strong><small>待复核答卷不会自动删除；无效答卷保留在明细中，但不进入默认答案统计。</small></p>
-          <button onClick={() => setShowRules(!showRules)}>{showRules ? "收起规则" : "查看判定规则"}</button>
-        </div>
-        {showRules && <div className="quality-rule-detail">
-          <article><span className="response-status valid">有效</span><p><strong>可以进入统计</strong><small>必答题完整，填写时长合理，且未命中账号、设备、IP 重复或异常答案规则。</small></p></article>
-          <article><span className="response-status review">待复核</span><p><strong>系统发现风险信号</strong><small>例如极速提交、短时间重复、答案高度一致或来源异常，需要运营人工确认。</small></p></article>
-          <article><span className="response-status invalid">无效</span><p><strong>不进入默认统计</strong><small>人工确认的测试数据、机器人、重复提交或明显无效回答；数据仍保留用于审计。</small></p></article>
-        </div>}
-
         <div className="responses-toolbar response-table-toolbar">
           <div className="responses-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索答卷、账号、IP、渠道、答案或判定原因" /></div>
           <select value={locale} onChange={(event) => setLocale(event.target.value)}><option value="all">全部语言</option><option>English</option><option>繁體中文</option><option>ไทย</option></select>
-          <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">全部状态</option><option value="valid">有效</option><option value="review">待复核</option><option value="invalid">无效</option></select>
+          <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">全部状态</option><option value="valid">有效</option><option value="invalid">无效</option></select>
           <div className="column-selector">
             <button onClick={() => setShowColumns(!showColumns)}>☷ 显示字段 <em>{visibleColumns.length}/{allColumns.length}</em></button>
             {showColumns && <div className="column-selector-menu">

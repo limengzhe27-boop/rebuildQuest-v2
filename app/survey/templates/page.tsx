@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { defaultQuestions } from "@/lib/survey-builder";
 
 type Region = "global" | "china";
 type TemplateMode = "blank" | "full";
@@ -14,6 +15,7 @@ type Template = {
   languages: string[];
   useCount: number;
   updatedAt: string;
+  updatedBy?: string;
   region: Region | "both";
   mode: TemplateMode;
   custom?: boolean;
@@ -42,12 +44,8 @@ export default function TemplatesPage() {
   const [categories, setCategories] = useState(defaultCategories);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"使用最多" | "最近更新">("使用最多");
+  const [pageSize, setPageSize] = useState(50);
   const [customTemplates, setCustomTemplates] = useState<Template[]>([]);
-  const [selected, setSelected] = useState<Template | null>(null);
-  const [editing, setEditing] = useState<Template | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editCategories, setEditCategories] = useState<string[]>([]);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [notice, setNotice] = useState("");
@@ -62,7 +60,7 @@ export default function TemplatesPage() {
       setCustomTemplates(saved.map((item: {
         id: string; label?: string; name?: string; category?: string; categories?: string[]; description?: string;
         questions?: number; languages?: string[]; region?: string; useCount?: number; updatedAt?: string; createdAt?: string;
-        mode?: TemplateMode; schema?: unknown[];
+        mode?: TemplateMode; schema?: unknown[]; updatedBy?: string;
       }) => ({
         id: item.id,
         name: item.label || item.name || "未命名模板",
@@ -72,6 +70,7 @@ export default function TemplatesPage() {
         languages: item.languages?.length ? item.languages : ["简中"],
         useCount: item.useCount || 0,
         updatedAt: item.updatedAt || item.createdAt || new Date().toISOString(),
+        updatedBy: item.updatedBy || "李孟哲",
         region: item.region === "国内" || item.region === "china" ? "china" : "global",
         mode: item.mode || "full",
         schema: item.schema,
@@ -85,7 +84,7 @@ export default function TemplatesPage() {
     .filter((item) =>
       (item.region === region || item.region === "both")
       && (category === "全部分类" || item.categories.includes(category))
-      && `${item.name}${item.description}${item.categories.join("")}`.toLowerCase().includes(query.trim().toLowerCase()),
+      && `${item.name}${item.categories.join("")}`.toLowerCase().includes(query.trim().toLowerCase()),
     )
     .sort((a, b) => sort === "使用最多"
       ? b.useCount - a.useCount
@@ -109,29 +108,33 @@ export default function TemplatesPage() {
     flash("模板分类已创建");
   }
 
-  function openEditor(template: Template) {
-    setEditing(template);
-    setEditName(template.name);
-    setEditDescription(template.description);
-    setEditCategories(template.categories);
+  function previewTemplate(template: Template) {
+    const previewId = `template-preview-${template.id}`;
+    window.localStorage.setItem(`joydata-survey-schema-${previewId}`, JSON.stringify(template.schema?.length ? template.schema : defaultQuestions));
+    try {
+      const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
+      const next = [{ id: previewId, name: template.name, languages: template.languages, region: template.region === "china" ? "国内" : "海外", defaultLanguage: template.languages[0] }, ...drafts.filter((item: { id?: string | number }) => String(item.id) !== previewId)];
+      window.localStorage.setItem("joydata-survey-drafts", JSON.stringify(next));
+    } catch {}
+    router.push(`/s/template-preview?surveyId=${encodeURIComponent(previewId)}`);
   }
 
-  function saveTemplateEdit() {
-    if (!editing || !editName.trim() || !editCategories.length) return;
-    const nextTemplate = { ...editing, name: editName.trim(), description: editDescription.trim(), categories: editCategories, updatedAt: new Date().toISOString(), custom: true };
-    const next = customTemplates.some((item) => item.id === editing.id)
-      ? customTemplates.map((item) => item.id === editing.id ? nextTemplate : item)
-      : [nextTemplate, ...customTemplates];
-    setCustomTemplates(next);
-    const stored = next.map((item) => ({
-      ...item,
-      label: item.name,
-      category: item.categories[0],
-      region: item.region === "china" ? "国内" : "海外",
-    }));
-    window.localStorage.setItem("joydata-survey-templates", JSON.stringify(stored));
-    setEditing(null);
-    flash("模板已更新");
+  function editTemplate(template: Template) {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem("joydata-survey-templates") || "[]");
+      const editable = {
+        ...template,
+        label: template.name,
+        name: template.name,
+        category: template.categories[0],
+        region: template.region === "china" ? "国内" : "海外",
+        schema: template.schema?.length ? template.schema : defaultQuestions,
+        updatedBy: template.updatedBy || "李孟哲",
+      };
+      const next = [editable, ...saved.filter((item: { id?: string }) => item.id !== template.id)];
+      window.localStorage.setItem("joydata-survey-templates", JSON.stringify(next));
+    } catch {}
+    router.push(`/survey/template-${template.id}/edit?templateId=${encodeURIComponent(template.id)}`);
   }
 
   return (
@@ -150,7 +153,7 @@ export default function TemplatesPage() {
         </header>
 
         <div className="content-layout">
-          <section className="main-content">
+          <section className="main-content compact-list-content">
             <div className="page-heading compact-page-heading">
               <div className="compact-heading-copy"><div className="breadcrumb">用研中心 <span>/</span> 模板中心</div><h1>模板中心</h1><span>{region === "global" ? "海外" : "国内"}工作区 · {visible.length} 个模板</span></div>
               <div className="heading-actions"><button className="secondary-button" onClick={() => router.push("/")}>返回问卷工作台</button><button className="primary-button" onClick={() => router.push(`/survey/new?region=${region}`)}>＋ 创建问卷</button></div>
@@ -166,19 +169,19 @@ export default function TemplatesPage() {
               </div>
 
               <div className="template-list-table" role="table">
-                <div className="template-list-head" role="row"><div>模板名称</div><div>模板类型</div><div>题目</div><div>使用情况</div><div>最后更新</div><div /></div>
-                {visible.length ? visible.map((template) => (
+                <div className="template-list-head" role="row"><div>模板名称</div><div>模板类型</div><div>题目</div><div>使用情况</div><div>最后修改</div><div /></div>
+                {visible.length ? visible.slice(0, pageSize).map((template) => (
                   <div className="template-list-row" role="row" key={template.id}>
                     <div className="template-name-cell"><span>▦</span><p><strong>{template.name}</strong><small>{template.categories.join(" · ")}</small></p></div>
                     <div><span className={`template-type-badge ${template.mode}`}>{template.mode === "blank" ? "空白模板" : "完整模板"}</span></div>
                     <div><strong>{template.questions}</strong><small> 题</small></div>
                     <div><strong>{template.useCount}</strong><small> 次使用</small></div>
-                    <div><span>{new Date(template.updatedAt).toLocaleDateString("zh-CN")}</span><small>{template.languages.join(" · ")}</small></div>
-                    <div className="template-row-actions"><button onClick={() => setSelected(template)}>预览</button><button onClick={() => openEditor(template)}>编辑</button><button className="primary-button" onClick={() => router.push(`/survey/new?template=${template.id}&region=${region}`)}>使用模板</button></div>
+                    <div><span>{new Date(template.updatedAt).toLocaleDateString("zh-CN")}</span><small>{template.updatedBy || "系统模板"}</small></div>
+                    <div className="template-row-actions"><button onClick={() => previewTemplate(template)}>预览</button><button onClick={() => editTemplate(template)}>编辑</button><button className="primary-button" onClick={() => router.push(`/survey/new?template=${template.id}&region=${region}`)}>使用模板</button></div>
                   </div>
                 )) : <div className="empty-state"><strong>没有匹配的模板</strong><p>调整搜索或分类条件后再试。</p></div>}
               </div>
-              <footer className="panel-footer"><span>共 {visible.length} 个模板</span></footer>
+              <footer className="panel-footer"><span>共 {visible.length} 个模板</span><div><button disabled>‹</button><button className="active">1</button><button disabled>›</button><select className="page-size-select" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}><option value={20}>20 条/页</option><option value={50}>50 条/页</option><option value={100}>100 条/页</option></select></div></footer>
             </section>
           </section>
         </div>
@@ -186,9 +189,6 @@ export default function TemplatesPage() {
 
       {showAddCategory && <div className="preview-backdrop" onMouseDown={() => setShowAddCategory(false)}><section className="template-category-modal" onMouseDown={(event) => event.stopPropagation()}><header><strong>添加模板分类</strong><button onClick={() => setShowAddCategory(false)}>×</button></header><label><span>分类名称</span><input autoFocus maxLength={20} value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="例如：版本上线后回访" /></label><footer><button className="secondary-button" onClick={() => setShowAddCategory(false)}>取消</button><button className="primary-button" onClick={addCategory}>确认添加</button></footer></section></div>}
 
-      {editing && <div className="preview-backdrop" onMouseDown={() => setEditing(null)}><section className="template-category-modal template-edit-modal" onMouseDown={(event) => event.stopPropagation()}><header><strong>编辑模板</strong><button onClick={() => setEditing(null)}>×</button></header><label><span>模板名称</span><input value={editName} onChange={(event) => setEditName(event.target.value)} /></label><label><span>模板说明</span><textarea value={editDescription} onChange={(event) => setEditDescription(event.target.value)} /></label><label><span>所属分类（可多选）</span><div className="template-category-checks inline-category-checks">{categories.map((item) => <button key={item} className={editCategories.includes(item) ? "selected" : ""} onClick={() => setEditCategories((current) => current.includes(item) ? current.filter((value) => value !== item) : [...current, item])}><i>{editCategories.includes(item) ? "✓" : ""}</i>{item}</button>)}</div></label><footer><button className="secondary-button" onClick={() => setEditing(null)}>取消</button><button className="primary-button" onClick={saveTemplateEdit}>保存</button></footer></section></div>}
-
-      {selected && <div className="preview-backdrop" onMouseDown={() => setSelected(null)}><section className="template-preview-modal compact-template-preview" onMouseDown={(event) => event.stopPropagation()}><header><div><span>▦</span><p><small>{selected.categories.join(" · ")}</small><strong>{selected.name}</strong></p></div><button onClick={() => setSelected(null)}>×</button></header><div className="template-preview-summary"><span className={`template-type-badge ${selected.mode}`}>{selected.mode === "blank" ? "空白模板" : "完整模板"}</span><p>{selected.description}</p><dl><div><dt>题目</dt><dd>{selected.questions}</dd></div><div><dt>语言</dt><dd>{selected.languages.join("、")}</dd></div><div><dt>使用次数</dt><dd>{selected.useCount}</dd></div></dl></div><footer><button className="secondary-button" onClick={() => setSelected(null)}>关闭</button><button className="primary-button" onClick={() => router.push(`/survey/new?template=${selected.id}&region=${region}`)}>使用模板</button></footer></section></div>}
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
     </main>
   );

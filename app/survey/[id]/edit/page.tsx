@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   createQuestion,
   defaultQuestions,
@@ -84,8 +84,11 @@ type LogicCondition = NonNullable<Question["displayLogic"]>["conditions"][number
 export default function SurveyEditorPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const surveyId = params.id;
+  const editingTemplateId = searchParams.get("templateId");
   const surveyTitle = useSurveyTitle(surveyId);
+  const [templateEditorTitle, setTemplateEditorTitle] = useState("");
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [selectedId, setSelectedId] = useState(defaultQuestions[0].id);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
@@ -93,8 +96,9 @@ export default function SurveyEditorPage() {
   const [templateName, setTemplateName] = useState("");
   const [templateCategories, setTemplateCategories] = useState<string[]>([]);
   const [availableTemplateCategories, setAvailableTemplateCategories] = useState(defaultTemplateCategories);
-  const [templateDescription, setTemplateDescription] = useState("");
   const [templateMode, setTemplateMode] = useState<"blank" | "full">("full");
+  const [showTemplateSettings, setShowTemplateSettings] = useState(false);
+  const [editorTemplateCategories, setEditorTemplateCategories] = useState<string[]>([]);
   const [logicQuestionId, setLogicQuestionId] = useState<string | null>(null);
   const [logicDraft, setLogicDraft] = useState<NonNullable<Question["displayLogic"]> | null>(null);
   const [moreQuestionId, setMoreQuestionId] = useState<string | null>(null);
@@ -105,7 +109,19 @@ export default function SurveyEditorPage() {
   const hydrated = useRef(false);
 
   useEffect(() => {
-    setQuestions(loadQuestions(surveyId).map((question) =>
+    let loadedQuestions = loadQuestions(surveyId);
+    if (editingTemplateId) {
+      try {
+        const templates = JSON.parse(window.localStorage.getItem("joydata-survey-templates") || "[]");
+        const template = templates.find((item: { id?: string }) => item.id === editingTemplateId);
+        if (template) {
+          loadedQuestions = template.schema?.length ? template.schema : defaultQuestions;
+          setTemplateEditorTitle(template.label || template.name || "未命名模板");
+          setEditorTemplateCategories(template.categories?.length ? template.categories : [template.category || "其他"]);
+        }
+      } catch {}
+    }
+    setQuestions(loadedQuestions.map((question) =>
       question.helpText !== undefined
         ? { ...question, description: question.description || question.helpText, helpText: undefined }
         : question,
@@ -115,20 +131,28 @@ export default function SurveyEditorPage() {
       if (savedCategories.length) setAvailableTemplateCategories(Array.from(new Set([...defaultTemplateCategories, ...savedCategories])));
     } catch {}
     hydrated.current = true;
-  }, [surveyId]);
+  }, [editingTemplateId, surveyId]);
 
   useEffect(() => {
     if (!hydrated.current) return;
     setSaveState("saving");
     const timer = window.setTimeout(() => {
-      window.localStorage.setItem(
-        `joydata-survey-schema-${surveyId}`,
-        JSON.stringify(questions),
-      );
+      if (editingTemplateId) {
+        try {
+          const templates = JSON.parse(window.localStorage.getItem("joydata-survey-templates") || "[]");
+          const next = templates.map((item: { id?: string }) => item.id === editingTemplateId ? { ...item, schema: questions, questions: questions.length, updatedAt: new Date().toISOString(), updatedBy: "李孟哲" } : item);
+          window.localStorage.setItem("joydata-survey-templates", JSON.stringify(next));
+        } catch {}
+      } else {
+        window.localStorage.setItem(
+          `joydata-survey-schema-${surveyId}`,
+          JSON.stringify(questions),
+        );
+      }
       setSaveState("saved");
     }, 650);
     return () => window.clearTimeout(timer);
-  }, [questions, surveyId]);
+  }, [editingTemplateId, questions, surveyId]);
 
   function flash(message: string) {
     setNotice(message);
@@ -138,7 +162,6 @@ export default function SurveyEditorPage() {
   function openTemplateSave() {
     setTemplateName(surveyTitle);
     setTemplateCategories([]);
-    setTemplateDescription("");
     setTemplateMode("full");
     setShowTemplateSave(true);
   }
@@ -160,7 +183,6 @@ export default function SurveyEditorPage() {
       label: templateName.trim(),
       category: templateCategories[0],
       categories: templateCategories,
-      description: templateDescription.trim() || "由团队问卷保存，可继续修改题目、语言和设置。",
       questions: questions.length,
       languages: draft?.languages?.length ? draft.languages : ["简中"],
       region,
@@ -178,6 +200,7 @@ export default function SurveyEditorPage() {
         })),
       useCount: 0,
       updatedAt: new Date().toISOString(),
+      updatedBy: "李孟哲",
       createdAt: new Date().toISOString(),
     };
     try {
@@ -188,6 +211,22 @@ export default function SurveyEditorPage() {
     }
     setShowTemplateSave(false);
     flash(`已保存到 ${templateCategories.length} 个模板分类`);
+  }
+
+  function saveTemplateSettings() {
+    if (!editingTemplateId || !editorTemplateCategories.length) {
+      flash("请至少选择一个模板分类");
+      return;
+    }
+    try {
+      const templates = JSON.parse(window.localStorage.getItem("joydata-survey-templates") || "[]");
+      const next = templates.map((item: { id?: string }) => item.id === editingTemplateId ? { ...item, categories: editorTemplateCategories, category: editorTemplateCategories[0], updatedAt: new Date().toISOString(), updatedBy: "李孟哲" } : item);
+      window.localStorage.setItem("joydata-survey-templates", JSON.stringify(next));
+      setShowTemplateSettings(false);
+      flash("模板分类已保存");
+    } catch {
+      flash("模板分类保存失败");
+    }
   }
 
   function addQuestion(type: QuestionType) {
@@ -340,20 +379,20 @@ export default function SurveyEditorPage() {
   return (
     <main className="editor-page">
       <header className="editor-topbar">
-        <button className="editor-back" onClick={() => router.push("/")}>‹</button>
+        <button className="editor-back" onClick={() => router.push(editingTemplateId ? "/survey/templates" : "/")}>‹</button>
         <div className="editor-title">
           <span className="survey-doc-icon">▤</span>
           <div>
-            <strong>{surveyTitle}</strong>
+            <strong>{editingTemplateId ? templateEditorTitle : surveyTitle}</strong>
             <small>
               <i className={saveState === "saved" ? "saved" : ""} />
               {saveState === "saved" ? "所有更改已保存" : "正在自动保存…"}
             </small>
           </div>
         </div>
-        <SurveyNav surveyId={surveyId} active="edit" onNotice={flash} />
+        {editingTemplateId ? <div className="template-editor-label">模板编辑器</div> : <SurveyNav surveyId={surveyId} active="edit" onNotice={flash} />}
         <div className="editor-actions">
-          <button className="secondary-button" onClick={openTemplateSave}>设为模板</button>
+          {editingTemplateId ? <button className="secondary-button" onClick={() => setShowTemplateSettings(true)}>模板分类</button> : <button className="secondary-button" onClick={openTemplateSave}>设为模板</button>}
         </div>
       </header>
 
@@ -661,13 +700,32 @@ export default function SurveyEditorPage() {
                   </div>
                 </details>
               </label>
-              <label><span>模板说明</span><textarea value={templateDescription} onChange={(event) => setTemplateDescription(event.target.value)} placeholder="说明适用场景、目标用户和使用方式" /></label>
               <p>保存后可在模板中心查看，并且只能用于相同工作区。</p>
             </div>
             <footer>
               <button className="secondary-button" onClick={() => setShowTemplateSave(false)}>取消</button>
               <button className="primary-button" onClick={saveAsTemplate}>保存模板</button>
             </footer>
+          </section>
+        </div>
+      )}
+
+      {showTemplateSettings && editingTemplateId && (
+        <div className="preview-backdrop" onMouseDown={() => setShowTemplateSettings(false)}>
+          <section className="template-save-modal template-settings-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <header><div><strong>模板分类</strong><small>{templateEditorTitle}</small></div><button onClick={() => setShowTemplateSettings(false)}>×</button></header>
+            <div>
+              <label>
+                <span>所属分类 <b>*</b><small>下拉多选</small></span>
+                <details className="template-category-multiselect" open>
+                  <summary>{editorTemplateCategories.length ? `已选择 ${editorTemplateCategories.length} 个分类` : "请选择模板分类"}<i>⌄</i></summary>
+                  <div className="template-category-checks">
+                    {availableTemplateCategories.map((category) => <button key={category} className={editorTemplateCategories.includes(category) ? "selected" : ""} onClick={() => setEditorTemplateCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category])}><i>{editorTemplateCategories.includes(category) ? "✓" : ""}</i>{category}</button>)}
+                  </div>
+                </details>
+              </label>
+            </div>
+            <footer><button className="secondary-button" onClick={() => setShowTemplateSettings(false)}>取消</button><button className="primary-button" onClick={saveTemplateSettings}>保存分类</button></footer>
           </section>
         </div>
       )}
