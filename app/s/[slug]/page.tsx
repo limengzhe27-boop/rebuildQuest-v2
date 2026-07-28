@@ -157,7 +157,8 @@ export default function PlayerSurvey() {
           || "en-US";
         if (publication.identityValidationEnabled && boundIdentity && currentIdentity && boundIdentity !== currentIdentity) {
           const redirects = publication.identityMismatchRedirects || {};
-          const target = redirects[linkLocale] || redirects[publication.defaultLocale] || redirects["en-US"] || "";
+          const fallbackLocale = publication.identityMismatchFallbackLocale || publication.defaultLocale || "en-US";
+          const target = redirects[linkLocale] || redirects[fallbackLocale] || "";
           if (/^https?:\/\//i.test(target)) {
             window.location.replace(target);
           } else {

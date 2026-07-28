@@ -425,6 +425,21 @@ export default function SurveyEditorPage() {
 
   const logicQuestionIndex = questions.findIndex((item) => item.id === logicQuestionId);
   const logicSources = logicQuestionIndex > 0 ? questions.slice(0, logicQuestionIndex) : [];
+  const matrixLogicTypes: QuestionType[] = ["matrix", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"];
+
+  function isMatrixLogicSource(question?: Question) {
+    return Boolean(question && matrixLogicTypes.includes(question.type));
+  }
+
+  function matrixRows(question?: Question) {
+    return question?.matrixRows?.length ? question.matrixRows : ["行 1", "行 2", "行 3"];
+  }
+
+  function matrixColumns(question?: Question) {
+    if (question?.matrixColumns?.length) return question.matrixColumns;
+    if (question?.type === "matrixScale" || question?.type === "matrixSlider") return ["1", "2", "3", "4", "5"];
+    return question?.options?.length ? question.options : ["列 1", "列 2", "列 3"];
+  }
 
   return (
     <main className="editor-page">
@@ -677,34 +692,64 @@ export default function SurveyEditorPage() {
             </div>
 
             <div className="logic-condition-list">
-              {logicDraft.conditions.map((condition, conditionIndex) => (
-                <div className="logic-condition-row" key={`${condition.questionId}-${conditionIndex}`}>
-                  <select value={condition.questionId} onChange={(event) => updateLogicCondition(conditionIndex, { questionId: event.target.value })}>
-                    {logicSources.map((source, sourceIndex) => <option key={source.id} value={source.id}>A{sourceIndex + 1} {source.title}</option>)}
-                  </select>
-                  <select value={condition.operator} onChange={(event) => updateLogicCondition(conditionIndex, { operator: event.target.value as LogicCondition["operator"] })}>
-                    <option>等于</option>
-                    <option>不等于</option>
-                    <option>包含</option>
-                    <option>不包含</option>
-                    <option>为空</option>
-                    <option>不为空</option>
-                  </select>
-                  {condition.operator === "为空" || condition.operator === "不为空" ? (
-                    <span className="logic-no-value">无需填写条件值</span>
-                  ) : (
-                    <input value={condition.value} onChange={(event) => updateLogicCondition(conditionIndex, { value: event.target.value })} placeholder="请输入答案或选项" />
-                  )}
-                  <button
-                    aria-label="删除条件"
-                    disabled={logicDraft.conditions.length === 1}
-                    onClick={() => setLogicDraft({
-                      ...logicDraft,
-                      conditions: logicDraft.conditions.filter((_, index) => index !== conditionIndex),
-                    })}
-                  >×</button>
-                </div>
-              ))}
+              {logicDraft.conditions.map((condition, conditionIndex) => {
+                const source = logicSources.find((item) => item.id === condition.questionId);
+                const isMatrix = isMatrixLogicSource(source);
+                return (
+                  <div className={`logic-condition-row ${isMatrix ? "matrix-condition" : ""}`} key={`${condition.questionId}-${conditionIndex}`}>
+                    <select
+                      value={condition.questionId}
+                      onChange={(event) => {
+                        const nextSource = logicSources.find((item) => item.id === event.target.value);
+                        updateLogicCondition(conditionIndex, {
+                          questionId: event.target.value,
+                          matrixRow: isMatrixLogicSource(nextSource) ? matrixRows(nextSource)[0] : undefined,
+                          matrixColumn: isMatrixLogicSource(nextSource) ? matrixColumns(nextSource)[0] : undefined,
+                          value: "",
+                        });
+                      }}
+                    >
+                      {logicSources.map((item, sourceIndex) => <option key={item.id} value={item.id}>A{sourceIndex + 1} {item.title}（{questionLabels[item.type]}）</option>)}
+                    </select>
+                    {isMatrix && (
+                      <div className="matrix-cell-selector">
+                        <label><span>行</span><select value={condition.matrixRow || matrixRows(source)[0]} onChange={(event) => updateLogicCondition(conditionIndex, { matrixRow: event.target.value })}>{matrixRows(source).map((row) => <option key={row}>{row}</option>)}</select></label>
+                        <label><span>列</span><select value={condition.matrixColumn || matrixColumns(source)[0]} onChange={(event) => updateLogicCondition(conditionIndex, { matrixColumn: event.target.value })}>{matrixColumns(source).map((column) => <option key={column}>{column}</option>)}</select></label>
+                      </div>
+                    )}
+                    <select value={condition.operator} onChange={(event) => updateLogicCondition(conditionIndex, { operator: event.target.value as LogicCondition["operator"] })}>
+                      <option>等于</option>
+                      <option>不等于</option>
+                      <option>包含</option>
+                      <option>不包含</option>
+                      {isMatrix && <option>大于</option>}
+                      {isMatrix && <option>大于等于</option>}
+                      {isMatrix && <option>小于</option>}
+                      {isMatrix && <option>小于等于</option>}
+                      <option>为空</option>
+                      <option>不为空</option>
+                    </select>
+                    {condition.operator === "为空" || condition.operator === "不为空" ? (
+                      <span className="logic-no-value">无需填写条件值</span>
+                    ) : (
+                      <input value={condition.value} onChange={(event) => updateLogicCondition(conditionIndex, { value: event.target.value })} placeholder={isMatrix ? "选择结果或评分值" : "请输入答案或选项"} />
+                    )}
+                    <button
+                      aria-label="删除条件"
+                      disabled={logicDraft.conditions.length === 1}
+                      onClick={() => setLogicDraft({
+                        ...logicDraft,
+                        conditions: logicDraft.conditions.filter((_, index) => index !== conditionIndex),
+                      })}
+                    >×</button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="matrix-logic-tip">
+              <span>矩</span>
+              <p><strong>矩阵题按单元格判断</strong><small>先选择前置矩阵题，再指定“行 + 列”。量表与滑块支持大于、小于等数值比较；选择、下拉支持选项匹配。</small></p>
             </div>
 
             <button className="add-logic-condition" onClick={addLogicCondition}>＋ 添加条件</button>

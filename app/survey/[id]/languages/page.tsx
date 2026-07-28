@@ -252,11 +252,17 @@ export default function LanguagesPage() {
                 <div className="language-phone-scroll" ref={sourceScrollRef} onScroll={(event) => targetScrollRef.current && synchronizeScroll(event.currentTarget, targetScrollRef.current)}>
                   <div className="translation-phone-cover"><span>RO3 · PLAYER RESEARCH</span><h1>{surveyTitle}</h1><p>感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。</p></div>
                   <div className="translation-phone-content">{questions.map(sourceQuestion)}</div>
-                  <div className="translation-phone-complete"><span>✓</span><strong>{publication?.completionMessage || "感谢您的参与，问卷已成功提交。"}</strong></div>
-                  <div className="translation-result-section">
-                    <small>重复填写限制结果页 · 原文</small>
-                    {sourceLimitContent.title && <h2>{sourceLimitContent.title}</h2>}
-                    <p>{sourceLimitPlainText}</p>
+                  <div className="translation-page-break"><span>结果页面</span><p>以下内容不属于答题页，仅在提交完成或触发重复限制时展示。</p></div>
+                  <div className="translation-result-pages">
+                    <section>
+                      <small>提交完成页 · 原文</small>
+                      <div className="translation-phone-complete"><span>✓</span><strong>{publication?.completionMessage || "感谢您的参与，问卷已成功提交。"}</strong></div>
+                    </section>
+                    <section className="translation-result-section">
+                      <small>重复填写限制页 · 原文</small>
+                      {sourceLimitContent.title && <h2>{sourceLimitContent.title}</h2>}
+                      <p>{sourceLimitPlainText}</p>
+                    </section>
                   </div>
                 </div>
               </div>
@@ -274,13 +280,19 @@ export default function LanguagesPage() {
                     {editableField("form:intro", "感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。", "问卷说明")}
                   </div>
                   <div className="translation-phone-content">{questions.map(targetQuestion)}</div>
-                  <div className="translation-phone-complete editable-complete">{editableField("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。", "提交完成页")}</div>
-                  <div className="translation-result-section editable">
-                    <small>重复填写限制结果页 · 翻译</small>
-                    {sourceLimitContent.title && editableField("limit:title", sourceLimitContent.title, "标题（可留空）")}
-                    {editableField("limit:body", sourceLimitContent.body, "正文")}
-                    {sourceLimitContent.links.map((link, index) => editableField(`limit:link:${link.id}`, link.text, `链接 ${index + 1} 文字`))}
-                    <p className="translation-token-tip">正文中的 {"{{link-id}}"} 是链接位置标记，请保留；链接地址沿用原文设置，无需重复填写。</p>
+                  <div className="translation-page-break"><span>结果页面</span><p>与答题内容分区校验；未填写翻译时仍显示原文并标注。</p></div>
+                  <div className="translation-result-pages">
+                    <section>
+                      <small>提交完成页 · 翻译</small>
+                      <div className="translation-phone-complete editable-complete">{editableField("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。", "完成提示")}</div>
+                    </section>
+                    <section className="translation-result-section editable">
+                      <small>重复填写限制页 · 翻译</small>
+                      {sourceLimitContent.title && editableField("limit:title", sourceLimitContent.title, "标题（可留空）")}
+                      {editableField("limit:body", sourceLimitContent.body, "正文")}
+                      {sourceLimitContent.links.map((link, index) => editableField(`limit:link:${link.id}`, link.text, `链接 ${index + 1} 文字`))}
+                      <p className="translation-token-tip">正文中的 {"{{link-id}}"} 是链接位置标记，请保留；链接地址沿用原文设置，无需重复填写。</p>
+                    </section>
                   </div>
                 </div>
               </div>

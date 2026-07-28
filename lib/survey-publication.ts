@@ -62,6 +62,7 @@ export type Publication = {
   joymakerLogin: boolean;
   identityValidationEnabled: boolean;
   identityMismatchRedirects: Record<string, string>;
+  identityMismatchFallbackLocale: string;
   lineLogin: boolean;
   privacyConsent: boolean;
   ageConsent: boolean;
@@ -127,6 +128,7 @@ export const defaultPublications: Publication[] = [
       "zh-TW": "",
       "th-TH": "",
     },
+    identityMismatchFallbackLocale: "en-US",
     lineLogin: true,
     privacyConsent: true,
     ageConsent: true,
@@ -193,6 +195,7 @@ export const defaultPublications: Publication[] = [
       "zh-TW": "",
       "th-TH": "",
     },
+    identityMismatchFallbackLocale: "zh-CN",
     lineLogin: false,
     privacyConsent: true,
     ageConsent: false,

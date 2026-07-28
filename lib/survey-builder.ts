@@ -49,12 +49,16 @@ export type Question = {
   maxLabel?: string;
   helpText?: string;
   referenceImage?: string;
+  matrixRows?: string[];
+  matrixColumns?: string[];
   displayLogic?: {
     match: "all" | "any";
     conditions: {
       questionId: string;
-      operator: "等于" | "不等于" | "包含" | "不包含" | "为空" | "不为空";
+      operator: "等于" | "不等于" | "包含" | "不包含" | "大于" | "大于等于" | "小于" | "小于等于" | "为空" | "不为空";
       value: string;
+      matrixRow?: string;
+      matrixColumn?: string;
     }[];
   };
 };
@@ -139,7 +143,16 @@ export function createQuestion(type: QuestionType): Question {
   }
   if (type === "rating") return { ...common, min: 1, max: 5, minLabel: "非常不满意", maxLabel: "非常满意" };
   if (type === "nps") return { ...common, min: 0, max: 10 };
-  if (["matrix", "matrixFill", "matrixScale", "matrixSlider", "matrixDropdown"].includes(type)) return { ...common, options: ["维度 1", "维度 2", "维度 3"] };
+  if (["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"].includes(type)) {
+    return {
+      ...common,
+      options: ["选项 1", "选项 2", "选项 3"],
+      matrixRows: ["行 1", "行 2", "行 3"],
+      matrixColumns: type === "matrixScale" || type === "matrixSlider"
+        ? ["1", "2", "3", "4", "5"]
+        : ["列 1", "列 2", "列 3"],
+    };
+  }
   return common;
 }
 
@@ -151,8 +164,10 @@ export function loadQuestions(surveyId: string): Question[] {
     const parsed = JSON.parse(saved) as (Omit<Question, "displayLogic"> & {
       displayLogic?: Question["displayLogic"] | {
         questionId: string;
-        operator: "等于" | "不等于" | "包含" | "不包含" | "为空" | "不为空";
+        operator: "等于" | "不等于" | "包含" | "不包含" | "大于" | "大于等于" | "小于" | "小于等于" | "为空" | "不为空";
         value: string;
+        matrixRow?: string;
+        matrixColumn?: string;
       };
     })[];
     return parsed.map((question) => {

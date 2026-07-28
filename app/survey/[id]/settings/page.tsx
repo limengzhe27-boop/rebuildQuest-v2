@@ -94,12 +94,6 @@ export default function SurveySettingsPage() {
 
   const selected = publications[0];
   const sourceLocale = sourceLanguage;
-  const sourceLocaleName = {
-    "zh-CN": "简体中文",
-    "en-US": "English",
-    "zh-TW": "繁體中文",
-    "th-TH": "ไทย",
-  }[sourceLocale] || sourceLocale;
 
   function updateSelected(patch: Partial<Publication>) {
     setPublications((current) =>
@@ -363,31 +357,23 @@ export default function SurveySettingsPage() {
                 </header>
                 <div className="identity-validation-explanation">
                   <span>校验规则</span>
-                  <p>链接绑定的玩家身份与当前 JoyaMaker / JoyID 登录身份不一致时，不进入问卷，直接跳转到对应语言的官网。</p>
+                  <p>链接绑定的玩家身份与当前 JoyaMaker / JoyID 登录身份不一致时，由技术服务按玩家语言匹配官网；未匹配到时使用备用语言官网。</p>
                 </div>
                 {selected.identityValidationEnabled && (
-                  <div className="identity-redirect-grid">
-                    {[
-                      ["zh-CN", "简体中文官网"],
-                      ["en-US", "英文官网"],
-                      ["zh-TW", "繁体中文官网"],
-                      ["th-TH", "泰语官网"],
-                    ].map(([localeCode, label]) => (
-                      <label key={localeCode}>
-                        <span>{label}<em>{localeCode}</em></span>
-                        <input
-                          value={selected.identityMismatchRedirects?.[localeCode] || ""}
-                          onChange={(event) => updateSelected({
-                            identityMismatchRedirects: {
-                              ...(selected.identityMismatchRedirects || {}),
-                              [localeCode]: event.target.value,
-                            },
-                          })}
-                          placeholder="https://"
-                        />
-                      </label>
-                    ))}
-                    <p>系统优先使用链接中的语言参数；没有语言参数时，使用该发布配置的默认语言。请填写完整的 HTTPS 官网地址。</p>
+                  <div className="identity-fallback-setting">
+                    <label>
+                      <span>备用官网语言</span>
+                      <select
+                        value={selected.identityMismatchFallbackLocale || selected.defaultLocale}
+                        onChange={(event) => updateSelected({ identityMismatchFallbackLocale: event.target.value })}
+                      >
+                        <option value="zh-CN">简体中文</option>
+                        <option value="en-US">English</option>
+                        <option value="zh-TW">繁體中文</option>
+                        <option value="th-TH">ไทย</option>
+                      </select>
+                    </label>
+                    <p>这里只配置兜底语言，不维护官网地址。语言与官网映射由技术侧统一管理。</p>
                   </div>
                 )}
               </section>
@@ -463,9 +449,6 @@ export default function SurveySettingsPage() {
                         {selected.limitPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ limitPageBackground: "" }); setBackgroundFileName(""); }}>移除</button>}
                       </div>
                     )}
-                    <div className="limit-source-language">
-                      <span>原文语言</span><strong>{sourceLocaleName}</strong><small>这里只编辑原文，其他语言统一在“多语言”模块翻译与校验。</small>
-                    </div>
                     <label><span>标题（选填）</span><input value={currentLimitContent().title} onChange={(event) => updateLimitContent({ title: event.target.value })} placeholder="留空时结果页不显示标题" /></label>
                     <label>
                       <span>说明正文</span>

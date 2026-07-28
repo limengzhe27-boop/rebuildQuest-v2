@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
+import { defaultQuestions, loadQuestions, Question, questionLabels, QuestionType } from "@/lib/survey-builder";
 
 type Rule = {
   id: string;
@@ -13,6 +14,8 @@ type Rule = {
   action: string;
   target: string;
   enabled: boolean;
+  matrixRow?: string;
+  matrixColumn?: string;
 };
 
 const initialRules: Rule[] = [
@@ -26,10 +29,12 @@ export default function LogicPage() {
   const surveyId = params.id;
   const surveyTitle = useSurveyTitle(surveyId);
   const [rules, setRules] = useState(initialRules);
+  const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [selectedId, setSelectedId] = useState(initialRules[0].id);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
+    setQuestions(loadQuestions(surveyId));
     const saved = window.localStorage.getItem(`joydata-survey-rules-${surveyId}`);
     if (saved) setRules(JSON.parse(saved));
   }, [surveyId]);
@@ -39,6 +44,16 @@ export default function LogicPage() {
   }, [rules, surveyId]);
 
   const selected = rules.find((rule) => rule.id === selectedId);
+  const selectedQuestionIndex = selected ? Number.parseInt(selected.question.slice(0, 2), 10) - 1 : -1;
+  const selectedQuestion = questions[selectedQuestionIndex];
+  const matrixTypes: QuestionType[] = ["matrix", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"];
+  const isMatrixRule = Boolean(selectedQuestion && matrixTypes.includes(selectedQuestion.type));
+  const selectedRows = selectedQuestion?.matrixRows?.length ? selectedQuestion.matrixRows : ["行 1", "行 2", "行 3"];
+  const selectedColumns = selectedQuestion?.matrixColumns?.length
+    ? selectedQuestion.matrixColumns
+    : selectedQuestion?.type === "matrixScale" || selectedQuestion?.type === "matrixSlider"
+      ? ["1", "2", "3", "4", "5"]
+      : selectedQuestion?.options?.length ? selectedQuestion.options : ["列 1", "列 2", "列 3"];
 
   function flash(message: string) {
     setNotice(message);
@@ -68,7 +83,7 @@ export default function LogicPage() {
         <button className="logic-start"><span>▶</span><p><strong>问卷开始</strong><small>进入第 01 题</small></p></button>
         <div className="logic-line" />
         {rules.map((rule, index) => <button key={rule.id} className={`logic-rule-item ${selectedId === rule.id ? "active" : ""}`} onClick={() => setSelectedId(rule.id)}>
-          <span>{index + 1}</span><p><strong>{rule.question}</strong><small>如果 {rule.operator}「{rule.value}」</small><em>{rule.action} → {rule.target}</em></p><i className={rule.enabled ? "on" : ""} />
+          <span>{index + 1}</span><p><strong>{rule.question}</strong><small>{rule.matrixRow && rule.matrixColumn ? `${rule.matrixRow} × ${rule.matrixColumn}，` : "如果 "}{rule.operator}「{rule.value}」</small><em>{rule.action} → {rule.target}</em></p><i className={rule.enabled ? "on" : ""} />
         </button>)}
         <div className="logic-line" />
         <button className="logic-end"><span>✓</span><p><strong>问卷完成</strong><small>提交答卷并显示完成页</small></p></button>
@@ -90,8 +105,23 @@ export default function LogicPage() {
       <aside className="logic-property">
         <header><div><strong>规则配置</strong><small>当满足条件时执行动作</small></div><button onClick={() => flash("规则已复制")}>⧉</button></header>
         {selected ? <div className="logic-form">
-          <label><span>当以下题目</span><select value={selected.question} onChange={(e)=>update({question:e.target.value})}><option>01 · 整体体验满意度</option><option>02 · 推荐意愿 NPS</option></select></label>
-          <div className="condition-row"><select value={selected.operator} onChange={(e)=>update({operator:e.target.value})}><option>等于</option><option>不等于</option><option>小于等于</option><option>包含</option></select><input value={selected.value} onChange={(e)=>update({value:e.target.value})}/></div>
+          <label><span>当以下题目</span><select value={selected.question} onChange={(e)=>{
+            const nextIndex = Number.parseInt(e.target.value.slice(0, 2), 10) - 1;
+            const nextQuestion = questions[nextIndex];
+            const nextIsMatrix = Boolean(nextQuestion && matrixTypes.includes(nextQuestion.type));
+            update({
+              question:e.target.value,
+              matrixRow: nextIsMatrix ? (nextQuestion.matrixRows?.[0] || "行 1") : undefined,
+              matrixColumn: nextIsMatrix ? (nextQuestion.matrixColumns?.[0] || nextQuestion.options?.[0] || "列 1") : undefined,
+              value: "",
+            });
+          }}>{questions.map((question, index) => <option key={question.id}>{String(index + 1).padStart(2, "0")} · {question.title}（{questionLabels[question.type]}）</option>)}</select></label>
+          {isMatrixRule && <div className="logic-matrix-cell">
+            <p><strong>指定矩阵单元格</strong><small>行列组合共同定位一个回答值</small></p>
+            <label><span>行</span><select value={selected.matrixRow || selectedRows[0]} onChange={(e)=>update({matrixRow:e.target.value})}>{selectedRows.map((row)=><option key={row}>{row}</option>)}</select></label>
+            <label><span>列</span><select value={selected.matrixColumn || selectedColumns[0]} onChange={(e)=>update({matrixColumn:e.target.value})}>{selectedColumns.map((column)=><option key={column}>{column}</option>)}</select></label>
+          </div>}
+          <div className="condition-row"><select value={selected.operator} onChange={(e)=>update({operator:e.target.value})}><option>等于</option><option>不等于</option>{isMatrixRule && <option>大于</option>}{isMatrixRule && <option>大于等于</option>}{isMatrixRule && <option>小于</option>}<option>小于等于</option><option>包含</option></select><input value={selected.value} onChange={(e)=>update({value:e.target.value})} placeholder={isMatrixRule ? "填写选项或评分值" : "填写答案"}/></div>
           <button className="add-condition" onClick={() => flash("已添加 AND 条件")}>＋ 添加条件</button>
           <div className="logic-divider"><span>则执行</span></div>
           <label><span>动作</span><select value={selected.action} onChange={(e)=>update({action:e.target.value})}><option>显示题目</option><option>跳转到</option><option>设为必答</option><option>结束问卷</option></select></label>
