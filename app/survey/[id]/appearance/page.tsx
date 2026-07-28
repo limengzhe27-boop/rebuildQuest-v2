@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { defaultQuestions, loadQuestions, Question } from "@/lib/survey-builder";
+import { defaultQuestions, loadQuestions, Question, questionLabels } from "@/lib/survey-builder";
 import { LimitPageContent, loadPublications, Publication } from "@/lib/survey-publication";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
@@ -139,9 +139,10 @@ export default function AppearancePage() {
     if (question.type === "imageDisplay" || question.type === "carousel") return <div className="appearance-image-block" key={question.id}>▧ {question.type === "carousel" ? "图片轮播" : "图片展示"}</div>;
     return (
       <article className="appearance-question-preview" key={question.id}>
-        <small>{question.type === "nps" ? "NPS" : "问题"}</small>
+        <small>{questionLabels[question.type]}</small>
         <h2>{translated(`${question.id}:title`, question.title, question.id)}{question.required && <b>*</b>}</h2>
         {question.description && <p>{translated(`${question.id}:description`, question.description)}</p>}
+        {question.type === "multiple" && <div className="appearance-selection-rule">{question.maxSelections ? `最多选择 ${question.maxSelections} 项` : "可选择多个选项"}</div>}
         {question.helpText && <div className="appearance-question-help">ⓘ {translated(`${question.id}:help`, question.helpText)}</div>}
         {question.referenceImage && <div className="appearance-reference-image"><img src={question.referenceImage} alt="题目参考图" /></div>}
         {question.options?.slice(0, 5).map((option, optionIndex) => <button key={`${question.id}-${optionIndex}`} className={optionIndex === 0 ? "selected" : ""}><i>{question.type === "multiple" ? "□" : "○"}</i>{translated(`${question.id}:option:${optionIndex}`, option)}</button>)}

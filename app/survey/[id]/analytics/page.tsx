@@ -28,9 +28,17 @@ const textTopics = [
 const userDistributions = [
   { title: "国家/地区", field: "submit_address", rows: [["美国", 2486], ["泰国", 1769], ["中国台湾", 1138], ["菲律宾", 842], ["德国", 598], ["其他", 1588]] },
   { title: "问卷语言", field: "locale", rows: [["English", 5226], ["繁體中文", 1632], ["ไทย", 1293], ["简体中文", 270]] },
-  { title: "访问来源", field: "ext_value.source", rows: [["Discord（示例）", 2738], ["Facebook Ads（示例）", 2013], ["Steam 社区（示例）", 1398], ["LINE 社群（示例）", 1052], ["X / Twitter（示例）", 724], ["直接访问", 496]] },
   { title: "设备系统", field: "submit_os", rows: [["Windows", 3664], ["Android", 2431], ["iOS", 1987], ["其他", 339]] },
   { title: "账号类型", field: "joy_user_info / line_user_info", rows: [["JoyaMaker", 4218], ["LINE", 1867], ["匿名", 2336]] },
+] as const;
+const collectionTrend = [
+  ["07-18", "星期六", 914],
+  ["07-19", "星期日", 1086],
+  ["07-20", "星期一", 1254],
+  ["07-21", "星期二", 1188],
+  ["07-22", "星期三", 1362],
+  ["07-23", "星期四", 1409],
+  ["07-24", "星期五", 1208],
 ] as const;
 
 export default function AnalyticsPage() {
@@ -58,13 +66,13 @@ export default function AnalyticsPage() {
 
       <section className="analytics-simple-shell">
         <header className="analytics-simple-heading report-heading">
-          <div><h1>{tab === "answers" ? "答案统计" : "用户分布"}</h1><p>{tab === "answers" ? "逐题查看回答人数、未回答人数和各答案占比。" : "按地区、语言、访问来源、设备和账号类型查看用户构成。"}</p></div>
+          <div><h1>{tab === "answers" ? "答案统计" : "用户分布"}</h1><p>{tab === "answers" ? "逐题查看回答人数、未回答人数和各答案占比。" : "查看收集趋势、平均答题时间，以及地区、语言、设备和账号构成。"}</p></div>
           <div className="answer-total"><small>答卷总数</small><strong>{totalResponses.toLocaleString()}</strong><span>份</span></div>
         </header>
 
         <div className="statistics-view-tabs">
           <button className={tab === "answers" ? "active" : ""} onClick={() => setTab("answers")}><strong>答案统计</strong><small>每道题的选项、人数与占比</small></button>
-          <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}><strong>用户分布</strong><small>地区、语言、渠道、设备与账号</small></button>
+          <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}><strong>用户分布</strong><small>收集趋势、地区、语言、设备与账号</small></button>
         </div>
 
         <div className="analytics-simple-filters">
@@ -102,6 +110,16 @@ export default function AnalyticsPage() {
             <footer className="text-answer-link"><span>文本题只做主题计数，原始回答请在答卷明细中查看。</span><button onClick={() => router.push(`/survey/${surveyId}/responses`)}>查看全部文本答案 →</button></footer>
           </article>
         </div> : <div className="user-distribution-content">
+          <article className="collection-trend-card">
+            <header>
+              <div><strong>收集趋势</strong><small>按提交日期统计有效答卷数量</small></div>
+              <div className="collection-average"><span>平均答题时间</span><strong>3 分 42 秒</strong><small>基于有效答卷</small></div>
+            </header>
+            <table>
+              <thead><tr><th>日期</th><th>星期</th><th>当日收集量</th><th>趋势</th></tr></thead>
+              <tbody>{collectionTrend.map(([date, weekday, count]) => <tr key={date}><td>2026-{date}</td><td>{weekday}</td><td><strong>{count.toLocaleString()}</strong> 份</td><td><i><em style={{ width: `${count / 1409 * 100}%` }} /></i></td></tr>)}</tbody>
+            </table>
+          </article>
           <div className="user-distribution-summary">
             <span><small>识别用户</small><strong>6,982</strong><em>JoyaMaker 或 LINE 去重</em></span>
             <span><small>匿名答卷</small><strong>2,336</strong><em>无账号标识</em></span>
@@ -109,7 +127,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="user-distribution-grid">
             {userDistributions.map((group) => <article className="user-distribution-card" key={group.title}>
-              <header><div><strong>{group.title}</strong><small>数据字段：{group.field}{group.title === "访问来源" ? "；当前为原型示例数据" : ""}</small></div><span>{totalResponses.toLocaleString()} 份</span></header>
+              <header><div><strong>{group.title}</strong><small>数据字段：{group.field}</small></div><span>{totalResponses.toLocaleString()} 份</span></header>
               <table><thead><tr><th>{group.title}</th><th>答卷数</th><th>占比</th></tr></thead><tbody>{group.rows.map(([label, count]) => <tr key={label}><td>{label}</td><td>{Number(count).toLocaleString()}</td><td>{(Number(count) / totalResponses * 100).toFixed(1)}%</td></tr>)}</tbody></table>
             </article>)}
           </div>

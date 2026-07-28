@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { defaultQuestions, Question } from "@/lib/survey-builder";
+import { defaultQuestions, Question, questionLabels } from "@/lib/survey-builder";
 import {
   defaultQuestionTranslations,
   LiveSurveyResponse,
@@ -95,6 +95,13 @@ export default function PlayerSurvey() {
   const [showProgress, setShowProgress] = useState(true);
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
   const [primary, setPrimary] = useState("#356fe6");
+  const [appearanceConfig, setAppearanceConfig] = useState({
+    radius: 10,
+    density: "comfortable",
+    fontSize: "standard",
+    buttonStyle: "filled",
+    background: "soft",
+  });
   const [surveyDescription, setSurveyDescription] = useState("");
   const [completionImage, setCompletionImage] = useState("");
   const [identityMismatch, setIdentityMismatch] = useState(false);
@@ -127,6 +134,14 @@ export default function PlayerSurvey() {
         window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`) || "{}",
       );
       if (appearance.primary) setPrimary(appearance.primary);
+      setAppearanceConfig((current) => ({
+        ...current,
+        radius: typeof appearance.radius === "number" ? appearance.radius : current.radius,
+        density: appearance.density === "compact" ? "compact" : "comfortable",
+        fontSize: appearance.fontSize === "large" ? "large" : "standard",
+        buttonStyle: appearance.buttonStyle === "outline" ? "outline" : "filled",
+        background: ["plain", "soft", "dark"].includes(appearance.background) ? appearance.background : "soft",
+      }));
       if (typeof appearance.languageSwitch === "boolean") setAllowLanguageSwitch(appearance.languageSwitch);
       if (typeof appearance.progress === "boolean") setShowProgress(appearance.progress);
 
@@ -351,9 +366,15 @@ export default function PlayerSurvey() {
     setDone(true);
   }
 
+  const surveyShellClass = `player-survey-shell appearance-${appearanceConfig.background} density-${appearanceConfig.density} font-${appearanceConfig.fontSize} button-${appearanceConfig.buttonStyle}`;
+  const surveyShellStyle = {
+    "--player": primary,
+    "--player-radius": `${appearanceConfig.radius}px`,
+  } as React.CSSProperties;
+
   if (closedMessage) {
     return (
-      <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
+      <main className={surveyShellClass} style={surveyShellStyle}>
         <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
         <section className="player-closed">
           <span>{closedReason === "ended" ? "■" : "◷"}</span><small>{closedReason === "ended" ? "SURVEY CLOSED" : "CURRENTLY UNAVAILABLE"}</small>
@@ -369,7 +390,7 @@ export default function PlayerSurvey() {
 
   if (identityMismatch) {
     return (
-      <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
+      <main className={surveyShellClass} style={surveyShellStyle}>
         <section className="player-closed identity-mismatch-page">
           <span>!</span>
           <small>IDENTITY CHECK FAILED</small>
@@ -412,7 +433,7 @@ export default function PlayerSurvey() {
   if (done) {
     const translationLocale = locale === "en-US" ? "EN" : locale === "zh-TW" ? "繁中" : locale === "th-TH" ? "ไทย" : "简中";
     return (
-      <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
+      <main className={surveyShellClass} style={surveyShellStyle}>
         <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
         <section className="player-complete">
           {completionImage && <img className="player-completion-image" src={completionImage} alt="" />}
@@ -425,7 +446,7 @@ export default function PlayerSurvey() {
   }
 
   return (
-    <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
+    <main className={surveyShellClass} style={surveyShellStyle}>
       <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
       {showProgress && <div className="player-progress"><i style={{ width: `${progress}%` }} /></div>}
       <section className="player-survey-card">
@@ -438,7 +459,7 @@ export default function PlayerSurvey() {
           </div>
         ) : current && currentLocalized ? (
           <div className="player-question">
-            <small>{String(step).padStart(2, "0")} / {String(visibleQuestions.length).padStart(2, "0")} · {current.type.toUpperCase()}</small>
+            <small>{String(step).padStart(2, "0")} / {String(visibleQuestions.length).padStart(2, "0")} · {questionLabels[current.type]}</small>
             <h2>{currentLocalized.title}{isRequired(current) && <b>*</b>}</h2>
             <p>{currentLocalized.description || copy.optional}</p>
             {currentLocalized.helpText && <div className="player-question-help">ⓘ {currentLocalized.helpText}</div>}
@@ -520,7 +541,12 @@ function QuestionInput({
   }
   if (question.type === "multiple") {
     const selected = Array.isArray(value) ? value : [];
-    return <div className="player-options">{question.options?.map((option) => <button key={option} className={selected.includes(option) ? "selected" : ""} onClick={() => onChange(selected.includes(option) ? selected.filter((item) => item !== option) : [...selected, option])}><i>{selected.includes(option) ? "■" : "□"}</i>{option}</button>)}</div>;
+    const maxSelections = question.maxSelections && question.maxSelections > 0 ? question.maxSelections : undefined;
+    return <><div className="player-selection-rule">{maxSelections ? `多选题 · 最多选择 ${maxSelections} 项` : "多选题 · 可选择多个选项"}</div><div className="player-options">{question.options?.map((option) => {
+      const isSelected = selected.includes(option);
+      const reachedLimit = Boolean(maxSelections && selected.length >= maxSelections && !isSelected);
+      return <button key={option} disabled={reachedLimit} className={isSelected ? "selected" : ""} onClick={() => onChange(isSelected ? selected.filter((item) => item !== option) : [...selected, option])}><i>{isSelected ? "■" : "□"}</i>{option}</button>;
+    })}</div></>;
   }
   if (question.type === "nps" || question.type === "rating") {
     const min = question.min ?? 0;

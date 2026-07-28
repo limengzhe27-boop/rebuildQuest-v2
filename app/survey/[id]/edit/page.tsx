@@ -105,7 +105,6 @@ export default function SurveyEditorPage() {
   const [logicQuestionId, setLogicQuestionId] = useState<string | null>(null);
   const [logicDraft, setLogicDraft] = useState<NonNullable<Question["displayLogic"]> | null>(null);
   const [moreQuestionId, setMoreQuestionId] = useState<string | null>(null);
-  const [supportEditor, setSupportEditor] = useState<{ questionId: string; type: "description" } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -195,6 +194,10 @@ export default function SurveyEditorPage() {
       draft = drafts.find((item: { id?: number | string }) => String(item.id) === surveyId);
     } catch {}
     const region = draft?.region === "国内" ? "国内" : "海外";
+    let appearance: Record<string, unknown> = {};
+    try {
+      appearance = JSON.parse(window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`) || "{}");
+    } catch {}
     const template = {
       id: `custom-${Date.now()}`,
       name: `${templateName.trim()}（副本）`,
@@ -205,6 +208,7 @@ export default function SurveyEditorPage() {
       languages: draft?.languages?.length ? draft.languages : ["简中"],
       region,
       sourceSurveyId: surveyId,
+      appearance,
       mode: templateMode,
       schema: templateMode === "full"
         ? questions
@@ -274,6 +278,19 @@ export default function SurveyEditorPage() {
     window.localStorage.setItem(`joydata-survey-schema-${previewId}`, JSON.stringify(questions));
     if (editingTemplateId) {
       try {
+        const templates = JSON.parse(window.localStorage.getItem("joydata-survey-templates") || "[]");
+        const currentTemplate = templates.find((item: { id?: string }) => item.id === editingTemplateId);
+        window.localStorage.setItem(`joydata-survey-appearance-${previewId}`, JSON.stringify(currentTemplate?.appearance || {
+          theme: "RO3 先锋",
+          primary: "#356FE6",
+          radius: 10,
+          density: "comfortable",
+          fontSize: "standard",
+          buttonStyle: "filled",
+          progress: true,
+          languageSwitch: true,
+          background: "soft",
+        }));
         const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
         const withoutPreview = drafts.filter((item: { id?: number | string }) => String(item.id) !== previewId);
         window.localStorage.setItem("joydata-survey-drafts", JSON.stringify([{ id: previewId, name: surveyName || "模板预览", description: surveyDescription || defaultSurveyIntro, languages: ["简中", "EN"] }, ...withoutPreview]));
@@ -457,7 +474,7 @@ export default function SurveyEditorPage() {
         </div>
         {editingTemplateId ? <div className="template-editor-label">模板编辑器</div> : <SurveyNav surveyId={surveyId} active="edit" onNotice={flash} />}
         <div className="editor-actions">
-          <button className="secondary-button" onClick={previewCurrentSurvey}>预览</button>
+          <button className="secondary-button" onClick={previewCurrentSurvey}>阅览</button>
           {editingTemplateId ? <button className="secondary-button" onClick={() => setShowTemplateSettings(true)}>模板分类</button> : <button className="secondary-button" onClick={openTemplateSave}>设为模板</button>}
         </div>
       </header>
@@ -579,18 +596,6 @@ export default function SurveyEditorPage() {
                       </div>
                       <div className="inline-title-row"><b>{question.required ? "*" : ""}</b><textarea value={question.title} onChange={(event) => updateQuestion(question.id, { title: event.target.value })} aria-label="题目标题" /></div>
                       <div className="question-support-tools">
-                        <button
-                          className={question.description || (supportEditor?.questionId === question.id && supportEditor.type === "description") ? "active" : ""}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedId(question.id);
-                            setSupportEditor((current) =>
-                              current?.questionId === question.id && current.type === "description"
-                                ? null
-                                : { questionId: question.id, type: "description" },
-                            );
-                          }}
-                        >＋ {question.description ? "编辑提示" : "添加提示"}</button>
                         <label className={question.referenceImage ? "question-image-upload active" : "question-image-upload"}>
                           ▧ {question.referenceImage ? "更换图片" : "添加图片"}
                           <input
@@ -604,9 +609,7 @@ export default function SurveyEditorPage() {
                           />
                         </label>
                       </div>
-                      {supportEditor?.questionId === question.id && supportEditor.type === "description"
-                        ? <div className="question-support-editor"><input className="inline-description" autoFocus value={question.description} onChange={(event) => updateQuestion(question.id, { description: event.target.value })} placeholder="输入题目提示或辅助说明" aria-label="题目提示" /><button onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { description: "" }); setSupportEditor(null); }}>×</button></div>
-                        : question.description && <p className="question-description-preview">{question.description}</p>}
+                      {question.description && <p className="question-description-preview">{question.description}</p>}
                       {question.referenceImage && (
                         <div className="question-reference-summary">
                           <img src={question.referenceImage} alt="题目参考图预览" />
@@ -620,6 +623,19 @@ export default function SurveyEditorPage() {
                             <span key={`${question.id}-${optionIndex}`}><i>{question.type === "multiple" ? "□" : "○"}</i>{selectedId === question.id ? <><input value={option} onChange={(event) => updateOption(optionIndex, event.target.value)} /><button disabled={(question.options?.length || 0) <= 2} onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { options: question.options?.filter((_, itemIndex) => itemIndex !== optionIndex) }); }}>×</button></> : option}</span>
                           ))}
                           {selectedId === question.id && <button className="inline-add-option" onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { options: [...(question.options || []), `选项 ${(question.options?.length || 0) + 1}`] }); }}>＋ 添加选项</button>}
+                          {question.type === "multiple" && selectedId === question.id && (
+                            <label className="multiple-limit-setting">
+                              <span>最多可选</span>
+                              <select
+                                value={question.maxSelections ?? ""}
+                                onChange={(event) => updateQuestion(question.id, { maxSelections: event.target.value ? Number(event.target.value) : undefined })}
+                              >
+                                <option value="">不限</option>
+                                {question.options?.map((_, optionIndex) => <option key={optionIndex + 1} value={optionIndex + 1}>{optionIndex + 1} 项</option>)}
+                              </select>
+                              <small>玩家达到上限后需取消已选项，才能继续选择。</small>
+                            </label>
+                          )}
                         </div>
                       )}
                       {(["text", "textarea", "date", "file", "imageUpload", "city", "provinceCity", "globalProvinceCity", "location", "phone", "ocr", "random", "product", "appointmentDate", "appointmentSlot"] as QuestionType[]).includes(question.type) && <div className="text-preview">{question.type === "date" || question.type === "appointmentDate" ? "请选择日期" : question.type === "appointmentSlot" ? "请选择预约时段" : question.type === "phone" ? "请输入手机号并完成验证" : "请输入您的回答"}</div>}

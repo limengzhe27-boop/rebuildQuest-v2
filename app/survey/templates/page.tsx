@@ -20,6 +20,7 @@ type Template = {
   mode: TemplateMode;
   custom?: boolean;
   schema?: unknown[];
+  appearance?: Record<string, unknown>;
 };
 
 const builtinTemplates: Template[] = [
@@ -60,7 +61,7 @@ export default function TemplatesPage() {
       setCustomTemplates(saved.map((item: {
         id: string; label?: string; name?: string; category?: string; categories?: string[]; description?: string;
         questions?: number; languages?: string[]; region?: string; useCount?: number; updatedAt?: string; createdAt?: string;
-        mode?: TemplateMode; schema?: unknown[]; updatedBy?: string;
+        mode?: TemplateMode; schema?: unknown[]; updatedBy?: string; appearance?: Record<string, unknown>;
       }) => ({
         id: item.id,
         name: item.label || item.name || "未命名模板",
@@ -74,6 +75,7 @@ export default function TemplatesPage() {
         region: item.region === "国内" || item.region === "china" ? "china" : "global",
         mode: item.mode || "full",
         schema: item.schema,
+        appearance: item.appearance,
         custom: true,
       })));
     } catch {}
@@ -111,6 +113,17 @@ export default function TemplatesPage() {
   function previewTemplate(template: Template) {
     const previewId = `template-preview-${template.id}`;
     window.localStorage.setItem(`joydata-survey-schema-${previewId}`, JSON.stringify(template.schema?.length ? template.schema : defaultQuestions));
+    window.localStorage.setItem(`joydata-survey-appearance-${previewId}`, JSON.stringify(template.appearance || {
+      theme: "RO3 先锋",
+      primary: "#356FE6",
+      radius: 10,
+      density: "comfortable",
+      fontSize: "standard",
+      buttonStyle: "filled",
+      progress: true,
+      languageSwitch: true,
+      background: "soft",
+    }));
     try {
       const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
       const next = [{ id: previewId, name: template.name, languages: template.languages, region: template.region === "china" ? "国内" : "海外", defaultLanguage: template.languages[0] }, ...drafts.filter((item: { id?: string | number }) => String(item.id) !== previewId)];
@@ -177,7 +190,7 @@ export default function TemplatesPage() {
                     <div><strong>{template.questions}</strong><small> 题</small></div>
                     <div><strong>{template.useCount}</strong><small> 次使用</small></div>
                     <div><span>{new Date(template.updatedAt).toLocaleDateString("zh-CN")}</span><small>{template.updatedBy || "系统模板"}</small></div>
-                    <div className="template-row-actions"><button onClick={() => previewTemplate(template)}>预览</button><button onClick={() => editTemplate(template)}>编辑</button><button className="primary-button" onClick={() => router.push(`/survey/new?template=${template.id}&region=${region}`)}>使用模板</button></div>
+                    <div className="template-row-actions"><button onClick={() => previewTemplate(template)}>阅览</button><button onClick={() => editTemplate(template)}>编辑</button><button className="primary-button" onClick={() => router.push(`/survey/new?template=${template.id}&region=${region}`)}>使用模板</button></div>
                   </div>
                 )) : <div className="empty-state"><strong>没有匹配的模板</strong><p>调整搜索或分类条件后再试。</p></div>}
               </div>

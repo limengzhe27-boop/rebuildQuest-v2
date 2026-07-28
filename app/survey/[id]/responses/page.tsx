@@ -47,7 +47,7 @@ const baseColumns: ResponseColumn[] = [
 ];
 
 const defaultVisibleBaseColumns = [
-  "serialNumber", "id", "submittedAt", "playerId", "country", "locale", "duration", "status",
+  "id", "submittedAt", "playerId", "country", "status",
 ];
 
 export default function ResponsesPage() {
@@ -263,7 +263,6 @@ export default function ResponsesPage() {
             <label className="page-size-select"><span>每页</span><select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}><option value={20}>20 条</option><option value={50}>50 条</option><option value={100}>100 条</option></select></label>
           </footer>
         </div>
-        <p className="schema-note">对应数据库：fm_user_form_data 的 original_data、serial_number、submit_request_ip、submit_address、submit_os、submit_browser、complete_time、ext_value、joy_user_info、line_user_info 与 create_time。</p>
       </section>
       {showFeishuExport && <div className="preview-backdrop" onMouseDown={() => setShowFeishuExport(false)}><section className="feishu-export-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
         <header><div><strong>新建飞书多维表格</strong><small>共 {rows.length} 份答卷 · {selectedColumns.length} 个字段</small></div><button onClick={() => setShowFeishuExport(false)}>×</button></header>

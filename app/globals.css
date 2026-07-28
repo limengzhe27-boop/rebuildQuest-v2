@@ -7235,6 +7235,130 @@ input:focus-visible {
   line-height: 1.5;
 }
 
+.multiple-limit-setting {
+  display: grid;
+  grid-template-columns: auto 110px 1fr;
+  align-items: center;
+  gap: 9px;
+  margin-top: 10px;
+  border-top: 1px solid #edf1f6;
+  padding-top: 10px;
+}
+
+.multiple-limit-setting > span {
+  color: #53627a;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.multiple-limit-setting select {
+  height: 30px;
+  border: 1px solid #d6dfec;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0 8px;
+  color: #43536c;
+  font-size: 9px;
+}
+
+.multiple-limit-setting small {
+  color: #909cad;
+  font-size: 8px;
+}
+
+.collection-trend-card {
+  overflow: hidden;
+  margin-bottom: 18px;
+  border: 1px solid #dfe6ef;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.collection-trend-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e7ebf1;
+  padding: 15px 18px;
+}
+
+.collection-trend-card > header > div:first-child,
+.collection-average {
+  display: grid;
+  gap: 3px;
+}
+
+.collection-trend-card header strong {
+  color: #263651;
+  font-size: 12px;
+}
+
+.collection-trend-card header small,
+.collection-average span {
+  color: #8793a6;
+  font-size: 8px;
+}
+
+.collection-average {
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: 8px;
+  text-align: right;
+}
+
+.collection-average strong {
+  color: #246bfd !important;
+  font-size: 16px !important;
+}
+
+.collection-average small {
+  grid-column: 1 / -1;
+}
+
+.collection-trend-card table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.collection-trend-card th,
+.collection-trend-card td {
+  height: 38px;
+  border-bottom: 1px solid #edf0f4;
+  padding: 0 18px;
+  color: #52617a;
+  font-size: 9px;
+  text-align: left;
+}
+
+.collection-trend-card th {
+  background: #f8f9fb;
+  color: #7a879a;
+  font-weight: 600;
+}
+
+.collection-trend-card td > i {
+  display: block;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #edf1f6;
+}
+
+.collection-trend-card td > i > em {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: #5b8def;
+}
+
+.appearance-selection-rule {
+  margin: 8px 0 2px;
+  color: #7f8ba0;
+  font-size: 8px;
+}
+
 .logic-matrix-cell {
   display: grid;
   grid-template-columns: 1fr 1fr;

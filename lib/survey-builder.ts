@@ -43,6 +43,7 @@ export type Question = {
   description: string;
   required: boolean;
   options?: string[];
+  maxSelections?: number;
   min?: number;
   max?: number;
   minLabel?: string;
@@ -64,8 +65,8 @@ export type Question = {
 };
 
 export const questionLabels: Record<QuestionType, string> = {
-  single: "单选框组",
-  multiple: "多选框组",
+  single: "单选题",
+  multiple: "多选题",
   text: "单行文本",
   textarea: "多行文本",
   date: "日期时间",
@@ -139,7 +140,7 @@ export function createQuestion(type: QuestionType): Question {
     required: false,
   };
   if (["single", "multiple", "sort", "image", "dropdown", "cascade", "matrixSelect", "tableSelect"].includes(type)) {
-    return { ...common, options: ["选项 1", "选项 2", "选项 3"] };
+    return { ...common, options: ["选项 1", "选项 2", "选项 3"], ...(type === "multiple" ? { maxSelections: undefined } : {}) };
   }
   if (type === "rating") return { ...common, min: 1, max: 5, minLabel: "非常不满意", maxLabel: "非常满意" };
   if (type === "nps") return { ...common, min: 0, max: 10 };
