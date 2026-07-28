@@ -254,20 +254,19 @@ export default function SurveySettingsPage() {
           <div><strong>{surveyTitle}</strong><small><i className="saved" />设置自动保存</small></div>
         </div>
         <SurveyNav surveyId={surveyId} active="settings" />
-        <div className="editor-actions"><span className="settings-autosave-state"><i className={saveState === "saved" ? "saved" : ""} />{saveState === "saved" ? "所有设置已自动保存" : "正在自动保存…"}</span></div>
       </header>
 
       <div className="settings-workspace">
         <section className="settings-main">
-          <header className="settings-heading">
+          <header className="settings-heading settings-heading-compact">
             <div>
-              <span>FORM SETTINGS</span>
               <h1>问卷设置</h1>
-              <p>查看内部备注，并设置提交反馈、收集时间、填写方式和防重复规则。</p>
+              <p>管理归档信息、提交反馈、回收时间与防重复规则</p>
             </div>
-            <span className={`region-pill ${selected.region}`}>
-              {selected.region === "global" ? "海外工作区 · GLOBAL" : "国内工作区 · CHINA"}
-            </span>
+            <div className="settings-heading-summary">
+              <span><i className={saveState === "saved" ? "saved" : ""} />{saveState === "saved" ? "已自动保存" : "保存中…"}</span>
+              <span className={`region-pill ${selected.region}`}>{selected.region === "global" ? "海外工作区 · GLOBAL" : "国内工作区 · CHINA"}</span>
+            </div>
           </header>
 
           <div className="publish-section-tabs settings-tabs">
@@ -283,6 +282,7 @@ export default function SurveySettingsPage() {
                 <div className="basic-info-grid">
                   <label><span>所属项目</span><select value={draftInfo.game} onChange={(event) => setDraftInfo((current) => ({ ...current, game: event.target.value, group: "" }))}><option>RO3</option><option>ROOC</option><option>HMT</option><option>RO国服</option><option>通用</option></select></label>
                   <label><span>项目分组</span><select value={draftInfo.group} onChange={(event) => setDraftInfo((current) => ({ ...current, group: event.target.value }))}><option value="">请选择项目分组</option>{projectGroupOptions.map((group) => <option key={group} value={group}>{group}</option>)}</select><small>如需新分组，请先在问卷工作台的“管理项目分组”中创建。</small></label>
+                  <label className="basic-info-note"><span>内部备注</span><textarea value={draftInfo.note} onChange={(event) => setDraftInfo((current) => ({ ...current, note: event.target.value }))} placeholder="记录调研背景、目标玩家、负责人或其他内部信息" /><small>仅后台成员可见，不会展示给填写问卷的玩家。</small></label>
                 </div>
               </section>
             </div>
