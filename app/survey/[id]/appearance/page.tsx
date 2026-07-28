@@ -143,7 +143,7 @@ export default function AppearancePage() {
         <h2>{translated(`${question.id}:title`, question.title, question.id)}{question.required && <b>*</b>}</h2>
         {question.description && <p>{translated(`${question.id}:description`, question.description)}</p>}
         {question.helpText && <div className="appearance-question-help">ⓘ {translated(`${question.id}:help`, question.helpText)}</div>}
-        {question.referenceImage && <div className="appearance-reference-image">▧ 参考图片</div>}
+        {question.referenceImage && <div className="appearance-reference-image"><img src={question.referenceImage} alt="题目参考图" /></div>}
         {question.options?.slice(0, 5).map((option, optionIndex) => <button key={`${question.id}-${optionIndex}`} className={optionIndex === 0 ? "selected" : ""}><i>{question.type === "multiple" ? "□" : "○"}</i>{translated(`${question.id}:option:${optionIndex}`, option)}</button>)}
         {(question.type === "text" || question.type === "textarea" || question.type === "phone") && <div className="appearance-input">{question.type === "phone" ? "请输入手机号" : "请输入您的回答"}</div>}
         {(question.type === "rating" || question.type === "nps") && <div className="appearance-score-row">{Array.from({ length: Math.min(11, (question.max || 5) - (question.min || 0) + 1) }, (_, score) => <span key={score}>{score + (question.min || 0)}</span>)}</div>}

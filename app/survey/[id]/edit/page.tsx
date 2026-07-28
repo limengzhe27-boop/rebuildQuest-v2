@@ -103,7 +103,7 @@ export default function SurveyEditorPage() {
   const [logicQuestionId, setLogicQuestionId] = useState<string | null>(null);
   const [logicDraft, setLogicDraft] = useState<NonNullable<Question["displayLogic"]> | null>(null);
   const [moreQuestionId, setMoreQuestionId] = useState<string | null>(null);
-  const [supportEditor, setSupportEditor] = useState<{ questionId: string; type: "description" | "image" } | null>(null);
+  const [supportEditor, setSupportEditor] = useState<{ questionId: string; type: "description" } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -256,6 +256,25 @@ export default function SurveyEditorPage() {
 
   function updateQuestion(id: string, patch: Partial<Question>) {
     setQuestions((current) => current.map((question) => question.id === id ? { ...question, ...patch } : question));
+  }
+
+  function uploadReferenceImage(questionId: string, file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      flash("请选择图片文件");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      flash("图片不能超过 5MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateQuestion(questionId, { referenceImage: String(reader.result || "") });
+      setSelectedId(questionId);
+      flash("参考图片已上传");
+    };
+    reader.readAsDataURL(file);
   }
 
   function duplicateQuestion(id: string) {
@@ -533,25 +552,29 @@ export default function SurveyEditorPage() {
                             );
                           }}
                         >＋ {question.description ? "编辑提示" : "添加提示"}</button>
-                        <button
-                          className={question.referenceImage || (supportEditor?.questionId === question.id && supportEditor.type === "image") ? "active" : ""}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedId(question.id);
-                            setSupportEditor((current) =>
-                              current?.questionId === question.id && current.type === "image"
-                                ? null
-                                : { questionId: question.id, type: "image" },
-                            );
-                          }}
-                        >▧ {question.referenceImage ? "编辑图片" : "添加图片"}</button>
+                        <label className={question.referenceImage ? "question-image-upload active" : "question-image-upload"}>
+                          ▧ {question.referenceImage ? "更换图片" : "添加图片"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => {
+                              uploadReferenceImage(question.id, event.target.files?.[0]);
+                              event.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
                       </div>
                       {supportEditor?.questionId === question.id && supportEditor.type === "description"
                         ? <div className="question-support-editor"><input className="inline-description" autoFocus value={question.description} onChange={(event) => updateQuestion(question.id, { description: event.target.value })} placeholder="输入题目提示或辅助说明" aria-label="题目提示" /><button onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { description: "" }); setSupportEditor(null); }}>×</button></div>
                         : question.description && <p className="question-description-preview">{question.description}</p>}
-                      {supportEditor?.questionId === question.id && supportEditor.type === "image"
-                        ? <div className="question-reference-editor"><input autoFocus value={question.referenceImage || ""} onChange={(event) => updateQuestion(question.id, { referenceImage: event.target.value })} placeholder="粘贴参考图片地址" /><span>{question.referenceImage ? "已添加参考图" : "参考图将在题目下方展示"}</span><button onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { referenceImage: undefined }); setSupportEditor(null); }}>×</button></div>
-                        : question.referenceImage && <div className="question-reference-summary">▧ 已添加参考图片</div>}
+                      {question.referenceImage && (
+                        <div className="question-reference-summary">
+                          <img src={question.referenceImage} alt="题目参考图预览" />
+                          <span>参考图片将展示在题目说明下方</span>
+                          <button onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { referenceImage: undefined }); }}>删除</button>
+                        </div>
+                      )}
                       {(["single", "multiple", "dropdown", "cascade"] as QuestionType[]).includes(question.type) && (
                         <div className={`choice-preview ${selectedId === question.id ? "editing" : ""}`}>
                           {question.options?.map((option, optionIndex) => (
