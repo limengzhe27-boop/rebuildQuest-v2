@@ -678,60 +678,31 @@ export default function SurveyEditorPage() {
                         </>
                       )}
                       {(["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"] as QuestionType[]).includes(question.type) && (
-                        <>
+                        <div className="matrix-inline-editor">
                           {selectedId === question.id && (
-                            <div className="matrix-config-editor">
-                              <section>
-                                <header><div><strong>行设置</strong><small>编辑每个评价对象或子题名称</small></div><button onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { matrixRows: [...(question.matrixRows || []), `行 ${(question.matrixRows?.length || 0) + 1}`] }); }}>＋ 添加行</button></header>
-                                <div>
-                                  {(question.matrixRows || []).map((row, rowIndex) => (
-                                    <label key={`${question.id}-row-${rowIndex}`}>
-                                      <span>{rowIndex + 1}</span>
-                                      <input
-                                        value={row}
-                                        aria-label={`第 ${rowIndex + 1} 行名称`}
-                                        onChange={(event) => updateQuestion(question.id, { matrixRows: question.matrixRows?.map((item, itemIndex) => itemIndex === rowIndex ? event.target.value : item) })}
-                                      />
-                                      <button
-                                        disabled={(question.matrixRows?.length || 0) <= 1}
-                                        aria-label={`删除第 ${rowIndex + 1} 行`}
-                                        onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { matrixRows: question.matrixRows?.filter((_, itemIndex) => itemIndex !== rowIndex) }); }}
-                                      >×</button>
-                                    </label>
-                                  ))}
-                                </div>
-                              </section>
-                              <section>
-                                <header><div><strong>{isNumericMatrix(question) ? "评分设置" : "列设置"}</strong><small>{isNumericMatrix(question) ? "分值可直接修改，也可增加负分或 0 分" : "编辑每个列选项名称"}</small></div><button onClick={(event) => { event.stopPropagation(); const columns = question.matrixColumns || []; const last = Number(columns[columns.length - 1]); updateQuestion(question.id, { matrixColumns: [...columns, isNumericMatrix(question) && Number.isFinite(last) ? String(last + 1) : `列 ${columns.length + 1}`] }); }}>＋ 添加{isNumericMatrix(question) ? "分值" : "列"}</button></header>
-                                <div>
-                                  {(question.matrixColumns || []).map((column, columnIndex) => (
-                                    <label key={`${question.id}-column-${columnIndex}`}>
-                                      <span>{columnIndex + 1}</span>
-                                      <input
-                                        type={isNumericMatrix(question) ? "number" : "text"}
-                                        value={column}
-                                        aria-label={`${isNumericMatrix(question) ? "分值" : "第"} ${columnIndex + 1}`}
-                                        onChange={(event) => updateQuestion(question.id, { matrixColumns: question.matrixColumns?.map((item, itemIndex) => itemIndex === columnIndex ? event.target.value : item) })}
-                                      />
-                                      <button
-                                        disabled={(question.matrixColumns?.length || 0) <= 2}
-                                        aria-label={`删除第 ${columnIndex + 1} 列`}
-                                        onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { matrixColumns: question.matrixColumns?.filter((_, itemIndex) => itemIndex !== columnIndex) }); }}
-                                      >×</button>
-                                    </label>
-                                  ))}
-                                </div>
-                              </section>
-                            </div>
+                            <header>
+                              <p><strong>矩阵内容</strong><small>点击表格中的行名和{isNumericMatrix(question) ? "分值" : "列名"}直接修改</small></p>
+                              <div>
+                                <button onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { matrixRows: [...(question.matrixRows || []), `行 ${(question.matrixRows?.length || 0) + 1}`] }); }}>＋ 添加行</button>
+                                <button onClick={(event) => { event.stopPropagation(); const columns = question.matrixColumns || []; const last = Number(columns[columns.length - 1]); updateQuestion(question.id, { matrixColumns: [...columns, isNumericMatrix(question) && Number.isFinite(last) ? String(last + 1) : `列 ${columns.length + 1}`] }); }}>＋ 添加{isNumericMatrix(question) ? "分值" : "列"}</button>
+                              </div>
+                            </header>
                           )}
-                          <div className="matrix-preview" style={{ gridTemplateColumns: `minmax(120px, 1.6fr) repeat(${(question.matrixColumns?.length ? question.matrixColumns : ["列 1", "列 2", "列 3"]).length}, minmax(62px, .7fr))` }}>
-                            <span />
-                            {(question.matrixColumns?.length ? question.matrixColumns : ["列 1", "列 2", "列 3"]).map((item, columnIndex) => <b key={`${item}-${columnIndex}`}>{item}</b>)}
+                          <div className="matrix-preview" style={{ gridTemplateColumns: `minmax(150px, 1.5fr) repeat(${(question.matrixColumns?.length ? question.matrixColumns : ["列 1", "列 2", "列 3"]).length}, minmax(72px, 1fr))` }}>
+                            <span className="matrix-corner-label">题目 / {isNumericMatrix(question) ? "评分" : "选项"}</span>
+                            {(question.matrixColumns?.length ? question.matrixColumns : ["列 1", "列 2", "列 3"]).map((item, columnIndex) => (
+                              <b key={`${item}-${columnIndex}`}>
+                                {selectedId === question.id ? <><input type={isNumericMatrix(question) ? "number" : "text"} value={item} onChange={(event) => updateQuestion(question.id, { matrixColumns: question.matrixColumns?.map((column, itemIndex) => itemIndex === columnIndex ? event.target.value : column) })} /><button disabled={(question.matrixColumns?.length || 0) <= 2} onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { matrixColumns: question.matrixColumns?.filter((_, itemIndex) => itemIndex !== columnIndex) }); }}>×</button></> : item}
+                              </b>
+                            ))}
                             {(question.matrixRows?.length ? question.matrixRows : ["行 1", "行 2", "行 3"]).map((row, rowIndex) => (
-                              <div key={`${row}-${rowIndex}`} className="matrix-row"><strong>{row}</strong>{(question.matrixColumns?.length ? question.matrixColumns : ["列 1", "列 2", "列 3"]).map((column, columnIndex) => <i key={`${column}-${columnIndex}`}>{question.type === "matrixFill" ? "—" : question.type === "matrixDropdown" ? "⌄" : "○"}</i>)}</div>
+                              <div key={`${row}-${rowIndex}`} className="matrix-row">
+                                <strong>{selectedId === question.id ? <><input value={row} onChange={(event) => updateQuestion(question.id, { matrixRows: question.matrixRows?.map((item, itemIndex) => itemIndex === rowIndex ? event.target.value : item) })} /><button disabled={(question.matrixRows?.length || 0) <= 1} onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { matrixRows: question.matrixRows?.filter((_, itemIndex) => itemIndex !== rowIndex) }); }}>×</button></> : row}</strong>
+                                {(question.matrixColumns?.length ? question.matrixColumns : ["列 1", "列 2", "列 3"]).map((column, columnIndex) => <i key={`${column}-${columnIndex}`}>{question.type === "matrixFill" ? "—" : question.type === "matrixDropdown" ? "⌄" : "○"}</i>)}
+                              </div>
                             ))}
                           </div>
-                        </>
+                        </div>
                       )}
                       {question.type === "sort" && (
                         <div className="sort-preview">{question.options?.map((item, i) => <span key={item}><b>{i + 1}</b>{item}<i>⠿</i></span>)}</div>

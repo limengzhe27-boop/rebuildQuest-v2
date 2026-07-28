@@ -33,6 +33,7 @@ export default function SurveySettingsPage() {
   const limitBodyRef = useRef<HTMLTextAreaElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
   const completionImageInputRef = useRef<HTMLInputElement>(null);
+  const closedImageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setPublications(loadPublications(surveyId));
@@ -192,6 +193,24 @@ export default function SurveySettingsPage() {
     reader.onload = () => {
       updateSelected({ completionImage: String(reader.result || "") });
       flash("完成页图片已上传");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function uploadClosedImage(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      flash("请选择图片文件");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      flash("图片不能超过 5MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateSelected({ closedImage: String(reader.result || "") });
+      flash("停止收集页图片已上传");
     };
     reader.readAsDataURL(file);
   }
@@ -419,6 +438,13 @@ export default function SurveySettingsPage() {
               <section className="config-card">
                 <header><div><strong>停止收集后页面</strong><small>手动结束、定时结束、达到数量上限或当前不在允许访问时段时展示</small></div></header>
                 <label className="large-config-field"><span>停止收集提示语</span><textarea value={selected.closedMessage} onChange={(event) => updateSelected({ closedMessage: event.target.value })} /></label>
+                <div className="completion-image-setting">
+                  <input ref={closedImageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadClosedImage(event.target.files?.[0])} />
+                  <button type="button" onClick={() => closedImageInputRef.current?.click()}>▧ {selected.closedImage ? "更换页面图片" : "上传页面图片"}</button>
+                  <div><strong>{selected.closedImage ? "已上传停止收集页图片" : "尚未上传图片"}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>
+                  {selected.closedImage && <button className="text-danger" type="button" onClick={() => updateSelected({ closedImage: "" })}>移除</button>}
+                </div>
+                {selected.closedImage && <div className="completion-preview"><img src={selected.closedImage} alt="停止收集页图片预览" /></div>}
               </section>
 
               <section className="config-card">

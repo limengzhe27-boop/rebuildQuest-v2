@@ -70,6 +70,7 @@ export type Publication = {
   completionMessage: string;
   completionImage: string;
   closedMessage: string;
+  closedImage: string;
   limitPageBackgroundMode: "common" | "custom";
   limitPageBackground: string;
   limitPageContent: Record<string, LimitPageContent>;
@@ -136,6 +137,7 @@ export const defaultPublications: Publication[] = [
     completionMessage: "Thank you! Your feedback has been submitted.",
     completionImage: "",
     closedMessage: "This survey has ended. Thank you for your interest.",
+    closedImage: "",
     limitPageBackgroundMode: "common",
     limitPageBackground: "",
     limitPageContent: {
@@ -203,6 +205,7 @@ export const defaultPublications: Publication[] = [
     completionMessage: "提交成功，感谢您的反馈。",
     completionImage: "",
     closedMessage: "本次问卷收集已结束，感谢您的关注。",
+    closedImage: "",
     limitPageBackgroundMode: "common",
     limitPageBackground: "",
     limitPageContent: {

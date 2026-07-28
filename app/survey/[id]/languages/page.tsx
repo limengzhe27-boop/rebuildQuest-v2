@@ -49,7 +49,6 @@ export default function LanguagesPage() {
   const [configuredLanguages, setConfiguredLanguages] = useState(["简中", "EN", "繁中", "ไทย"]);
   const [fallbackLanguage, setFallbackLanguage] = useState("简中");
   const [publication, setPublication] = useState<Publication | null>(null);
-  const [resultTab, setResultTab] = useState<"completion" | "limit">("completion");
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const sourceScrollRef = useRef<HTMLDivElement>(null);
@@ -78,10 +77,6 @@ export default function LanguagesPage() {
   }, [surveyId]);
 
   useEffect(() => {
-    if (publication?.completionMode === "redirect") setResultTab("limit");
-  }, [publication?.completionMode]);
-
-  useEffect(() => {
     if (!hydrated) return;
     window.localStorage.setItem(`joydata-survey-translations-${surveyId}`, JSON.stringify(translations));
     window.localStorage.setItem(`joydata-survey-translation-verified-${surveyId}`, JSON.stringify(verifiedLocales));
@@ -101,6 +96,7 @@ export default function LanguagesPage() {
     if (publication?.completionMode !== "redirect") {
       result.push({ id: "form:completion", source: publication?.completionMessage || "感谢您的参与，问卷已成功提交。" });
     }
+    result.push({ id: "form:closed", source: publication?.closedMessage || "本次问卷收集已结束，感谢您的关注。" });
     const sourceLocale = publication?.defaultLocale || "zh-CN";
     const limitContent = publication?.limitPageContent?.[sourceLocale];
     if (limitContent?.title) result.push({ id: "limit:title", source: limitContent.title });
@@ -275,39 +271,72 @@ export default function LanguagesPage() {
              </section>
            </div>
 
-           <section className="language-result-workspace">
-             <header>
-               <div><strong>结果展示页翻译</strong><small>结果页与问卷答题内容分别校验，不参与上方同步滚动。</small></div>
-               <nav>
-                 {publication?.completionMode !== "redirect" && <button className={resultTab === "completion" ? "active" : ""} onClick={() => setResultTab("completion")}>提交完成页</button>}
-                 <button className={resultTab === "limit" ? "active" : ""} onClick={() => setResultTab("limit")}>重复填写限制页</button>
-               </nav>
-             </header>
-             {publication?.completionMode === "redirect" && <div className="result-redirect-notice"><span>↗</span><p><strong>提交后跳转指定网页</strong><small>当前不展示提交完成页，因此无需配置该页面的多语言内容。</small></p></div>}
-             <div className="result-translation-pair">
-               <article>
-                 <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
-                 {resultTab === "completion" && publication?.completionMode !== "redirect" ? (
-                   <div className="standalone-result-preview"><i>✓</i><strong>{publication?.completionMessage || "感谢您的参与，问卷已成功提交。"}</strong></div>
-                 ) : (
-                   <div className="standalone-result-preview limit">{sourceLimitContent.title && <h2>{sourceLimitContent.title}</h2>}<p>{sourceLimitPlainText}</p></div>
-                 )}
-               </article>
-               <article className="translated">
-                 <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
-                 {resultTab === "completion" && publication?.completionMode !== "redirect" ? (
-                   <div className="standalone-result-editor">{editableField("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。", "完成提示")}</div>
-                 ) : (
-                   <div className="standalone-result-editor">
+           <div className="language-result-pages">
+             {publication?.completionMode !== "redirect" ? (
+               <section className="language-result-workspace">
+                 <header><div><strong>提交完成页</strong><small>玩家成功提交问卷后看到的完整页面，单独翻译与校验。</small></div></header>
+                 <div className="result-translation-pair">
+                   <article>
+                     <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
+                     <div className="standalone-result-preview full-page">
+                       {publication?.completionImage && <img src={publication.completionImage} alt="" />}
+                       <i>✓</i><strong>{publication?.completionMessage || "感谢您的参与，问卷已成功提交。"}</strong>
+                     </div>
+                   </article>
+                   <article className="translated">
+                     <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
+                     <div className="standalone-result-editor full-page">
+                       {publication?.completionImage && <img src={publication.completionImage} alt="" />}
+                       {editableField("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。", "完成提示")}
+                     </div>
+                   </article>
+                 </div>
+               </section>
+             ) : (
+               <section className="language-result-workspace compact-notice">
+                 <div className="result-redirect-notice"><span>↗</span><p><strong>提交后跳转指定网页</strong><small>当前不展示提交完成页，因此无需配置该页面的多语言内容。</small></p></div>
+               </section>
+             )}
+
+             <section className="language-result-workspace">
+               <header><div><strong>停止收集后页面</strong><small>手动结束、定时结束、达到总量或不在开放时段时展示。</small></div></header>
+               <div className="result-translation-pair">
+                 <article>
+                   <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
+                   <div className="standalone-result-preview full-page closed">
+                     {publication?.closedImage && <img src={publication.closedImage} alt="" />}
+                     <i>■</i><h2>本次问卷收集已结束</h2><p>{publication?.closedMessage || "本次问卷收集已结束，感谢您的关注。"}</p>
+                   </div>
+                 </article>
+                 <article className="translated">
+                   <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
+                   <div className="standalone-result-editor full-page">
+                     {publication?.closedImage && <img src={publication.closedImage} alt="" />}
+                     {editableField("form:closed", publication?.closedMessage || "本次问卷收集已结束，感谢您的关注。", "停止收集提示")}
+                   </div>
+                 </article>
+               </div>
+             </section>
+
+             <section className="language-result-workspace">
+               <header><div><strong>重复填写限制结果页</strong><small>用户、IP 或设备达到提交次数上限时展示的完整页面。</small></div></header>
+               <div className="result-translation-pair">
+                 <article>
+                   <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
+                   <div className="standalone-result-preview full-page limit">{sourceLimitContent.title && <h2>{sourceLimitContent.title}</h2>}<p>{sourceLimitPlainText}</p></div>
+                 </article>
+                 <article className="translated">
+                   <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
+                   <div className="standalone-result-editor full-page">
                      {sourceLimitContent.title && editableField("limit:title", sourceLimitContent.title, "标题（可留空）")}
                      {editableField("limit:body", sourceLimitContent.body, "正文")}
                      {sourceLimitContent.links.map((link, index) => editableField(`limit:link:${link.id}`, link.text, `链接 ${index + 1} 文字`))}
                      {sourceLimitContent.links.length > 0 && <p className="translation-token-tip">正文中的链接位置标记请保留；链接地址沿用原文设置。</p>}
                    </div>
-                 )}
-               </article>
-             </div>
-           </section>
+                 </article>
+               </div>
+             </section>
+           </div>
          </section>
       </section>
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}

@@ -110,6 +110,7 @@ export default function PlayerSurvey() {
   });
   const [surveyDescription, setSurveyDescription] = useState("");
   const [completionImage, setCompletionImage] = useState("");
+  const [closedImage, setClosedImage] = useState("");
   const [identityMismatch, setIdentityMismatch] = useState(false);
   const [closedMessage, setClosedMessage] = useState("");
   const [closedReason, setClosedReason] = useState<"ended" | "not-started" | "outside-hours">("ended");
@@ -161,6 +162,7 @@ export default function PlayerSurvey() {
       }
       if (publication) {
         setCompletionImage(publication.completionImage || "");
+        setClosedImage(publication.closedImage || "");
         const existingResponses = JSON.parse(window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`) || "[]") as LiveSurveyResponse[];
         const boundIdentity =
           searchParams.get("bound_user_id")
@@ -434,6 +436,7 @@ export default function PlayerSurvey() {
       <main className={surveyShellClass} style={surveyShellStyle}>
         <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
         <section className="player-closed">
+          {closedImage && <img className="player-closed-image" src={closedImage} alt="" />}
           <span>{closedReason === "ended" ? "■" : "◷"}</span><small>{closedReason === "ended" ? "SURVEY CLOSED" : "CURRENTLY UNAVAILABLE"}</small>
           <h1>{surveyTitle}</h1><p>{closedMessage}</p>
           <div>
