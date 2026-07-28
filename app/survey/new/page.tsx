@@ -23,7 +23,17 @@ const globalLanguages = [
   { code: "ID", name: "Bahasa Indonesia", hint: "印尼语" },
 ];
 
-type TemplatePreset = { name: string; label: string; languages: string[]; region: Region; category: string; categories?: string[]; sourceSurveyId?: string };
+type TemplatePreset = {
+  name: string;
+  label: string;
+  languages: string[];
+  region: Region;
+  category: string;
+  categories?: string[];
+  sourceSurveyId?: string;
+  mode?: "blank" | "full";
+  schema?: unknown[];
+};
 
 const templatePresets: Record<string, TemplatePreset> = {
   "game-beta": { name: "游戏测试体验调研（副本）", label: "游戏测试体验调研", languages: ["EN", "繁中", "ไทย"], region: "海外", category: "版本测试" },
@@ -206,9 +216,13 @@ function NewSurveyWizard() {
     } catch {
       window.localStorage.setItem(key, JSON.stringify([draft]));
     }
-    if (mode === "template" && template?.sourceSurveyId) {
-      const sourceSchema = window.localStorage.getItem(`joydata-survey-schema-${template.sourceSurveyId}`);
-      if (sourceSchema) window.localStorage.setItem(`joydata-survey-schema-${draft.id}`, sourceSchema);
+    if (mode === "template") {
+      if (template?.schema?.length) {
+        window.localStorage.setItem(`joydata-survey-schema-${draft.id}`, JSON.stringify(template.schema));
+      } else if (template?.sourceSurveyId) {
+        const sourceSchema = window.localStorage.getItem(`joydata-survey-schema-${template.sourceSurveyId}`);
+        if (sourceSchema) window.localStorage.setItem(`joydata-survey-schema-${draft.id}`, sourceSchema);
+      }
     }
     router.push(`/survey/${draft.id}/edit`);
   }

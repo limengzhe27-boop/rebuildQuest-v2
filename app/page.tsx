@@ -126,7 +126,13 @@ export default function Home() {
   const [confirmDelete, setConfirmDelete] = useState<Survey | null>(null);
   const [templateSurvey, setTemplateSurvey] = useState<Survey | null>(null);
   const [templateCategories, setTemplateCategories] = useState<string[]>([]);
+  const [templateMode, setTemplateMode] = useState<"blank" | "full">("full");
   const [availableTemplateCategories, setAvailableTemplateCategories] = useState(defaultTemplateCategories);
+  const [movingSurvey, setMovingSurvey] = useState<Survey | null>(null);
+  const [moveProject, setMoveProject] = useState("RO3");
+  const [moveGroup, setMoveGroup] = useState("");
+  const [editingGroup, setEditingGroup] = useState<{ name: string; project: string } | null>(null);
+  const [editingGroupName, setEditingGroupName] = useState("");
   const [toast, setToast] = useState("");
   const [newName, setNewName] = useState("");
   const [newLanguages, setNewLanguages] = useState(["EN"]);
@@ -271,6 +277,52 @@ export default function Home() {
     notify(count > 0 ? `已将 ${count} 份问卷移至“未归入分组”，原分组已删除` : "项目分组已删除");
   }
 
+  function renameProjectGroup() {
+    if (!editingGroup || !editingGroupName.trim()) return;
+    const nextName = editingGroupName.trim();
+    setSurveys((current) => current.map((survey) =>
+      survey.region === region && survey.game === editingGroup.project && survey.group === editingGroup.name
+        ? { ...survey, group: nextName, updated: "刚刚" }
+        : survey,
+    ));
+    const next = customProjects.map((group) =>
+      group.region === region && group.project === editingGroup.project && group.name === editingGroup.name
+        ? { ...group, name: nextName }
+        : group,
+    );
+    if (!next.some((group) => group.region === region && group.project === editingGroup.project && group.name === nextName)) {
+      next.push({ name: nextName, project: editingGroup.project, region });
+    }
+    setCustomProjects(next);
+    window.localStorage.setItem("joydata-survey-projects", JSON.stringify(next));
+    if (activeProjectGroup === editingGroup.name) setActiveProjectGroup(nextName);
+    setEditingGroup(null);
+    notify("分组名称已更新");
+  }
+
+  function saveSurveyProjectGroup() {
+    if (!movingSurvey || !moveGroup.trim()) {
+      notify("请选择或填写目标分组");
+      return;
+    }
+    const groupName = moveGroup.trim();
+    setSurveys((current) => current.map((survey) =>
+      survey.id === movingSurvey.id
+        ? { ...survey, game: moveProject, group: groupName, updated: "刚刚" }
+        : survey,
+    ));
+    const exists = customProjects.some((group) =>
+      group.region === movingSurvey.region && group.project === moveProject && group.name === groupName,
+    );
+    if (!exists) {
+      const next = [...customProjects, { name: groupName, project: moveProject, region: movingSurvey.region }];
+      setCustomProjects(next);
+      window.localStorage.setItem("joydata-survey-projects", JSON.stringify(next));
+    }
+    setMovingSurvey(null);
+    notify("问卷所属项目与分组已更新");
+  }
+
   function toggleLanguage(language: string) {
     setNewLanguages((current) =>
       current.includes(language)
@@ -323,9 +375,9 @@ export default function Home() {
       notify("请至少选择一个模板分类");
       return;
     }
-    let questionCount = 0;
+    let schema: Array<Record<string, unknown>> = [];
     try {
-      questionCount = JSON.parse(window.localStorage.getItem(`joydata-survey-schema-${templateSurvey.id}`) || "[]").length;
+      schema = JSON.parse(window.localStorage.getItem(`joydata-survey-schema-${templateSurvey.id}`) || "[]");
     } catch {}
     const template = {
       id: `custom-${Date.now()}`,
@@ -334,10 +386,21 @@ export default function Home() {
       category: templateCategories[0],
       categories: templateCategories,
       description: `由“${templateSurvey.name}”保存的团队模板。`,
-      questions: questionCount,
+      questions: schema.length,
       languages: templateSurvey.languages,
       region: templateSurvey.region,
       sourceSurveyId: String(templateSurvey.id),
+      mode: templateMode,
+      schema: templateMode === "full"
+        ? schema
+        : schema.map((question) => ({
+          ...question,
+          title: "",
+          description: "",
+          helpText: undefined,
+          referenceImage: undefined,
+          options: Array.isArray(question.options) ? question.options.map(() => "") : question.options,
+        })),
       useCount: 0,
       updatedAt: new Date().toISOString(),
     };
@@ -349,6 +412,7 @@ export default function Home() {
     }
     setTemplateSurvey(null);
     setTemplateCategories([]);
+    setTemplateMode("full");
     notify("已保存为团队模板");
   }
 
@@ -440,11 +504,11 @@ export default function Home() {
 
         <div className="content-layout">
           <section className="main-content">
-            <div className="page-heading">
-              <div>
+            <div className="page-heading compact-page-heading">
+              <div className="compact-heading-copy">
                 <div className="breadcrumb">用研中心 <span>/</span> {activeGroup === "回收站" ? "回收站" : "问卷工作台"}</div>
                 <h1>{activeGroup === "回收站" ? "回收站" : "问卷工作台"}</h1>
-                <p>{activeGroup === "回收站" ? "已删除的问卷会保留 30 天，可恢复后继续使用。" : "创建、发布并查看面向全球玩家的多语言问卷。"}</p>
+                <span>{activeGroup === "回收站" ? "删除后保留 30 天" : `${region}工作区 · ${visible.length} 份问卷`}</span>
               </div>
               <div className="heading-actions">
                 {activeGroup === "回收站" ? <button className="secondary-button" onClick={() => setActiveGroup("全部问卷")}>← 返回工作台</button> : <><button className="quiet-action-button" onClick={() => { setActiveGroup("回收站"); setStatus("全部"); }}>⌫ 回收站{trashedIds.length > 0 && <em>{trashedIds.length}</em>}</button><button className="secondary-button" onClick={() => router.push("/survey/templates")}>
@@ -455,37 +519,23 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="region-banner">
-              <div className="region-copy">
-                <span className="globe-icon">◎</span>
-                <div>
-                  <strong>{region}工作空间</strong>
-                  <p>
-                    {region === "海外"
-                      ? "数据存储于海外区域，适用于全球发行与多语言玩家调研。"
-                      : "数据存储于中国区域，适用于国内玩家调研与本地合规要求。"}
-                  </p>
-                </div>
-              </div>
-              <div className="region-switch" aria-label="区域切换">
-                {(["海外", "国内"] as Region[]).map((item) => (
-                  <button
-                    key={item}
-                    className={region === item ? "active" : ""}
-                    onClick={() => {
-                      setRegion(item);
-                      setActiveProjectGroup(null);
-                      setProjectQuery("");
-                    }}
-                  >
-                    {item === "海外" ? "海外 GLOBAL" : "国内 CHINA"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <section className="survey-panel">
               <div className="panel-toolbar">
+                <div className="region-switch compact-region-switch" aria-label="区域切换">
+                  {(["海外", "国内"] as Region[]).map((item) => (
+                    <button
+                      key={item}
+                      className={region === item ? "active" : ""}
+                      onClick={() => {
+                        setRegion(item);
+                        setActiveProjectGroup(null);
+                        setProjectQuery("");
+                      }}
+                    >
+                      {item === "海外" ? "海外" : "国内"}
+                    </button>
+                  ))}
+                </div>
                 <div className="search-box">
                   <span>⌕</span>
                   <input
@@ -616,8 +666,8 @@ export default function Home() {
                                   <button onClick={() => router.push(`/survey/${survey.id}/edit`)}>✎ 编辑问卷</button>
                                 )}
                                 <button onClick={() => duplicateSurvey(survey)}>⧉ 复制问卷</button>
-                                <button onClick={() => { setTemplateSurvey(survey); setTemplateCategories([]); setMenuSurvey(null); }}>▦ 设为模板</button>
-                                <button onClick={() => { setMenuSurvey(null); notify("项目与分组设置已打开"); }}>▱ 更改项目与分组</button>
+                                <button onClick={() => { setTemplateSurvey(survey); setTemplateCategories([]); setTemplateMode("full"); setMenuSurvey(null); }}>▦ 设为模板</button>
+                                <button onClick={() => { setMovingSurvey(survey); setMoveProject(survey.game); setMoveGroup(survey.group); setMenuSurvey(null); }}>▱ 更改项目与分组</button>
                                 <i />
                                 <button className="danger" onClick={() => { setConfirmDelete(survey); setMenuSurvey(null); }}>⌫ 移入回收站</button>
                               </>
@@ -726,7 +776,7 @@ export default function Home() {
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowProjectManager(false)}>
           <section className="project-manager-modal" role="dialog" aria-modal="true" aria-labelledby="project-manager-title" onMouseDown={(event) => event.stopPropagation()}>
             <header><div><span className="modal-eyebrow">GROUP MANAGEMENT</span><h2 id="project-manager-title">管理项目分组</h2><p>分组必须隶属于某个项目；删除分组不会删除问卷或答卷。</p></div><button aria-label="关闭" onClick={() => setShowProjectManager(false)}>×</button></header>
-            <div className="project-manager-list">{projectGroups.length ? projectGroups.map((group) => <div key={`${group.project}-${group.name}`}><div><strong>{group.name}</strong><small>{group.project} · {group.count ? `包含 ${group.count} 份问卷` : "暂无问卷"}</small></div><button onClick={() => setProjectToDelete(group)}>删除</button></div>) : <p>当前项目暂无分组。</p>}</div>
+            <div className="project-manager-list">{projectGroups.length ? projectGroups.map((group) => <div key={`${group.project}-${group.name}`}><div><strong>{group.name}</strong><small>{group.project} · {group.count ? `包含 ${group.count} 份问卷` : "暂无问卷"}</small></div><span><button onClick={() => { setEditingGroup({ name: group.name, project: group.project }); setEditingGroupName(group.name); }}>编辑</button><button onClick={() => setProjectToDelete(group)}>删除</button></span></div>) : <p>当前项目暂无分组。</p>}</div>
             <footer><button className="secondary-button" onClick={() => setShowProjectManager(false)}>关闭</button></footer>
           </section>
         </div>
@@ -740,12 +790,43 @@ export default function Home() {
         </div>
       )}
 
+      {editingGroup && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setEditingGroup(null)}>
+          <section className="project-delete-modal project-edit-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <h2>编辑项目分组</h2>
+            <p>所属项目：{editingGroup.project}</p>
+            <label><span>分组名称</span><input autoFocus value={editingGroupName} onChange={(event) => setEditingGroupName(event.target.value)} onKeyDown={(event) => event.key === "Enter" && renameProjectGroup()} /></label>
+            <footer><button className="secondary-button" onClick={() => setEditingGroup(null)}>取消</button><button className="primary-button" onClick={renameProjectGroup}>保存</button></footer>
+          </section>
+        </div>
+      )}
+
+      {movingSurvey && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setMovingSurvey(null)}>
+          <section className="project-manager-modal move-survey-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <header><div><span className="modal-eyebrow">PROJECT & GROUP</span><h2>更改项目与分组</h2><p>{movingSurvey.name}</p></div><button aria-label="关闭" onClick={() => setMovingSurvey(null)}>×</button></header>
+            <div className="move-survey-form">
+              <label><span>所属项目</span><select value={moveProject} onChange={(event) => { setMoveProject(event.target.value); setMoveGroup(""); }}><option>RO3</option><option>ROOC</option><option>HMT</option><option>RO国服</option><option>通用</option></select></label>
+              <label><span>项目分组</span><input list="move-group-options" value={moveGroup} onChange={(event) => setMoveGroup(event.target.value)} placeholder="选择已有分组或输入新分组" /><datalist id="move-group-options">{projectGroups.filter((group) => group.project === moveProject).map((group) => <option key={`${group.project}-${group.name}`} value={group.name} />)}</datalist><small>输入不存在的名称时，将在该项目下新建分组。</small></label>
+            </div>
+            <footer><button className="secondary-button" onClick={() => setMovingSurvey(null)}>取消</button><button className="primary-button" onClick={saveSurveyProjectGroup}>保存</button></footer>
+          </section>
+        </div>
+      )}
+
       {templateSurvey && (
         <div className="preview-backdrop" onMouseDown={() => setTemplateSurvey(null)}>
           <section className="template-save-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
             <header><div><strong>设为团队模板</strong><small>{templateSurvey.name}</small></div><button onClick={() => setTemplateSurvey(null)}>×</button></header>
             <div>
               <label><span>模板名称</span><input value={templateSurvey.name} readOnly /></label>
+              <label>
+                <span>保存方式</span>
+                <div className="template-mode-options">
+                  <button className={templateMode === "full" ? "selected" : ""} onClick={() => setTemplateMode("full")}><i>▤</i><strong>完整模板</strong><small>保留题目、选项和配置</small></button>
+                  <button className={templateMode === "blank" ? "selected" : ""} onClick={() => setTemplateMode("blank")}><i>□</i><strong>空白模板</strong><small>仅保留题型与配置骨架</small></button>
+                </div>
+              </label>
               <label>
                 <span>模板分类 <b>*</b><small>可选择多个分类</small></span>
                 <details className="template-category-multiselect">

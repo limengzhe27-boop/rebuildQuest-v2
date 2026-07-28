@@ -94,6 +94,7 @@ export default function SurveyEditorPage() {
   const [templateCategories, setTemplateCategories] = useState<string[]>([]);
   const [availableTemplateCategories, setAvailableTemplateCategories] = useState(defaultTemplateCategories);
   const [templateDescription, setTemplateDescription] = useState("");
+  const [templateMode, setTemplateMode] = useState<"blank" | "full">("full");
   const [logicQuestionId, setLogicQuestionId] = useState<string | null>(null);
   const [logicDraft, setLogicDraft] = useState<NonNullable<Question["displayLogic"]> | null>(null);
   const [moreQuestionId, setMoreQuestionId] = useState<string | null>(null);
@@ -138,6 +139,7 @@ export default function SurveyEditorPage() {
     setTemplateName(surveyTitle);
     setTemplateCategories([]);
     setTemplateDescription("");
+    setTemplateMode("full");
     setShowTemplateSave(true);
   }
 
@@ -163,6 +165,17 @@ export default function SurveyEditorPage() {
       languages: draft?.languages?.length ? draft.languages : ["简中"],
       region,
       sourceSurveyId: surveyId,
+      mode: templateMode,
+      schema: templateMode === "full"
+        ? questions
+        : questions.map((question) => ({
+          ...question,
+          title: "",
+          description: "",
+          helpText: undefined,
+          referenceImage: undefined,
+          options: question.options?.map(() => ""),
+        })),
       useCount: 0,
       updatedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
@@ -621,6 +634,17 @@ export default function SurveyEditorPage() {
             <div>
               <label><span>模板名称 <b>*</b></span><input value={templateName} onChange={(event) => setTemplateName(event.target.value)} /></label>
               <label>
+                <span>保存方式 <b>*</b></span>
+                <div className="template-mode-options">
+                  <button className={templateMode === "full" ? "selected" : ""} onClick={() => setTemplateMode("full")}>
+                    <i>▤</i><strong>完整模板</strong><small>保留题目、选项和全部配置，可直接修改使用</small>
+                  </button>
+                  <button className={templateMode === "blank" ? "selected" : ""} onClick={() => setTemplateMode("blank")}>
+                    <i>□</i><strong>空白模板</strong><small>只保留题型与配置，题目和选项需重新填写</small>
+                  </button>
+                </div>
+              </label>
+              <label>
                 <span>模板分类 <b>*</b><small>可选择多个分类</small></span>
                 <details className="template-category-multiselect">
                   <summary>{templateCategories.length ? `已选择 ${templateCategories.length} 个分类` : "请选择模板分类"}<i>⌄</i></summary>
@@ -638,7 +662,7 @@ export default function SurveyEditorPage() {
                 </details>
               </label>
               <label><span>模板说明</span><textarea value={templateDescription} onChange={(event) => setTemplateDescription(event.target.value)} placeholder="说明适用场景、目标用户和使用方式" /></label>
-              <p>保存后可在“模板中心 → 我的模板”中查看，并只能用于相同工作区。</p>
+              <p>保存后可在模板中心查看，并且只能用于相同工作区。</p>
             </div>
             <footer>
               <button className="secondary-button" onClick={() => setShowTemplateSave(false)}>取消</button>
