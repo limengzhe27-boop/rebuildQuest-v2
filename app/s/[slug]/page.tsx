@@ -10,6 +10,7 @@ import {
   RuntimeLocale,
   runtimeLocales,
 } from "@/lib/survey-runtime";
+import { LimitPageContent } from "@/lib/survey-publication";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
 const uiCopy = {
@@ -99,7 +100,7 @@ export default function PlayerSurvey() {
   const [limitPage, setLimitPage] = useState<{
     backgroundMode: "common" | "custom";
     background: string;
-    content: Record<string, { title: string; body: string; linkText: string; linkUrl: string }>;
+    content: Record<string, LimitPageContent>;
     reason: string;
   } | null>(null);
   const [step, setStep] = useState(0);
@@ -134,7 +135,7 @@ export default function PlayerSurvey() {
       }
       if (publication) {
         const existingResponses = JSON.parse(window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`) || "[]") as LiveSurveyResponse[];
-        const joymakerId = searchParams.get("joymaker_id") || window.localStorage.getItem("joydata-joymaker-id") || "";
+        const joymakerId = searchParams.get("joyamaker_id") || searchParams.get("joymaker_id") || window.localStorage.getItem("joydata-joyamaker-id") || window.localStorage.getItem("joydata-joymaker-id") || "";
         const clientIp = searchParams.get("client_ip") || "preview-device-ip";
         const joymakerCount = joymakerId ? existingResponses.filter((item) => item.joymakerId === joymakerId).length : 0;
         const ipCount = existingResponses.filter((item) => item.clientIp === clientIp).length;
@@ -147,7 +148,7 @@ export default function PlayerSurvey() {
             backgroundMode: publication.limitPageBackgroundMode || "common",
             background: publication.limitPageBackground || "",
             content: publication.limitPageContent || {},
-            reason: triggeredByJoymaker ? "JoyMaker 用户已提交" : triggeredByAccount ? "账号提交次数已达上限" : triggeredByIp ? "IP 提交次数已达上限" : "设备提交次数已达上限",
+            reason: triggeredByJoymaker ? "JoyaMaker 用户已提交" : triggeredByAccount ? "账号提交次数已达上限" : triggeredByIp ? "IP 提交次数已达上限" : "设备提交次数已达上限",
           });
         }
       }
@@ -299,7 +300,7 @@ export default function PlayerSurvey() {
         type,
       })),
       source: searchParams.get("ext_value") || searchParams.get("source") || "Direct",
-      joymakerId: searchParams.get("joymaker_id") || window.localStorage.getItem("joydata-joymaker-id") || undefined,
+      joymakerId: searchParams.get("joyamaker_id") || searchParams.get("joymaker_id") || window.localStorage.getItem("joydata-joyamaker-id") || window.localStorage.getItem("joydata-joymaker-id") || undefined,
       clientIp: searchParams.get("client_ip") || "preview-device-ip",
       status: "valid",
     };
@@ -324,19 +325,28 @@ export default function PlayerSurvey() {
   }
 
   if (limitPage) {
-    const content = limitPage.content[locale] || limitPage.content["en-US"] || limitPage.content["zh-CN"] || {
+    const baseContent = limitPage.content[locale] || limitPage.content["en-US"] || limitPage.content["zh-CN"] || {
       title: "You have completed this survey",
       body: "Thank you for participating. The submission limit has been reached.",
-      linkText: "",
-      linkUrl: "",
+      links: [],
+    };
+    const translationLocale = locale === "en-US" ? "EN" : locale === "zh-TW" ? "繁中" : locale === "th-TH" ? "ไทย" : "简中";
+    const resultTranslations = translations[translationLocale] || {};
+    const content: LimitPageContent = {
+      ...baseContent,
+      title: resultTranslations["limit:title"] || baseContent.title,
+      body: resultTranslations["limit:body"] || baseContent.body,
+      links: (baseContent.links || []).map((link) => ({
+        ...link,
+        text: resultTranslations[`limit:link:${link.id}`] || link.text,
+      })),
     };
     return (
       <main className={`player-limit-shell ${limitPage.backgroundMode}`} style={limitPage.backgroundMode === "custom" && limitPage.background ? { backgroundImage: `url(${limitPage.background})` } : undefined}>
         <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
         <section className="player-limit-card">
-          <h1>{content.title}</h1>
-          <p>{content.body}</p>
-          {content.linkText && content.linkUrl && <a href={content.linkUrl} target="_blank" rel="noreferrer">{content.linkText}</a>}
+          {content.title && <h1>{content.title}</h1>}
+          <p><InlineLimitText content={content} /></p>
           <small>{limitPage.reason}</small>
         </section>
       </main>
@@ -344,11 +354,12 @@ export default function PlayerSurvey() {
   }
 
   if (done) {
+    const translationLocale = locale === "en-US" ? "EN" : locale === "zh-TW" ? "繁中" : locale === "th-TH" ? "ไทย" : "简中";
     return (
       <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
         <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
         <section className="player-complete">
-          <span>✓</span><h1>{copy.done}</h1><p>{copy.doneText}</p>
+          <span>✓</span><h1>{copy.done}</h1><p>{translations[translationLocale]?.["form:completion"] || copy.doneText}</p>
           <div><small>Response ID</small><strong>{responseId}</strong></div>
           <button onClick={() => router.push(`/survey/${surveyId}/responses`)}>在答卷列表中查看</button>
         </section>
@@ -387,6 +398,27 @@ export default function PlayerSurvey() {
       <footer className="player-privacy">Privacy protected · Responses stored in the selected data region · Powered by JoyData Survey</footer>
     </main>
   );
+}
+
+function InlineLimitText({ content }: { content: LimitPageContent }) {
+  const normalizedLinks = Array.isArray(content.links)
+    ? content.links
+    : content.linkText
+      ? [{ id: "legacy-link", text: content.linkText, url: content.linkUrl || "" }]
+      : [];
+  const body = content.linkText && !content.body.includes("{{legacy-link}}")
+    ? `${content.body} {{legacy-link}}`
+    : content.body;
+  const links = new Map(normalizedLinks.map((link) => [link.id, link]));
+  return body.split(/(\{\{[^}]+\}\})/g).map((part, index) => {
+    const match = part.match(/^\{\{([^}]+)\}\}$/);
+    const link = match ? links.get(match[1]) : undefined;
+    return link?.url
+      ? <a key={`${link.id}-${index}`} href={link.url} target="_blank" rel="noreferrer">{link.text}</a>
+      : link
+        ? <span key={`${link.id}-${index}`}>{link.text}</span>
+        : <span key={`${part}-${index}`}>{part}</span>;
+  });
 }
 
 function LanguageBar({

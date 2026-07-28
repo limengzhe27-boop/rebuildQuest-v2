@@ -14,7 +14,7 @@ export type SurveyResponse = {
   nps: number;
   feedback: string;
   serialNumber: number;
-  accountType: "JoyMaker" | "LINE" | "匿名";
+  accountType: "JoyaMaker" | "LINE" | "匿名";
   submitIp: string;
   submitOs: string;
   submitBrowser: string;
@@ -59,7 +59,7 @@ const sourceByChannel: Record<string, string> = {
 export const surveyResponses: SurveyResponse[] = baseResponses.map((item, index) => ({
   ...item,
   serialNumber: 8421 - index,
-  accountType: item.playerId.startsWith("JM-") ? "JoyMaker" : item.playerId.startsWith("LINE-") ? "LINE" : "匿名",
+  accountType: item.playerId.startsWith("JM-") ? "JoyaMaker" : item.playerId.startsWith("LINE-") ? "LINE" : "匿名",
   submitIp: ipPool[index % ipPool.length],
   submitOs: item.device === "Windows" ? "Windows 11" : item.device === "Android" ? "Android 15" : "iOS 19",
   submitBrowser: browserByDevice[item.device] || "WebView",

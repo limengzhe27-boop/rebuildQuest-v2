@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultQuestions, loadQuestions, Question } from "@/lib/survey-builder";
+import { LimitPageContent, loadPublications, Publication } from "@/lib/survey-publication";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
@@ -52,6 +53,17 @@ const previewLocaleNames: Record<string, string> = {
   ไทย: "ภาษาไทย",
 };
 
+function InlinePreviewContent({ content }: { content: LimitPageContent }) {
+  const links = new Map((content.links || []).map((link) => [link.id, link]));
+  return content.body.split(/(\{\{[^}]+\}\})/g).map((part, index) => {
+    const match = part.match(/^\{\{([^}]+)\}\}$/);
+    const link = match ? links.get(match[1]) : undefined;
+    return link
+      ? <a key={`${link.id}-${index}`} href={link.url || undefined} onClick={(event) => event.preventDefault()}>{link.text || "链接文字"}</a>
+      : <span key={`${part}-${index}`}>{part}</span>;
+  });
+}
+
 export default function AppearancePage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -60,16 +72,19 @@ export default function AppearancePage() {
   const [config, setConfig] = useState<Appearance>(defaults);
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+  const [previewState, setPreviewState] = useState<"form" | "complete" | "limit">("form");
   const [pageIndex, setPageIndex] = useState(0);
   const [previewLocale, setPreviewLocale] = useState("简中");
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
   const [verifiedLocales, setVerifiedLocales] = useState<Record<string, boolean>>({});
   const [notice, setNotice] = useState("");
+  const [publication, setPublication] = useState<Publication | null>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`);
     if (saved) setConfig({ ...defaults, ...JSON.parse(saved) });
     setQuestions(loadQuestions(surveyId));
+    setPublication(loadPublications(surveyId)[0] || null);
     try {
       const savedTranslations = window.localStorage.getItem(`joydata-survey-translations-${surveyId}`);
       const savedVerified = window.localStorage.getItem(`joydata-survey-translation-verified-${surveyId}`);
@@ -97,6 +112,19 @@ export default function AppearancePage() {
   const hasPagination = pages.length > 1;
   const visibleQuestions = hasPagination ? pages[Math.min(pageIndex, pages.length - 1)] : pages.flat();
   const availablePreviewLocales = ["简中", ...Object.keys(verifiedLocales).filter((locale) => verifiedLocales[locale])];
+  const previewRuntimeLocale = previewLocale === "EN" ? "en-US" : previewLocale === "繁中" ? "zh-TW" : previewLocale === "ไทย" ? "th-TH" : "zh-CN";
+  const limitContent = publication?.limitPageContent?.[previewRuntimeLocale]
+    || publication?.limitPageContent?.[publication?.defaultLocale || "zh-CN"]
+    || { title: "", body: "当前账号或填写环境已达到提交次数限制。", links: [] };
+  const previewLimitContent: LimitPageContent = {
+    ...limitContent,
+    title: translated("limit:title", limitContent.title),
+    body: translated("limit:body", limitContent.body),
+    links: (limitContent.links || []).map((link) => ({
+      ...link,
+      text: translated(`limit:link:${link.id}`, link.text),
+    })),
+  };
 
   function translated(fieldId: string, fallback: string, legacyId?: string) {
     if (previewLocale === "简中") return fallback;
@@ -172,10 +200,15 @@ export default function AppearancePage() {
           <div className="preview-device-toggle">
             <button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")}>▱ 桌面端</button>
             <button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")}>▯ 移动端</button>
+            <div className="appearance-state-preview">
+              <button className={previewState === "form" ? "active" : ""} onClick={() => setPreviewState("form")}>填写页</button>
+              <button className={previewState === "complete" ? "active" : ""} onClick={() => setPreviewState("complete")}>提交完成页</button>
+              <button className={previewState === "limit" ? "active" : ""} onClick={() => setPreviewState("limit")}>限制结果页</button>
+            </div>
             <label className="appearance-language-preview"><span>预览语言</span><select value={previewLocale} onChange={(event) => { setPreviewLocale(event.target.value); setPageIndex(0); }}>{availablePreviewLocales.map((locale) => <option key={locale} value={locale}>{previewLocaleNames[locale] || locale}</option>)}</select></label>
           </div>
           <div className={`survey-device ${device} ${config.density} font-${config.fontSize} button-${config.buttonStyle}`}>
-            <div className="player-mini-page player-scroll-page">
+            {previewState === "form" ? <div className="player-mini-page player-scroll-page">
               {config.languageSwitch && (
                 <label className="appearance-player-language">
                   <span>🌐</span>
@@ -196,7 +229,25 @@ export default function AppearancePage() {
                   </div>
                 </footer>
               </main>
-            </div>
+            </div> : previewState === "complete" ? (
+              <div className="appearance-result-preview">
+                {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
+                <article>
+                  <i>✓</i>
+                  <h1>{translated("form:completion:title", "提交成功")}</h1>
+                  <p>{translated("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。")}</p>
+                </article>
+              </div>
+            ) : (
+              <div className={`appearance-result-preview limit ${publication?.limitPageBackgroundMode === "custom" && publication.limitPageBackground ? "custom" : ""}`} style={publication?.limitPageBackgroundMode === "custom" && publication.limitPageBackground ? { backgroundImage: `url(${publication.limitPageBackground})` } : undefined}>
+                {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
+                <article>
+                  {previewLimitContent.title && <h1>{previewLimitContent.title}</h1>}
+                  <p><InlinePreviewContent content={previewLimitContent} /></p>
+                  <small>仅在账号、JoyaMaker、IP 或设备限制命中时展示</small>
+                </article>
+              </div>
+            )}
           </div>
         </section>
       </div>

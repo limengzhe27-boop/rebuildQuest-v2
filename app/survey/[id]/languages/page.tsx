@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultQuestions, loadQuestions, Question } from "@/lib/survey-builder";
+import { loadPublications, Publication } from "@/lib/survey-publication";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
@@ -47,6 +48,7 @@ export default function LanguagesPage() {
   const [verifiedLocales, setVerifiedLocales] = useState<Record<string, boolean>>({});
   const [configuredLanguages, setConfiguredLanguages] = useState(["简中", "EN", "繁中", "ไทย"]);
   const [fallbackLanguage, setFallbackLanguage] = useState("简中");
+  const [publication, setPublication] = useState<Publication | null>(null);
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const sourceScrollRef = useRef<HTMLDivElement>(null);
@@ -55,6 +57,7 @@ export default function LanguagesPage() {
 
   useEffect(() => {
     setQuestions(loadQuestions(surveyId));
+    setPublication(loadPublications(surveyId)[0] || null);
     try {
       const saved = window.localStorage.getItem(`joydata-survey-translations-${surveyId}`);
       const verified = window.localStorage.getItem(`joydata-survey-translation-verified-${surveyId}`);
@@ -90,9 +93,21 @@ export default function LanguagesPage() {
       if (question.description.trim()) result.push({ id: `${question.id}:description`, source: question.description });
       question.options?.forEach((option, index) => result.push({ id: `${question.id}:option:${index}`, source: option }));
     });
-    result.push({ id: "form:completion", source: "感谢您的参与，问卷已成功提交。" });
+    result.push({ id: "form:completion", source: publication?.completionMessage || "感谢您的参与，问卷已成功提交。" });
+    const sourceLocale = publication?.defaultLocale || "zh-CN";
+    const limitContent = publication?.limitPageContent?.[sourceLocale];
+    if (limitContent?.title) result.push({ id: "limit:title", source: limitContent.title });
+    if (limitContent?.body) result.push({ id: "limit:body", source: limitContent.body });
+    limitContent?.links?.forEach((link) => result.push({ id: `limit:link:${link.id}`, source: link.text }));
     return result;
-  }, [questions, surveyTitle]);
+  }, [publication, questions, surveyTitle]);
+
+  const sourceLimitContent = publication?.limitPageContent?.[publication?.defaultLocale || "zh-CN"]
+    || { title: "", body: "当前账号或填写环境已达到提交次数限制。", links: [] };
+  const sourceLimitPlainText = sourceLimitContent.links.reduce(
+    (text, link) => text.replaceAll(`{{${link.id}}}`, link.text),
+    sourceLimitContent.body,
+  );
 
   function rawTranslation(id: string, legacyId?: string) {
     return translations[activeLocale]?.[id] || (legacyId ? translations[activeLocale]?.[legacyId] : "") || "";
@@ -237,7 +252,12 @@ export default function LanguagesPage() {
                 <div className="language-phone-scroll" ref={sourceScrollRef} onScroll={(event) => targetScrollRef.current && synchronizeScroll(event.currentTarget, targetScrollRef.current)}>
                   <div className="translation-phone-cover"><span>RO3 · PLAYER RESEARCH</span><h1>{surveyTitle}</h1><p>感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。</p></div>
                   <div className="translation-phone-content">{questions.map(sourceQuestion)}</div>
-                  <div className="translation-phone-complete"><span>✓</span><strong>感谢您的参与，问卷已成功提交。</strong></div>
+                  <div className="translation-phone-complete"><span>✓</span><strong>{publication?.completionMessage || "感谢您的参与，问卷已成功提交。"}</strong></div>
+                  <div className="translation-result-section">
+                    <small>重复填写限制结果页 · 原文</small>
+                    {sourceLimitContent.title && <h2>{sourceLimitContent.title}</h2>}
+                    <p>{sourceLimitPlainText}</p>
+                  </div>
                 </div>
               </div>
             </section>
@@ -254,7 +274,14 @@ export default function LanguagesPage() {
                     {editableField("form:intro", "感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。", "问卷说明")}
                   </div>
                   <div className="translation-phone-content">{questions.map(targetQuestion)}</div>
-                  <div className="translation-phone-complete editable-complete">{editableField("form:completion", "感谢您的参与，问卷已成功提交。", "完成提示")}</div>
+                  <div className="translation-phone-complete editable-complete">{editableField("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。", "提交完成页")}</div>
+                  <div className="translation-result-section editable">
+                    <small>重复填写限制结果页 · 翻译</small>
+                    {sourceLimitContent.title && editableField("limit:title", sourceLimitContent.title, "标题（可留空）")}
+                    {editableField("limit:body", sourceLimitContent.body, "正文")}
+                    {sourceLimitContent.links.map((link, index) => editableField(`limit:link:${link.id}`, link.text, `链接 ${index + 1} 文字`))}
+                    <p className="translation-token-tip">正文中的 {"{{link-id}}"} 是链接位置标记，请保留；链接地址沿用原文设置，无需重复填写。</p>
+                  </div>
                 </div>
               </div>
             </section>

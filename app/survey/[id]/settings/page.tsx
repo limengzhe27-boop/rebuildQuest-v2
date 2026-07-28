@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { defaultPublications, loadPublications, Publication } from "@/lib/survey-publication";
+import { defaultPublications, LimitPageContent, loadPublications, Publication } from "@/lib/survey-publication";
 import { loadQuestions, Question } from "@/lib/survey-builder";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
@@ -17,6 +17,7 @@ export default function SurveySettingsPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [autoSave, setAutoSave] = useState(true);
   const [draftInfo, setDraftInfo] = useState({ game: "RO3", group: "", description: "", note: "" });
+  const [sourceLanguage, setSourceLanguage] = useState("zh-CN");
   const [allProjectGroups, setAllProjectGroups] = useState<Array<{ project: string; name: string }>>([
     { project: "RO3", name: "3.6版本先锋测试" },
     { project: "RO3", name: "3.7版本回归调研" },
@@ -25,10 +26,12 @@ export default function SurveySettingsPage() {
     { project: "RO国服", name: "2026暑期回归研究" },
     { project: "通用", name: "公司通用调研" },
   ]);
-  const [limitPageLocale, setLimitPageLocale] = useState("zh-CN");
+  const [backgroundFileName, setBackgroundFileName] = useState("");
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
+  const limitBodyRef = useRef<HTMLTextAreaElement>(null);
+  const backgroundInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setPublications(loadPublications(surveyId));
@@ -37,7 +40,19 @@ export default function SurveySettingsPage() {
     try {
       const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
       const draft = drafts.find((item: { id?: number | string }) => String(item.id) === String(surveyId));
-      if (draft) setDraftInfo({ game: draft.game || "通用", group: draft.group || "", description: draft.description || "", note: draft.note || "" });
+      if (draft) {
+        setDraftInfo({ game: draft.game || "通用", group: draft.group || "", description: draft.description || "", note: draft.note || "" });
+        const draftSource = draft.defaultLanguage || draft.languages?.[0] || "简中";
+        setSourceLanguage(
+          ["EN", "English", "en-US"].includes(draftSource)
+            ? "en-US"
+            : ["繁中", "繁體中文", "zh-TW"].includes(draftSource)
+              ? "zh-TW"
+              : ["ไทย", "th-TH"].includes(draftSource)
+                ? "th-TH"
+                : "zh-CN",
+        );
+      }
       const customGroups = JSON.parse(window.localStorage.getItem("joydata-survey-projects") || "[]");
       const groups = [
         ...drafts.map((item: { game?: string; group?: string }) => ({ project: item.game || "通用", name: item.group || "" })),
@@ -77,6 +92,13 @@ export default function SurveySettingsPage() {
   }, [draftInfo, hydrated, surveyId]);
 
   const selected = publications[0];
+  const sourceLocale = sourceLanguage;
+  const sourceLocaleName = {
+    "zh-CN": "简体中文",
+    "en-US": "English",
+    "zh-TW": "繁體中文",
+    "th-TH": "ไทย",
+  }[sourceLocale] || sourceLocale;
 
   function updateSelected(patch: Partial<Publication>) {
     setPublications((current) =>
@@ -89,15 +111,86 @@ export default function SurveySettingsPage() {
     window.setTimeout(() => setNotice(""), 2200);
   }
 
-  function updateLimitContent(patch: Partial<{ title: string; body: string; linkText: string; linkUrl: string }>) {
+  function currentLimitContent(): LimitPageContent {
+    const content = selected.limitPageContent?.[sourceLocale];
+    return {
+      title: content?.title || "",
+      body: content?.body || "",
+      links: Array.isArray(content?.links) ? content.links : [],
+    };
+  }
+
+  function updateLimitContent(patch: Partial<LimitPageContent>) {
     updateSelected({
       limitPageContent: {
         ...selected.limitPageContent,
-        [limitPageLocale]: {
-          ...(selected.limitPageContent?.[limitPageLocale] || { title: "", body: "", linkText: "", linkUrl: "" }),
+        [sourceLocale]: {
+          ...currentLimitContent(),
           ...patch,
         },
       },
+    });
+  }
+
+  function insertLimitLink() {
+    const content = currentLimitContent();
+    const id = `link-${Date.now()}`;
+    const token = `{{${id}}}`;
+    const start = limitBodyRef.current?.selectionStart ?? content.body.length;
+    const end = limitBodyRef.current?.selectionEnd ?? start;
+    const body = `${content.body.slice(0, start)}${token}${content.body.slice(end)}`;
+    updateLimitContent({
+      body,
+      links: [...content.links, { id, text: "链接文字", url: "" }],
+    });
+    window.requestAnimationFrame(() => {
+      limitBodyRef.current?.focus();
+      limitBodyRef.current?.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
+
+  function updateLimitLink(linkId: string, patch: Partial<LimitPageContent["links"][number]>) {
+    const content = currentLimitContent();
+    updateLimitContent({
+      links: content.links.map((link) => link.id === linkId ? { ...link, ...patch } : link),
+    });
+  }
+
+  function removeLimitLink(linkId: string) {
+    const content = currentLimitContent();
+    updateLimitContent({
+      body: content.body.replaceAll(`{{${linkId}}}`, ""),
+      links: content.links.filter((link) => link.id !== linkId),
+    });
+  }
+
+  function uploadLimitBackground(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      flash("请选择图片文件");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      flash("图片不能超过 5MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateSelected({ limitPageBackgroundMode: "custom", limitPageBackground: String(reader.result || "") });
+      setBackgroundFileName(file.name);
+      flash("背景图片已上传");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function renderInlineLimitText(content: LimitPageContent) {
+    const links = new Map(content.links.map((link) => [link.id, link]));
+    return content.body.split(/(\{\{[^}]+\}\})/g).map((part, index) => {
+      const match = part.match(/^\{\{([^}]+)\}\}$/);
+      const link = match ? links.get(match[1]) : undefined;
+      return link
+        ? <a key={`${link.id}-${index}`} href={link.url || undefined} onClick={(event) => event.preventDefault()}>{link.text || "链接文字"}</a>
+        : <span key={`${part}-${index}`}>{part}</span>;
     });
   }
 
@@ -229,7 +322,7 @@ export default function SurveySettingsPage() {
                   <div><p><strong>填写时自动暂存数据</strong><small>玩家中途关闭后，再次打开可以继续填写</small></p><button className={`mini-switch ${autoSave ? "on" : ""}`} onClick={() => setAutoSave(!autoSave)}><i /></button></div>
                   <div><p><strong>填充上次填写数据</strong><small>同一账号再次填写时，预填上一次已提交的答案</small></p><button className={`mini-switch ${selected.prefillLastSubmission ? "on" : ""}`} onClick={() => updateSelected({ prefillLastSubmission: !selected.prefillLastSubmission })}><i /></button></div>
                   <div className="setting-with-input"><p><strong>密码填写</strong><small>玩家输入统一密码后才能进入问卷</small></p><input disabled={selected.accessGate !== "password"} value={selected.accessPassword} onChange={(event) => updateSelected({ accessPassword: event.target.value })} placeholder="设置访问密码" /><button className={`mini-switch ${selected.accessGate === "password" ? "on" : ""}`} onClick={() => updateSelected({ accessGate: selected.accessGate === "password" ? "open" : "password" })}><i /></button></div>
-                  <div><p><strong>JoyMaker 登录填写</strong><small>使用 JoyMaker / JoyID 识别玩家账号</small></p><button className={`mini-switch ${selected.joymakerLogin ? "on" : ""}`} onClick={() => updateSelected({ joymakerLogin: !selected.joymakerLogin })}><i /></button></div>
+                  <div><p><strong>JoyaMaker 登录填写</strong><small>使用 JoyaMaker / JoyID 识别玩家账号</small></p><button className={`mini-switch ${selected.joymakerLogin ? "on" : ""}`} onClick={() => updateSelected({ joymakerLogin: !selected.joymakerLogin })}><i /></button></div>
                   {selected.region === "global" && <div><p><strong>LINE 登录填写</strong><small>适用于已接入 LINE 的海外发行渠道</small></p><button className={`mini-switch ${selected.lineLogin ? "on" : ""}`} onClick={() => updateSelected({ lineLogin: !selected.lineLogin })}><i /></button></div>}
                   <div><p><strong>记录登录用户基础信息</strong><small>记录账号标识、地区和已授权的基础属性</small></p><button className={`mini-switch ${selected.captureUserProfile ? "on" : ""}`} onClick={() => updateSelected({ captureUserProfile: !selected.captureUserProfile })}><i /></button></div>
                 </div>
@@ -275,7 +368,7 @@ export default function SurveySettingsPage() {
               <section className="config-card">
                 <header><div><strong>单个用户与环境限制</strong><small>减少重复提交；相关标识仅用于问卷风控</small></div></header>
                 <div className="setting-switch-list">
-                  <div><p><strong>JoyMaker 用户不可重复提交</strong><small>登录后按 JoyID 唯一标识校验；开启后同一用户仅能成功提交一次</small></p><button className={`mini-switch ${selected.joymakerUniqueSubmission ? "on" : ""}`} onClick={() => updateSelected({ joymakerUniqueSubmission: !selected.joymakerUniqueSubmission, joymakerLogin: true })}><i /></button></div>
+                  <div><p><strong>JoyaMaker 用户不可重复提交</strong><small>登录后按 JoyID 唯一标识校验；开启后同一用户仅能成功提交一次</small></p><button className={`mini-switch ${selected.joymakerUniqueSubmission ? "on" : ""}`} onClick={() => updateSelected({ joymakerUniqueSubmission: !selected.joymakerUniqueSubmission, joymakerLogin: true })}><i /></button></div>
                   <div className="setting-with-input"><p><strong>每个账号答题次数限制</strong><small>需要登录后才能精确识别账号</small></p><input disabled={!selected.accountLimitEnabled} type="number" min={1} value={selected.perAccountLimit} onChange={(event) => updateSelected({ perAccountLimit: Number(event.target.value) })} /><button className={`mini-switch ${selected.accountLimitEnabled ? "on" : ""}`} onClick={() => updateSelected({ accountLimitEnabled: !selected.accountLimitEnabled })}><i /></button></div>
                   <div className="setting-with-input"><p><strong>每个 IP 答题次数限制</strong><small>作为辅助风控信号，避免同一网络环境重复提交</small></p><input disabled={!selected.ipLimit} type="number" min={1} value={selected.perIpLimit} onChange={(event) => updateSelected({ perIpLimit: Number(event.target.value) })} /><button className={`mini-switch ${selected.ipLimit ? "on" : ""}`} onClick={() => updateSelected({ ipLimit: !selected.ipLimit })}><i /></button></div>
                   <div className="setting-with-input"><p><strong>每台设备答题次数限制</strong><small>通过匿名设备标识限制重复提交</small></p><input disabled={!selected.deviceLimit} type="number" min={1} value={selected.perDeviceLimit} onChange={(event) => updateSelected({ perDeviceLimit: Number(event.target.value) })} /><button className={`mini-switch ${selected.deviceLimit ? "on" : ""}`} onClick={() => updateSelected({ deviceLimit: !selected.deviceLimit })}><i /></button></div>
@@ -284,7 +377,7 @@ export default function SurveySettingsPage() {
 
               <section className="config-card limit-result-config">
                 <header>
-                  <div><strong>重复填写限制结果页</strong><small>仅当 JoyMaker、账号、IP 或设备限制被触发时展示；未启用限制时不会出现</small></div>
+                  <div><strong>重复填写限制结果页</strong><small>仅当 JoyaMaker、账号、IP 或设备限制被触发时展示；未启用限制时不会出现</small></div>
                   <span className={(selected.joymakerUniqueSubmission || selected.accountLimitEnabled || selected.ipLimit || selected.deviceLimit) ? "auto-stop-tag active" : "auto-stop-tag"}>{(selected.joymakerUniqueSubmission || selected.accountLimitEnabled || selected.ipLimit || selected.deviceLimit) ? "已启用" : "未启用"}</span>
                 </header>
                 <div className="limit-result-layout">
@@ -294,17 +387,39 @@ export default function SurveySettingsPage() {
                       <button className={selected.limitPageBackgroundMode === "common" ? "active" : ""} onClick={() => updateSelected({ limitPageBackgroundMode: "common" })}>项目通用背景</button>
                       <button className={selected.limitPageBackgroundMode === "custom" ? "active" : ""} onClick={() => updateSelected({ limitPageBackgroundMode: "custom" })}>自定义</button>
                     </div>
-                    {selected.limitPageBackgroundMode === "custom" && <label><span>自定义背景图片地址</span><input value={selected.limitPageBackground} onChange={(event) => updateSelected({ limitPageBackground: event.target.value })} placeholder="https://... 或由素材系统返回的图片地址" /></label>}
-                    <label><span>编辑语言</span><select value={limitPageLocale} onChange={(event) => setLimitPageLocale(event.target.value)}><option value="zh-CN">简体中文</option><option value="en-US">English</option><option value="zh-TW">繁體中文</option><option value="th-TH">ไทย</option></select></label>
-                    <label><span>标题</span><input value={selected.limitPageContent?.[limitPageLocale]?.title || ""} onChange={(event) => updateLimitContent({ title: event.target.value })} /></label>
-                    <label><span>说明文本</span><textarea value={selected.limitPageContent?.[limitPageLocale]?.body || ""} onChange={(event) => updateLimitContent({ body: event.target.value })} /></label>
-                    <div className="limit-link-fields">
-                      <label><span>链接文字（选填）</span><input value={selected.limitPageContent?.[limitPageLocale]?.linkText || ""} onChange={(event) => updateLimitContent({ linkText: event.target.value })} placeholder="例如：立即预约" /></label>
-                      <label><span>跳转 URL（选填）</span><input value={selected.limitPageContent?.[limitPageLocale]?.linkUrl || ""} onChange={(event) => updateLimitContent({ linkUrl: event.target.value })} placeholder="https://" /></label>
+                    {selected.limitPageBackgroundMode === "custom" && (
+                      <div className="limit-background-upload">
+                        <input ref={backgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadLimitBackground(event.target.files?.[0])} />
+                        <button type="button" onClick={() => backgroundInputRef.current?.click()}>▧ 上传背景图片</button>
+                        <div><strong>{backgroundFileName || (selected.limitPageBackground ? "已上传自定义背景" : "尚未上传图片")}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>
+                        {selected.limitPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ limitPageBackground: "" }); setBackgroundFileName(""); }}>移除</button>}
+                      </div>
+                    )}
+                    <div className="limit-source-language">
+                      <span>原文语言</span><strong>{sourceLocaleName}</strong><small>这里只编辑原文，其他语言统一在“多语言”模块翻译与校验。</small>
                     </div>
+                    <label><span>标题（选填）</span><input value={currentLimitContent().title} onChange={(event) => updateLimitContent({ title: event.target.value })} placeholder="留空时结果页不显示标题" /></label>
+                    <label>
+                      <span>说明正文</span>
+                      <textarea ref={limitBodyRef} value={currentLimitContent().body} onChange={(event) => updateLimitContent({ body: event.target.value })} />
+                      <small>将光标放在正文任意位置，再点击“插入链接”。同一段文字可插入多个链接。</small>
+                    </label>
+                    <button className="insert-inline-link" type="button" onClick={insertLimitLink}>＋ 插入链接</button>
+                    {currentLimitContent().links.length > 0 && (
+                      <div className="limit-inline-links">
+                        {currentLimitContent().links.map((link, index) => (
+                          <div key={link.id}>
+                            <span>链接 {index + 1}</span>
+                            <input value={link.text} onChange={(event) => updateLimitLink(link.id, { text: event.target.value })} placeholder="链接文字" />
+                            <input value={link.url} onChange={(event) => updateLimitLink(link.id, { url: event.target.value })} placeholder="https://" />
+                            <button type="button" onClick={() => removeLimitLink(link.id)} aria-label={`删除链接 ${index + 1}`}>×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className={`limit-result-preview ${selected.limitPageBackgroundMode === "custom" && selected.limitPageBackground ? "custom" : ""}`} style={selected.limitPageBackgroundMode === "custom" && selected.limitPageBackground ? { backgroundImage: `url(${selected.limitPageBackground})` } : undefined}>
-                    <article><h3>{selected.limitPageContent?.[limitPageLocale]?.title || "您已完成本次问卷"}</h3><p>{selected.limitPageContent?.[limitPageLocale]?.body || "感谢您的参与，当前账号或填写环境已达到提交次数限制。"}</p>{selected.limitPageContent?.[limitPageLocale]?.linkText && <a>{selected.limitPageContent[limitPageLocale].linkText}</a>}</article>
+                    <article>{currentLimitContent().title && <h3>{currentLimitContent().title}</h3>}<p>{renderInlineLimitText(currentLimitContent())}</p></article>
                   </div>
                 </div>
               </section>

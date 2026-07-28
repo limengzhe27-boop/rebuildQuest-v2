@@ -30,7 +30,7 @@ const userDistributions = [
   { title: "问卷语言", field: "locale", rows: [["English", 5226], ["繁體中文", 1632], ["ไทย", 1293], ["简体中文", 270]] },
   { title: "访问来源", field: "ext_value.source", rows: [["Discord（示例）", 2738], ["Facebook Ads（示例）", 2013], ["Steam 社区（示例）", 1398], ["LINE 社群（示例）", 1052], ["X / Twitter（示例）", 724], ["直接访问", 496]] },
   { title: "设备系统", field: "submit_os", rows: [["Windows", 3664], ["Android", 2431], ["iOS", 1987], ["其他", 339]] },
-  { title: "账号类型", field: "joy_user_info / line_user_info", rows: [["JoyMaker", 4218], ["LINE", 1867], ["匿名", 2336]] },
+  { title: "账号类型", field: "joy_user_info / line_user_info", rows: [["JoyaMaker", 4218], ["LINE", 1867], ["匿名", 2336]] },
 ] as const;
 
 export default function AnalyticsPage() {
@@ -103,7 +103,7 @@ export default function AnalyticsPage() {
           </article>
         </div> : <div className="user-distribution-content">
           <div className="user-distribution-summary">
-            <span><small>识别用户</small><strong>6,982</strong><em>JoyMaker 或 LINE 去重</em></span>
+            <span><small>识别用户</small><strong>6,982</strong><em>JoyaMaker 或 LINE 去重</em></span>
             <span><small>匿名答卷</small><strong>2,336</strong><em>无账号标识</em></span>
             <span><small>覆盖国家/地区</small><strong>42</strong><em>基于提交地址</em></span>
           </div>

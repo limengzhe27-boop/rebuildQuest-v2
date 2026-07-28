@@ -19,8 +19,13 @@ export type PublicationChannel = {
 export type LimitPageContent = {
   title: string;
   body: string;
-  linkText: string;
-  linkUrl: string;
+  links: Array<{
+    id: string;
+    text: string;
+    url: string;
+  }>;
+  linkText?: string;
+  linkUrl?: string;
 };
 
 export type Publication = {
@@ -121,10 +126,10 @@ export const defaultPublications: Publication[] = [
     limitPageBackgroundMode: "common",
     limitPageBackground: "",
     limitPageContent: {
-      "en-US": { title: "You have completed this survey", body: "Thank you for participating. This account or environment has reached the submission limit.", linkText: "Make a reservation now", linkUrl: "" },
-      "zh-CN": { title: "您已完成本次问卷", body: "感谢您的参与，当前账号或填写环境已达到提交次数限制。", linkText: "立即预约", linkUrl: "" },
-      "zh-TW": { title: "您已完成本次問卷", body: "感謝您的參與，目前帳號或填寫環境已達提交次數限制。", linkText: "立即預約", linkUrl: "" },
-      "th-TH": { title: "คุณทำแบบสอบถามนี้เสร็จแล้ว", body: "ขอบคุณที่เข้าร่วม บัญชีหรือสภาพแวดล้อมนี้ถึงขีดจำกัดการส่งแล้ว", linkText: "จองตอนนี้", linkUrl: "" },
+      "en-US": { title: "You have completed this survey", body: "Thank you for participating. This account or environment has reached the submission limit.", links: [] },
+      "zh-CN": { title: "您已完成本次问卷", body: "感谢您的参与，当前账号或填写环境已达到提交次数限制。", links: [] },
+      "zh-TW": { title: "您已完成本次問卷", body: "感謝您的參與，目前帳號或填寫環境已達提交次數限制。", links: [] },
+      "th-TH": { title: "คุณทำแบบสอบถามนี้เสร็จแล้ว", body: "ขอบคุณที่เข้าร่วม บัญชีหรือสภาพแวดล้อมนี้ถึงขีดจำกัดการส่งแล้ว", links: [] },
     },
     redirectUrl: "",
     redirectRules: [],
@@ -179,10 +184,10 @@ export const defaultPublications: Publication[] = [
     limitPageBackgroundMode: "common",
     limitPageBackground: "",
     limitPageContent: {
-      "zh-CN": { title: "您已完成本次问卷", body: "感谢您的参与，当前账号或填写环境已达到提交次数限制。", linkText: "立即预约", linkUrl: "" },
-      "en-US": { title: "You have completed this survey", body: "Thank you for participating. This account or environment has reached the submission limit.", linkText: "Make a reservation now", linkUrl: "" },
-      "zh-TW": { title: "您已完成本次問卷", body: "感謝您的參與，目前帳號或填寫環境已達提交次數限制。", linkText: "立即預約", linkUrl: "" },
-      "th-TH": { title: "คุณทำแบบสอบถามนี้เสร็จแล้ว", body: "ขอบคุณที่เข้าร่วม บัญชีหรือสภาพแวดล้อมนี้ถึงขีดจำกัดการส่งแล้ว", linkText: "จองตอนนี้", linkUrl: "" },
+      "zh-CN": { title: "您已完成本次问卷", body: "感谢您的参与，当前账号或填写环境已达到提交次数限制。", links: [] },
+      "en-US": { title: "You have completed this survey", body: "Thank you for participating. This account or environment has reached the submission limit.", links: [] },
+      "zh-TW": { title: "您已完成本次問卷", body: "感謝您的參與，目前帳號或填寫環境已達提交次數限制。", links: [] },
+      "th-TH": { title: "คุณทำแบบสอบถามนี้เสร็จแล้ว", body: "ขอบคุณที่เข้าร่วม บัญชีหรือสภาพแวดล้อมนี้ถึงขีดจำกัดการส่งแล้ว", links: [] },
     },
     redirectUrl: "",
     redirectRules: [],
@@ -194,6 +199,34 @@ export const defaultPublications: Publication[] = [
     slug: "ro3-cn-beta",
   },
 ];
+
+function normalizeLimitContent(content: Record<string, LimitPageContent> = {}) {
+  return Object.fromEntries(
+    Object.entries(content).map(([locale, item]) => {
+      const legacyLink = item.linkText
+        ? [{ id: "legacy-link", text: item.linkText, url: item.linkUrl || "" }]
+        : [];
+      const hasLegacyToken = item.linkText && !item.body.includes("{{legacy-link}}");
+      return [
+        locale,
+        {
+          title: item.title || "",
+          body: hasLegacyToken ? `${item.body} {{legacy-link}}` : item.body || "",
+          links: Array.isArray(item.links) ? item.links : legacyLink,
+        },
+      ];
+    }),
+  ) as Record<string, LimitPageContent>;
+}
+
+function normalizePublication(item: Publication): Publication {
+  const preset = defaultPublications.find((candidate) => candidate.region === item.region);
+  const merged = { ...preset, ...item } as Publication;
+  return {
+    ...merged,
+    limitPageContent: normalizeLimitContent(merged.limitPageContent),
+  };
+}
 
 export function loadPublications(surveyId: string): Publication[] {
   if (typeof window === "undefined") return defaultPublications;
@@ -210,22 +243,19 @@ export function loadPublications(surveyId: string): Publication[] {
     if (!saved) {
       return defaultPublications
         .filter((item) => item.region === workspaceRegion)
-        .map((item) => ({ ...item }));
+        .map(normalizePublication);
     }
     const parsed = JSON.parse(saved) as Publication[];
     const inWorkspace = parsed.filter((item) => item.region === workspaceRegion);
     const source = inWorkspace.length
       ? inWorkspace
       : defaultPublications.filter((item) => item.region === workspaceRegion);
-    return source.map((item) => ({
-        ...defaultPublications.find((preset) => preset.region === item.region),
-        ...item,
-      }));
+    return source.map(normalizePublication);
   } catch {
     const fallbackRegion: Region = ["4", "5"].includes(String(surveyId)) ? "china" : "global";
     return defaultPublications
       .filter((item) => item.region === fallbackRegion)
-      .map((item) => ({ ...item }));
+      .map(normalizePublication);
   }
 }
 
