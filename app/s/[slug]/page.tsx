@@ -97,6 +97,7 @@ export default function PlayerSurvey() {
   const [primary, setPrimary] = useState("#356fe6");
   const [surveyDescription, setSurveyDescription] = useState("");
   const [completionImage, setCompletionImage] = useState("");
+  const [identityMismatch, setIdentityMismatch] = useState(false);
   const [closedMessage, setClosedMessage] = useState("");
   const [closedReason, setClosedReason] = useState<"ended" | "not-started" | "outside-hours">("ended");
   const [limitPage, setLimitPage] = useState<{
@@ -139,7 +140,32 @@ export default function PlayerSurvey() {
       if (publication) {
         setCompletionImage(publication.completionImage || "");
         const existingResponses = JSON.parse(window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`) || "[]") as LiveSurveyResponse[];
-        const joymakerId = searchParams.get("joyamaker_id") || searchParams.get("joymaker_id") || window.localStorage.getItem("joydata-joyamaker-id") || window.localStorage.getItem("joydata-joymaker-id") || "";
+        const boundIdentity =
+          searchParams.get("bound_user_id")
+          || searchParams.get("link_user_id")
+          || searchParams.get("joyamaker_id")
+          || searchParams.get("joymaker_id")
+          || "";
+        const currentIdentity =
+          searchParams.get("current_user_id")
+          || window.localStorage.getItem("joydata-joyamaker-id")
+          || window.localStorage.getItem("joydata-joymaker-id")
+          || "";
+        const linkLocale =
+          matchRuntimeLocale(searchParams.get("lang") || searchParams.get("locale") || searchParams.get("language"))
+          || matchRuntimeLocale(publication.defaultLocale)
+          || "en-US";
+        if (publication.identityValidationEnabled && boundIdentity && currentIdentity && boundIdentity !== currentIdentity) {
+          const redirects = publication.identityMismatchRedirects || {};
+          const target = redirects[linkLocale] || redirects[publication.defaultLocale] || redirects["en-US"] || "";
+          if (/^https?:\/\//i.test(target)) {
+            window.location.replace(target);
+          } else {
+            setIdentityMismatch(true);
+          }
+          return;
+        }
+        const joymakerId = currentIdentity || boundIdentity;
         const clientIp = searchParams.get("client_ip") || "preview-device-ip";
         const joymakerCount = joymakerId ? existingResponses.filter((item) => item.joymakerId === joymakerId).length : 0;
         const ipCount = existingResponses.filter((item) => item.clientIp === clientIp).length;
@@ -335,6 +361,19 @@ export default function PlayerSurvey() {
             <strong>{closedReason === "not-started" ? "问卷尚未开始" : closedReason === "outside-hours" ? "当前不在允许访问时段" : "本次问卷收集已结束"}</strong>
             <small>{closedReason === "ended" ? "如有疑问，请联系问卷发布方。" : "到达开放时间后，使用原链接即可继续访问。"}</small>
           </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (identityMismatch) {
+    return (
+      <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
+        <section className="player-closed identity-mismatch-page">
+          <span>!</span>
+          <small>IDENTITY CHECK FAILED</small>
+          <h1>当前登录身份与问卷链接不一致</h1>
+          <p>该链接已绑定其他玩家账号，不能继续填写。管理员尚未配置对应语言的官网跳转地址，请返回游戏官网重新登录后获取问卷。</p>
         </section>
       </main>
     );

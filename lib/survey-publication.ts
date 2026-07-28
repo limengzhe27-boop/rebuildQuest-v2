@@ -60,6 +60,8 @@ export type Publication = {
   accessGate: AccessGate;
   accessPassword: string;
   joymakerLogin: boolean;
+  identityValidationEnabled: boolean;
+  identityMismatchRedirects: Record<string, string>;
   lineLogin: boolean;
   privacyConsent: boolean;
   ageConsent: boolean;
@@ -118,6 +120,13 @@ export const defaultPublications: Publication[] = [
     accessGate: "open",
     accessPassword: "",
     joymakerLogin: true,
+    identityValidationEnabled: true,
+    identityMismatchRedirects: {
+      "zh-CN": "",
+      "en-US": "",
+      "zh-TW": "",
+      "th-TH": "",
+    },
     lineLogin: true,
     privacyConsent: true,
     ageConsent: true,
@@ -177,6 +186,13 @@ export const defaultPublications: Publication[] = [
     accessGate: "account",
     accessPassword: "",
     joymakerLogin: true,
+    identityValidationEnabled: true,
+    identityMismatchRedirects: {
+      "zh-CN": "",
+      "en-US": "",
+      "zh-TW": "",
+      "th-TH": "",
+    },
     lineLogin: false,
     privacyConsent: true,
     ageConsent: false,

@@ -356,6 +356,42 @@ export default function SurveySettingsPage() {
                 </div>
               </section>
 
+              <section className="config-card identity-validation-card">
+                <header>
+                  <div><strong>登录身份一致性校验</strong><small>防止玩家转发带登录态的链接后，由其他账号继续填写</small></div>
+                  <button className={`mini-switch ${selected.identityValidationEnabled ? "on" : ""}`} onClick={() => updateSelected({ identityValidationEnabled: !selected.identityValidationEnabled, joymakerLogin: true })}><i /></button>
+                </header>
+                <div className="identity-validation-explanation">
+                  <span>校验规则</span>
+                  <p>链接绑定的玩家身份与当前 JoyaMaker / JoyID 登录身份不一致时，不进入问卷，直接跳转到对应语言的官网。</p>
+                </div>
+                {selected.identityValidationEnabled && (
+                  <div className="identity-redirect-grid">
+                    {[
+                      ["zh-CN", "简体中文官网"],
+                      ["en-US", "英文官网"],
+                      ["zh-TW", "繁体中文官网"],
+                      ["th-TH", "泰语官网"],
+                    ].map(([localeCode, label]) => (
+                      <label key={localeCode}>
+                        <span>{label}<em>{localeCode}</em></span>
+                        <input
+                          value={selected.identityMismatchRedirects?.[localeCode] || ""}
+                          onChange={(event) => updateSelected({
+                            identityMismatchRedirects: {
+                              ...(selected.identityMismatchRedirects || {}),
+                              [localeCode]: event.target.value,
+                            },
+                          })}
+                          placeholder="https://"
+                        />
+                      </label>
+                    ))}
+                    <p>系统优先使用链接中的语言参数；没有语言参数时，使用该发布配置的默认语言。请填写完整的 HTTPS 官网地址。</p>
+                  </div>
+                )}
+              </section>
+
               <section className="config-card">
                 <header><div><strong>答卷数量上限</strong><small>有效答卷达到设定数量后自动结束收集</small></div></header>
                 <div className="collection-condition-list">
