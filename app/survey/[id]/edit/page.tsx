@@ -457,12 +457,24 @@ export default function SurveyEditorPage() {
                       </div>
                       <div className="inline-title-row"><b>{question.required ? "*" : ""}</b><textarea value={question.title} onChange={(event) => updateQuestion(question.id, { title: event.target.value })} aria-label="题目标题" /></div>
                       <input className="inline-description" value={question.description} onChange={(event) => updateQuestion(question.id, { description: event.target.value })} placeholder="添加题目描述（选填）" aria-label="题目描述" />
-                      {selectedId === question.id && (
-                        <div className="question-support-tools">
-                          <button onClick={() => updateQuestion(question.id, { helpText: question.helpText === undefined ? "" : undefined })}>ⓘ {question.helpText === undefined ? "添加填写提示" : "移除填写提示"}</button>
-                          <button onClick={() => updateQuestion(question.id, { referenceImage: question.referenceImage === undefined ? "" : undefined })}>▧ {question.referenceImage === undefined ? "添加参考图" : "移除参考图"}</button>
-                        </div>
-                      )}
+                      <div className="question-support-tools">
+                        <button
+                          className={question.helpText !== undefined ? "active" : ""}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedId(question.id);
+                            updateQuestion(question.id, { helpText: question.helpText === undefined ? "" : undefined });
+                          }}
+                        >＋ {question.helpText === undefined ? "添加提示" : "移除提示"}</button>
+                        <button
+                          className={question.referenceImage !== undefined ? "active" : ""}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedId(question.id);
+                            updateQuestion(question.id, { referenceImage: question.referenceImage === undefined ? "" : undefined });
+                          }}
+                        >▧ {question.referenceImage === undefined ? "添加图片" : "移除图片"}</button>
+                      </div>
                       {question.helpText !== undefined && <input className="question-help-input" value={question.helpText} onChange={(event) => updateQuestion(question.id, { helpText: event.target.value })} placeholder="输入填写提示，例如评分标准或示例说明" />}
                       {question.referenceImage !== undefined && <div className="question-reference-editor"><input value={question.referenceImage} onChange={(event) => updateQuestion(question.id, { referenceImage: event.target.value })} placeholder="粘贴参考图片地址" /><span>{question.referenceImage ? "已添加参考图" : "参考图将在题目下方展示"}</span></div>}
                       {(["single", "multiple", "dropdown", "cascade"] as QuestionType[]).includes(question.type) && (

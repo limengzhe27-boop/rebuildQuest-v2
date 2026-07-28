@@ -7195,9 +7195,6 @@ input:focus-visible {
 .extension-link-form > span,
 .extension-link-form > input {
   height: 38px;
-  border: 1px solid #d9e0e9;
-  border-radius: 7px;
-  background: #fff;
   color: #6b788e;
   font-size: 10px;
 }
@@ -7205,11 +7202,17 @@ input:focus-visible {
 .extension-link-form > span {
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .parameter-link-builder > .extension-link-form > input {
   align-self: auto;
+  border: 1px solid #d9e0e9;
+  border-radius: 7px;
+  background: #fff;
   padding: 0 12px;
 }
 
@@ -7761,6 +7764,12 @@ input:focus-visible {
   padding: 6px 9px;
   color: #61708a;
   font-size: 11px;
+}
+
+.question-support-tools button.active {
+  border-color: #a8c4f5;
+  background: #f2f7ff;
+  color: #2f73f5;
 }
 
 .question-help-input,
