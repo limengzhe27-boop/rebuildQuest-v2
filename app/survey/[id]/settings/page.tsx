@@ -301,10 +301,12 @@ export default function SurveySettingsPage() {
                 ) : (
                   <label className="large-config-field"><span>跳转地址</span><input placeholder="https://" value={selected.redirectUrl} onChange={(event) => updateSelected({ redirectUrl: event.target.value })} /></label>
                 )}
-                <div className="completion-preview">
-                  {selected.completionImage && <img src={selected.completionImage} alt="完成页图片预览" />}
-                  <span>✓</span><strong>{selected.completionMessage || "提交成功"}</strong><small>玩家完成问卷后看到的效果</small>
-                </div>
+                {selected.completionMode === "message" && (
+                  <div className="completion-preview">
+                    {selected.completionImage && <img src={selected.completionImage} alt="完成页图片预览" />}
+                    <span>✓</span><strong>{selected.completionMessage || "提交成功"}</strong><small>玩家完成问卷后看到的效果</small>
+                  </div>
+                )}
               </section>
 
               <section className="config-card">
@@ -420,19 +422,18 @@ export default function SurveySettingsPage() {
               </section>
 
               <section className="config-card">
-                <header><div><strong>单个用户与环境限制</strong><small>减少重复提交；相关标识仅用于问卷风控</small></div></header>
+                <header><div><strong>提交次数限制</strong><small>按用户、IP 或设备分别设置最多可成功提交的次数</small></div></header>
                 <div className="setting-switch-list">
-                  <div><p><strong>JoyaMaker 用户不可重复提交</strong><small>登录后按 JoyID 唯一标识校验；开启后同一用户仅能成功提交一次</small></p><button className={`mini-switch ${selected.joymakerUniqueSubmission ? "on" : ""}`} onClick={() => updateSelected({ joymakerUniqueSubmission: !selected.joymakerUniqueSubmission, joymakerLogin: true })}><i /></button></div>
-                  <div className="setting-with-input"><p><strong>每个账号答题次数限制</strong><small>需要登录后才能精确识别账号</small></p><input disabled={!selected.accountLimitEnabled} type="number" min={1} value={selected.perAccountLimit} onChange={(event) => updateSelected({ perAccountLimit: Number(event.target.value) })} /><button className={`mini-switch ${selected.accountLimitEnabled ? "on" : ""}`} onClick={() => updateSelected({ accountLimitEnabled: !selected.accountLimitEnabled })}><i /></button></div>
-                  <div className="setting-with-input"><p><strong>每个 IP 答题次数限制</strong><small>作为辅助风控信号，避免同一网络环境重复提交</small></p><input disabled={!selected.ipLimit} type="number" min={1} value={selected.perIpLimit} onChange={(event) => updateSelected({ perIpLimit: Number(event.target.value) })} /><button className={`mini-switch ${selected.ipLimit ? "on" : ""}`} onClick={() => updateSelected({ ipLimit: !selected.ipLimit })}><i /></button></div>
-                  <div className="setting-with-input"><p><strong>每台设备答题次数限制</strong><small>通过匿名设备标识限制重复提交</small></p><input disabled={!selected.deviceLimit} type="number" min={1} value={selected.perDeviceLimit} onChange={(event) => updateSelected({ perDeviceLimit: Number(event.target.value) })} /><button className={`mini-switch ${selected.deviceLimit ? "on" : ""}`} onClick={() => updateSelected({ deviceLimit: !selected.deviceLimit })}><i /></button></div>
+                  <div className="setting-with-input"><p><strong>每个 JoyaMaker / JoyID 用户最多提交</strong><small>需要登录后按用户唯一标识统计</small></p><div className="submission-limit-input"><input disabled={!selected.accountLimitEnabled} type="number" min={1} value={selected.perAccountLimit} onChange={(event) => updateSelected({ perAccountLimit: Math.max(1, Number(event.target.value)) })} /><span>次</span></div><button className={`mini-switch ${selected.accountLimitEnabled ? "on" : ""}`} onClick={() => updateSelected({ accountLimitEnabled: !selected.accountLimitEnabled, joymakerUniqueSubmission: false, joymakerLogin: true })}><i /></button></div>
+                  <div className="setting-with-input"><p><strong>每个 IP 最多提交</strong><small>适合作为辅助风控，同一网络可能包含多名玩家</small></p><div className="submission-limit-input"><input disabled={!selected.ipLimit} type="number" min={1} value={selected.perIpLimit} onChange={(event) => updateSelected({ perIpLimit: Math.max(1, Number(event.target.value)) })} /><span>次</span></div><button className={`mini-switch ${selected.ipLimit ? "on" : ""}`} onClick={() => updateSelected({ ipLimit: !selected.ipLimit })}><i /></button></div>
+                  <div className="setting-with-input"><p><strong>每台设备最多提交</strong><small>通过匿名设备标识统计，不采集设备敏感信息</small></p><div className="submission-limit-input"><input disabled={!selected.deviceLimit} type="number" min={1} value={selected.perDeviceLimit} onChange={(event) => updateSelected({ perDeviceLimit: Math.max(1, Number(event.target.value)) })} /><span>次</span></div><button className={`mini-switch ${selected.deviceLimit ? "on" : ""}`} onClick={() => updateSelected({ deviceLimit: !selected.deviceLimit })}><i /></button></div>
                 </div>
               </section>
 
               <section className="config-card limit-result-config">
                 <header>
-                  <div><strong>重复填写限制结果页</strong><small>仅当 JoyaMaker、账号、IP 或设备限制被触发时展示；未启用限制时不会出现</small></div>
-                  <span className={(selected.joymakerUniqueSubmission || selected.accountLimitEnabled || selected.ipLimit || selected.deviceLimit) ? "auto-stop-tag active" : "auto-stop-tag"}>{(selected.joymakerUniqueSubmission || selected.accountLimitEnabled || selected.ipLimit || selected.deviceLimit) ? "已启用" : "未启用"}</span>
+                  <div><strong>重复填写限制结果页</strong><small>仅当用户、IP 或设备达到提交次数限制时展示；未启用限制时不会出现</small></div>
+                  <span className={(selected.accountLimitEnabled || selected.ipLimit || selected.deviceLimit) ? "auto-stop-tag active" : "auto-stop-tag"}>{(selected.accountLimitEnabled || selected.ipLimit || selected.deviceLimit) ? "已启用" : "未启用"}</span>
                 </header>
                 <div className="limit-result-layout">
                   <div className="limit-result-fields">

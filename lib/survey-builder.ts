@@ -56,8 +56,9 @@ export type Question = {
     match: "all" | "any";
     conditions: {
       questionId: string;
-      operator: "等于" | "不等于" | "包含" | "不包含" | "大于" | "大于等于" | "小于" | "小于等于" | "为空" | "不为空";
+      operator: "等于" | "不等于" | "包含" | "不包含" | "大于" | "大于等于" | "小于" | "小于等于" | "为空" | "不为空" | "已选中" | "未选中";
       value: string;
+      matrixScope?: "cell" | "row" | "any-row" | "average" | "minimum";
       matrixRow?: string;
       matrixColumn?: string;
     }[];
@@ -167,6 +168,7 @@ export function loadQuestions(surveyId: string): Question[] {
         questionId: string;
         operator: "等于" | "不等于" | "包含" | "不包含" | "大于" | "大于等于" | "小于" | "小于等于" | "为空" | "不为空";
         value: string;
+        matrixScope?: "cell" | "row" | "any-row" | "average" | "minimum";
         matrixRow?: string;
         matrixColumn?: string;
       };
@@ -182,6 +184,9 @@ export function loadQuestions(surveyId: string): Question[] {
             questionId: logic.questionId,
             operator: logic.operator,
             value: logic.value,
+            matrixScope: logic.matrixScope,
+            matrixRow: logic.matrixRow,
+            matrixColumn: logic.matrixColumn,
           }],
         },
       } as Question;

@@ -389,7 +389,7 @@ export default function SurveyEditorPage() {
               ...condition,
               ...patch,
               value:
-                patch.operator === "为空" || patch.operator === "不为空"
+                ["为空", "不为空", "已选中", "未选中"].includes(patch.operator || "")
                   ? ""
                   : patch.value ?? condition.value,
             }
@@ -421,6 +421,8 @@ export default function SurveyEditorPage() {
     const validConditions = logicDraft.conditions.filter((condition) =>
       condition.operator === "为空" ||
       condition.operator === "不为空" ||
+      condition.operator === "已选中" ||
+      condition.operator === "未选中" ||
       condition.value.trim(),
     );
     updateQuestion(logicQuestionId, {
@@ -456,6 +458,14 @@ export default function SurveyEditorPage() {
     if (question?.matrixColumns?.length) return question.matrixColumns;
     if (question?.type === "matrixScale" || question?.type === "matrixSlider") return ["1", "2", "3", "4", "5"];
     return question?.options?.length ? question.options : ["列 1", "列 2", "列 3"];
+  }
+
+  function defaultMatrixScope(question?: Question): LogicCondition["matrixScope"] {
+    return question?.type === "matrixScale" || question?.type === "matrixSlider" ? "row" : "cell";
+  }
+
+  function isNumericMatrix(question?: Question) {
+    return question?.type === "matrixScale" || question?.type === "matrixSlider";
   }
 
   return (
@@ -719,8 +729,10 @@ export default function SurveyEditorPage() {
                         const nextSource = logicSources.find((item) => item.id === event.target.value);
                         updateLogicCondition(conditionIndex, {
                           questionId: event.target.value,
+                          matrixScope: isMatrixLogicSource(nextSource) ? defaultMatrixScope(nextSource) : undefined,
                           matrixRow: isMatrixLogicSource(nextSource) ? matrixRows(nextSource)[0] : undefined,
                           matrixColumn: isMatrixLogicSource(nextSource) ? matrixColumns(nextSource)[0] : undefined,
+                          operator: isMatrixLogicSource(nextSource) && !isNumericMatrix(nextSource) ? "已选中" : "等于",
                           value: "",
                         });
                       }}
@@ -728,27 +740,44 @@ export default function SurveyEditorPage() {
                       {logicSources.map((item, sourceIndex) => <option key={item.id} value={item.id}>A{sourceIndex + 1} {item.title}（{questionLabels[item.type]}）</option>)}
                     </select>
                     {isMatrix && (
-                      <div className="matrix-cell-selector">
-                        <label><span>行</span><select value={condition.matrixRow || matrixRows(source)[0]} onChange={(event) => updateLogicCondition(conditionIndex, { matrixRow: event.target.value })}>{matrixRows(source).map((row) => <option key={row}>{row}</option>)}</select></label>
-                        <label><span>列</span><select value={condition.matrixColumn || matrixColumns(source)[0]} onChange={(event) => updateLogicCondition(conditionIndex, { matrixColumn: event.target.value })}>{matrixColumns(source).map((column) => <option key={column}>{column}</option>)}</select></label>
+                      <div className="matrix-cell-selector matrix-logic-object">
+                        <label className="matrix-scope-field">
+                          <span>判断对象</span>
+                          <select
+                            value={condition.matrixScope || defaultMatrixScope(source)}
+                            onChange={(event) => {
+                              const matrixScope = event.target.value as LogicCondition["matrixScope"];
+                              updateLogicCondition(conditionIndex, {
+                                matrixScope,
+                                operator: matrixScope === "cell" ? "已选中" : isNumericMatrix(source) ? "小于" : "等于",
+                                value: "",
+                              });
+                            }}
+                          >
+                            {!isNumericMatrix(source) && <option value="cell">指定单元格</option>}
+                            <option value="row">指定行的答案</option>
+                            <option value="any-row">任意一行的答案</option>
+                            {isNumericMatrix(source) && <option value="average">全部行平均分</option>}
+                            {isNumericMatrix(source) && <option value="minimum">全部行最低分</option>}
+                          </select>
+                        </label>
+                        {["cell", "row"].includes(condition.matrixScope || defaultMatrixScope(source) || "") && <label><span>行</span><select value={condition.matrixRow || matrixRows(source)[0]} onChange={(event) => updateLogicCondition(conditionIndex, { matrixRow: event.target.value })}>{matrixRows(source).map((row) => <option key={row}>{row}</option>)}</select></label>}
+                        {(condition.matrixScope || defaultMatrixScope(source)) === "cell" && <label><span>列</span><select value={condition.matrixColumn || matrixColumns(source)[0]} onChange={(event) => updateLogicCondition(conditionIndex, { matrixColumn: event.target.value })}>{matrixColumns(source).map((column) => <option key={column}>{column}</option>)}</select></label>}
                       </div>
                     )}
                     <select value={condition.operator} onChange={(event) => updateLogicCondition(conditionIndex, { operator: event.target.value as LogicCondition["operator"] })}>
-                      <option>等于</option>
-                      <option>不等于</option>
-                      <option>包含</option>
-                      <option>不包含</option>
-                      {isMatrix && <option>大于</option>}
-                      {isMatrix && <option>大于等于</option>}
-                      {isMatrix && <option>小于</option>}
-                      {isMatrix && <option>小于等于</option>}
-                      <option>为空</option>
-                      <option>不为空</option>
+                      {isMatrix && (condition.matrixScope || defaultMatrixScope(source)) === "cell" ? (
+                        <><option>已选中</option><option>未选中</option></>
+                      ) : isMatrix && isNumericMatrix(source) ? (
+                        <><option>小于</option><option>小于等于</option><option>等于</option><option>不等于</option><option>大于等于</option><option>大于</option></>
+                      ) : (
+                        <><option>等于</option><option>不等于</option><option>包含</option><option>不包含</option><option>为空</option><option>不为空</option></>
+                      )}
                     </select>
-                    {condition.operator === "为空" || condition.operator === "不为空" ? (
+                    {["为空", "不为空", "已选中", "未选中"].includes(condition.operator) ? (
                       <span className="logic-no-value">无需填写条件值</span>
                     ) : (
-                      <input value={condition.value} onChange={(event) => updateLogicCondition(conditionIndex, { value: event.target.value })} placeholder={isMatrix ? "选择结果或评分值" : "请输入答案或选项"} />
+                      <input type={isMatrix && isNumericMatrix(source) ? "number" : "text"} value={condition.value} onChange={(event) => updateLogicCondition(conditionIndex, { value: event.target.value })} placeholder={isMatrix && isNumericMatrix(source) ? "输入评分，例如 3" : isMatrix ? "输入选项" : "请输入答案或选项"} />
                     )}
                     <button
                       aria-label="删除条件"
@@ -765,7 +794,7 @@ export default function SurveyEditorPage() {
 
             <div className="matrix-logic-tip">
               <span>矩</span>
-              <p><strong>矩阵题按单元格判断</strong><small>先选择前置矩阵题，再指定“行 + 列”。量表与滑块支持大于、小于等数值比较；选择、下拉支持选项匹配。</small></p>
+              <p><strong>矩阵题支持单元格、行与汇总判断</strong><small>矩阵选择可判断某个“行 × 列”是否选中；矩阵量表和滑块可直接配置“指定行评分小于 3”“任意一行评分小于 3”或“平均分小于 3”。</small></p>
             </div>
 
             <button className="add-logic-condition" onClick={addLogicCondition}>＋ 添加条件</button>

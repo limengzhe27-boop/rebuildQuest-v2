@@ -14,6 +14,7 @@ type Rule = {
   action: string;
   target: string;
   enabled: boolean;
+  matrixScope?: "cell" | "row" | "any-row" | "average" | "minimum";
   matrixRow?: string;
   matrixColumn?: string;
 };
@@ -48,6 +49,8 @@ export default function LogicPage() {
   const selectedQuestion = questions[selectedQuestionIndex];
   const matrixTypes: QuestionType[] = ["matrix", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"];
   const isMatrixRule = Boolean(selectedQuestion && matrixTypes.includes(selectedQuestion.type));
+  const isNumericMatrixRule = selectedQuestion?.type === "matrixScale" || selectedQuestion?.type === "matrixSlider";
+  const selectedMatrixScope = selected?.matrixScope || (isNumericMatrixRule ? "row" : "cell");
   const selectedRows = selectedQuestion?.matrixRows?.length ? selectedQuestion.matrixRows : ["行 1", "行 2", "行 3"];
   const selectedColumns = selectedQuestion?.matrixColumns?.length
     ? selectedQuestion.matrixColumns
@@ -111,17 +114,28 @@ export default function LogicPage() {
             const nextIsMatrix = Boolean(nextQuestion && matrixTypes.includes(nextQuestion.type));
             update({
               question:e.target.value,
+              matrixScope: nextIsMatrix ? (nextQuestion?.type === "matrixScale" || nextQuestion?.type === "matrixSlider" ? "row" : "cell") : undefined,
               matrixRow: nextIsMatrix ? (nextQuestion.matrixRows?.[0] || "行 1") : undefined,
               matrixColumn: nextIsMatrix ? (nextQuestion.matrixColumns?.[0] || nextQuestion.options?.[0] || "列 1") : undefined,
+              operator: nextIsMatrix ? (nextQuestion?.type === "matrixScale" || nextQuestion?.type === "matrixSlider" ? "小于" : "已选中") : "等于",
               value: "",
             });
           }}>{questions.map((question, index) => <option key={question.id}>{String(index + 1).padStart(2, "0")} · {question.title}（{questionLabels[question.type]}）</option>)}</select></label>
           {isMatrixRule && <div className="logic-matrix-cell">
-            <p><strong>指定矩阵单元格</strong><small>行列组合共同定位一个回答值</small></p>
-            <label><span>行</span><select value={selected.matrixRow || selectedRows[0]} onChange={(e)=>update({matrixRow:e.target.value})}>{selectedRows.map((row)=><option key={row}>{row}</option>)}</select></label>
-            <label><span>列</span><select value={selected.matrixColumn || selectedColumns[0]} onChange={(e)=>update({matrixColumn:e.target.value})}>{selectedColumns.map((column)=><option key={column}>{column}</option>)}</select></label>
+            <p><strong>选择矩阵判断对象</strong><small>可判断单元格是否选中，也可比较指定行、任意行或汇总评分</small></p>
+            <label><span>判断对象</span><select value={selectedMatrixScope} onChange={(e)=>{const matrixScope=e.target.value as Rule["matrixScope"];update({matrixScope,operator:matrixScope==="cell"?"已选中":isNumericMatrixRule?"小于":"等于",value:""});}}>
+              {!isNumericMatrixRule && <option value="cell">指定单元格</option>}
+              <option value="row">指定行的答案</option>
+              <option value="any-row">任意一行的答案</option>
+              {isNumericMatrixRule && <option value="average">全部行平均分</option>}
+              {isNumericMatrixRule && <option value="minimum">全部行最低分</option>}
+            </select></label>
+            {["cell","row"].includes(selectedMatrixScope) && <label><span>行</span><select value={selected.matrixRow || selectedRows[0]} onChange={(e)=>update({matrixRow:e.target.value})}>{selectedRows.map((row)=><option key={row}>{row}</option>)}</select></label>}
+            {selectedMatrixScope === "cell" && <label><span>列</span><select value={selected.matrixColumn || selectedColumns[0]} onChange={(e)=>update({matrixColumn:e.target.value})}>{selectedColumns.map((column)=><option key={column}>{column}</option>)}</select></label>}
           </div>}
-          <div className="condition-row"><select value={selected.operator} onChange={(e)=>update({operator:e.target.value})}><option>等于</option><option>不等于</option>{isMatrixRule && <option>大于</option>}{isMatrixRule && <option>大于等于</option>}{isMatrixRule && <option>小于</option>}<option>小于等于</option><option>包含</option></select><input value={selected.value} onChange={(e)=>update({value:e.target.value})} placeholder={isMatrixRule ? "填写选项或评分值" : "填写答案"}/></div>
+          <div className="condition-row"><select value={selected.operator} onChange={(e)=>update({operator:e.target.value})}>
+            {isMatrixRule && selectedMatrixScope === "cell" ? <><option>已选中</option><option>未选中</option></> : isNumericMatrixRule ? <><option>小于</option><option>小于等于</option><option>等于</option><option>不等于</option><option>大于等于</option><option>大于</option></> : <><option>等于</option><option>不等于</option><option>包含</option></>}
+          </select>{["已选中","未选中"].includes(selected.operator) ? <span className="logic-no-value">无需填写条件值</span> : <input type={isNumericMatrixRule ? "number" : "text"} value={selected.value} onChange={(e)=>update({value:e.target.value})} placeholder={isNumericMatrixRule ? "输入评分，例如 3" : isMatrixRule ? "填写选项" : "填写答案"}/>}</div>
           <button className="add-condition" onClick={() => flash("已添加 AND 条件")}>＋ 添加条件</button>
           <div className="logic-divider"><span>则执行</span></div>
           <label><span>动作</span><select value={selected.action} onChange={(e)=>update({action:e.target.value})}><option>显示题目</option><option>跳转到</option><option>设为必答</option><option>结束问卷</option></select></label>

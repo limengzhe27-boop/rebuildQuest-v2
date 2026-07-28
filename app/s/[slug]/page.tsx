@@ -185,16 +185,15 @@ export default function PlayerSurvey() {
         const clientIp = searchParams.get("client_ip") || "preview-device-ip";
         const joymakerCount = joymakerId ? existingResponses.filter((item) => item.joymakerId === joymakerId).length : 0;
         const ipCount = existingResponses.filter((item) => item.clientIp === clientIp).length;
-        const triggeredByJoymaker = publication.joymakerUniqueSubmission && joymakerId && joymakerCount >= 1;
         const triggeredByAccount = publication.accountLimitEnabled && joymakerId && joymakerCount >= (publication.perAccountLimit || 1);
         const triggeredByIp = publication.ipLimit && ipCount >= (publication.perIpLimit || 1);
         const triggeredByDevice = publication.deviceLimit && existingResponses.length >= (publication.perDeviceLimit || 1);
-        if (triggeredByJoymaker || triggeredByAccount || triggeredByIp || triggeredByDevice) {
+        if (triggeredByAccount || triggeredByIp || triggeredByDevice) {
           setLimitPage({
             backgroundMode: publication.limitPageBackgroundMode || "common",
             background: publication.limitPageBackground || "",
             content: publication.limitPageContent || {},
-            reason: triggeredByJoymaker ? "JoyaMaker 用户已提交" : triggeredByAccount ? "账号提交次数已达上限" : triggeredByIp ? "IP 提交次数已达上限" : "设备提交次数已达上限",
+            reason: triggeredByAccount ? "JoyaMaker / JoyID 用户提交次数已达上限" : triggeredByIp ? "IP 提交次数已达上限" : "设备提交次数已达上限",
           });
         }
       }

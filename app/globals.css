@@ -7194,6 +7194,15 @@ input:focus-visible {
   font-size: 9px;
 }
 
+.matrix-cell-selector .matrix-scope-field {
+  grid-column: 1 / -1;
+  grid-template-columns: 64px 1fr;
+}
+
+.matrix-logic-object {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .matrix-logic-tip {
   display: flex;
   align-items: center;
@@ -7384,6 +7393,10 @@ input:focus-visible {
 .logic-matrix-cell > p small {
   color: #8a96a8;
   font-size: 8px;
+}
+
+.logic-matrix-cell > label:first-of-type {
+  grid-column: 1 / -1;
 }
 
 .scroll-sync-indicator {
@@ -8778,6 +8791,31 @@ input:focus-visible {
   background: #fff;
   padding: 0 10px;
   color: #3f4e65;
+}
+
+.submission-limit-input {
+  display: flex;
+  width: 190px;
+  height: 34px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #d8e0eb;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.setting-with-input .submission-limit-input input {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+}
+
+.submission-limit-input span {
+  flex: 0 0 auto;
+  padding-right: 10px;
+  color: #7d899a;
+  font-size: 10px;
 }
 
 .setting-with-select select {
