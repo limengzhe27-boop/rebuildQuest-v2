@@ -27,12 +27,13 @@ export default function SurveySettingsPage() {
     { project: "通用", name: "公司通用调研" },
   ]);
   const [backgroundFileName, setBackgroundFileName] = useState("");
+  const [backgroundTemplateName, setBackgroundTemplateName] = useState("");
+  const [backgroundTemplates, setBackgroundTemplates] = useState<Array<{ id: string; name: string; image: string }>>([]);
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
   const limitBodyRef = useRef<HTMLTextAreaElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
-  const completionImageInputRef = useRef<HTMLInputElement>(null);
   const closedImageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -61,6 +62,7 @@ export default function SurveySettingsPage() {
         ...customGroups.map((item: { project?: string; name?: string }) => ({ project: item.project || "通用", name: item.name || "" })),
       ].filter((item) => item.name);
       setAllProjectGroups((current) => [...current, ...groups]);
+      setBackgroundTemplates(JSON.parse(window.localStorage.getItem("joydata-survey-end-background-templates") || "[]"));
     } catch {}
     setHydrated(true);
   }, [surveyId]);
@@ -172,27 +174,9 @@ export default function SurveySettingsPage() {
     }
     const reader = new FileReader();
     reader.onload = () => {
-      updateSelected({ limitPageBackgroundMode: "custom", limitPageBackground: String(reader.result || "") });
+      updateSelected({ limitPageBackgroundMode: "custom", limitPageBackgroundTemplateId: "custom-upload", limitPageBackground: String(reader.result || "") });
       setBackgroundFileName(file.name);
       flash("背景图片已上传");
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function uploadCompletionImage(file?: File) {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      flash("请选择图片文件");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      flash("图片不能超过 5MB");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      updateSelected({ completionImage: String(reader.result || "") });
-      flash("完成页图片已上传");
     };
     reader.readAsDataURL(file);
   }
@@ -226,6 +210,33 @@ export default function SurveySettingsPage() {
     });
   }
 
+  function applyBackgroundTemplate(templateId: string) {
+    if (templateId === "project-default") {
+      updateSelected({ limitPageBackgroundMode: "common", limitPageBackgroundTemplateId: templateId, limitPageBackground: "" });
+      return;
+    }
+    const template = backgroundTemplates.find((item) => item.id === templateId);
+    if (template) {
+      updateSelected({ limitPageBackgroundMode: "custom", limitPageBackgroundTemplateId: template.id, limitPageBackground: template.image });
+      setBackgroundFileName(template.name);
+    }
+  }
+
+  function saveBackgroundAsTemplate() {
+    const name = backgroundTemplateName.trim();
+    if (!selected.limitPageBackground || !name) {
+      flash("请先上传背景并填写模板名称");
+      return;
+    }
+    const template = { id: `end-bg-${Date.now()}`, name, image: selected.limitPageBackground };
+    const next = [...backgroundTemplates, template];
+    setBackgroundTemplates(next);
+    window.localStorage.setItem("joydata-survey-end-background-templates", JSON.stringify(next));
+    updateSelected({ limitPageBackgroundMode: "custom", limitPageBackgroundTemplateId: template.id });
+    setBackgroundTemplateName("");
+    flash("结束页背景已保存为模板");
+  }
+
   function addRedirectRule() {
     const question = questions.find((item) => !["divider", "description", "imageDisplay", "carousel", "pageBreak"].includes(item.type));
     if (!question) {
@@ -257,6 +268,68 @@ export default function SurveySettingsPage() {
   );
 
   if (!selected) return null;
+
+  function renderEndPageEditor() {
+    const content = currentLimitContent();
+    const activeTemplate = selected.limitPageBackgroundMode === "common"
+      ? "project-default"
+      : selected.limitPageBackgroundTemplateId || "custom-upload";
+    return (
+      <section className="config-card limit-result-config end-page-config">
+        <header>
+          <div><strong>问卷结束页</strong><small>提交完成和达到重复填写限制时共用；具体提示原因由系统自动补充</small></div>
+          <span className="auto-stop-tag active">统一结果页</span>
+        </header>
+        <div className="limit-result-layout">
+          <div className="limit-result-fields">
+            <label>
+              <span>背景模板</span>
+              <select value={activeTemplate} onChange={(event) => applyBackgroundTemplate(event.target.value)}>
+                <option value="project-default">项目默认模板</option>
+                {backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+                {activeTemplate === "custom-upload" && <option value="custom-upload">当前自定义背景</option>}
+              </select>
+              <small>默认使用项目模板，也可以选择曾保存的自定义背景模板。</small>
+            </label>
+            <div className="limit-background-upload">
+              <input ref={backgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadLimitBackground(event.target.files?.[0])} />
+              <button type="button" onClick={() => backgroundInputRef.current?.click()}>▧ 上传自定义背景</button>
+              <div><strong>{backgroundFileName || (selected.limitPageBackground ? "已使用自定义背景" : "当前使用项目默认模板")}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>
+              {selected.limitPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ limitPageBackgroundMode: "common", limitPageBackgroundTemplateId: "project-default", limitPageBackground: "" }); setBackgroundFileName(""); }}>恢复默认</button>}
+            </div>
+            {selected.limitPageBackgroundMode === "custom" && selected.limitPageBackground && (
+              <div className="save-background-template">
+                <input value={backgroundTemplateName} onChange={(event) => setBackgroundTemplateName(event.target.value)} placeholder="输入模板名称" />
+                <button type="button" onClick={saveBackgroundAsTemplate}>保存为模板</button>
+              </div>
+            )}
+            <label><span>标题（选填）</span><input value={content.title} onChange={(event) => updateLimitContent({ title: event.target.value })} placeholder="例如：感谢您完成本次问卷" /></label>
+            <label>
+              <span>说明正文</span>
+              <textarea ref={limitBodyRef} value={content.body} onChange={(event) => updateLimitContent({ body: event.target.value })} />
+              <small>提交完成和触发重复填写限制时使用同一版正文；系统会在页面底部展示对应状态。</small>
+            </label>
+            <button className="insert-inline-link" type="button" onClick={insertLimitLink}>＋ 在正文光标处插入链接</button>
+            {content.links.length > 0 && (
+              <div className="limit-inline-links">
+                {content.links.map((link, index) => (
+                  <div key={link.id}>
+                    <span>链接 {index + 1}</span>
+                    <input value={link.text} onChange={(event) => updateLimitLink(link.id, { text: event.target.value })} placeholder="链接文字" />
+                    <input value={link.url} onChange={(event) => updateLimitLink(link.id, { url: event.target.value })} placeholder="https://" />
+                    <button type="button" onClick={() => removeLimitLink(link.id)} aria-label={`删除链接 ${index + 1}`}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className={`limit-result-preview ${selected.limitPageBackgroundMode === "custom" && selected.limitPageBackground ? "custom" : ""}`} style={selected.limitPageBackgroundMode === "custom" && selected.limitPageBackground ? { backgroundImage: `url(${selected.limitPageBackground})` } : undefined}>
+            <article>{content.title && <h3>{content.title}</h3>}<p>{renderInlineLimitText(content)}</p><small>提交成功／达到重复填写限制</small></article>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <main className="publish-page">
@@ -302,31 +375,17 @@ export default function SurveySettingsPage() {
           ) : section === "submission" ? (
             <div className="publish-config-stack">
               <section className="config-card">
-                <header><div><strong>提交成功后</strong><small>设置玩家提交答卷后看到的内容</small></div></header>
+                <header><div><strong>提交成功后</strong><small>选择进入统一的问卷结束页，或直接跳转到指定网页</small></div></header>
                 <div className="completion-mode">
                   <button className={selected.completionMode === "message" ? "active" : ""} onClick={() => updateSelected({ completionMode: "message" })}>✓ 显示完成页</button>
                   <button className={selected.completionMode === "redirect" ? "active" : ""} onClick={() => updateSelected({ completionMode: "redirect" })}>↗ 跳转指定网页</button>
                 </div>
-                {selected.completionMode === "message" ? (
-                  <>
-                    <label className="large-config-field"><span>提交成功提示语</span><textarea value={selected.completionMessage} onChange={(event) => updateSelected({ completionMessage: event.target.value })} /></label>
-                    <div className="completion-image-setting">
-                      <input ref={completionImageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadCompletionImage(event.target.files?.[0])} />
-                      <button type="button" onClick={() => completionImageInputRef.current?.click()}>{selected.completionImage ? "更换完成页图片" : "＋ 添加完成页图片"}</button>
-                      <small>选填，支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small>
-                      {selected.completionImage && <button className="text-danger" type="button" onClick={() => updateSelected({ completionImage: "" })}>移除图片</button>}
-                    </div>
-                  </>
-                ) : (
+                {selected.completionMode === "redirect" && (
                   <label className="large-config-field"><span>跳转地址</span><input placeholder="https://" value={selected.redirectUrl} onChange={(event) => updateSelected({ redirectUrl: event.target.value })} /></label>
                 )}
-                {selected.completionMode === "message" && (
-                  <div className="completion-preview">
-                    {selected.completionImage && <img src={selected.completionImage} alt="完成页图片预览" />}
-                    <span>✓</span><strong>{selected.completionMessage || "提交成功"}</strong><small>玩家完成问卷后看到的效果</small>
-                  </div>
-                )}
               </section>
+
+              {renderEndPageEditor()}
 
               <section className="config-card">
                 <header>
@@ -456,51 +515,6 @@ export default function SurveySettingsPage() {
                 </div>
               </section>
 
-              <section className="config-card limit-result-config">
-                <header>
-                  <div><strong>重复填写限制结果页</strong><small>仅当账号、LINE 用户或 IP / 设备达到提交次数限制时展示</small></div>
-                  <span className={(selected.accountLimitEnabled || selected.lineLimitEnabled || selected.ipLimit || selected.deviceLimit) ? "auto-stop-tag active" : "auto-stop-tag"}>{(selected.accountLimitEnabled || selected.lineLimitEnabled || selected.ipLimit || selected.deviceLimit) ? "已启用" : "未启用"}</span>
-                </header>
-                <div className="limit-result-layout">
-                  <div className="limit-result-fields">
-                    <div className="background-mode-row">
-                      <span>背景图</span>
-                      <button className={selected.limitPageBackgroundMode === "common" ? "active" : ""} onClick={() => updateSelected({ limitPageBackgroundMode: "common" })}>项目通用背景</button>
-                      <button className={selected.limitPageBackgroundMode === "custom" ? "active" : ""} onClick={() => updateSelected({ limitPageBackgroundMode: "custom" })}>自定义</button>
-                    </div>
-                    {selected.limitPageBackgroundMode === "custom" && (
-                      <div className="limit-background-upload">
-                        <input ref={backgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadLimitBackground(event.target.files?.[0])} />
-                        <button type="button" onClick={() => backgroundInputRef.current?.click()}>▧ 上传背景图片</button>
-                        <div><strong>{backgroundFileName || (selected.limitPageBackground ? "已上传自定义背景" : "尚未上传图片")}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>
-                        {selected.limitPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ limitPageBackground: "" }); setBackgroundFileName(""); }}>移除</button>}
-                      </div>
-                    )}
-                    <label><span>标题（选填）</span><input value={currentLimitContent().title} onChange={(event) => updateLimitContent({ title: event.target.value })} placeholder="留空时结果页不显示标题" /></label>
-                    <label>
-                      <span>说明正文</span>
-                      <textarea ref={limitBodyRef} value={currentLimitContent().body} onChange={(event) => updateLimitContent({ body: event.target.value })} />
-                      <small>将光标放在正文任意位置，再点击“插入链接”。同一段文字可插入多个链接。</small>
-                    </label>
-                    <button className="insert-inline-link" type="button" onClick={insertLimitLink}>＋ 插入链接</button>
-                    {currentLimitContent().links.length > 0 && (
-                      <div className="limit-inline-links">
-                        {currentLimitContent().links.map((link, index) => (
-                          <div key={link.id}>
-                            <span>链接 {index + 1}</span>
-                            <input value={link.text} onChange={(event) => updateLimitLink(link.id, { text: event.target.value })} placeholder="链接文字" />
-                            <input value={link.url} onChange={(event) => updateLimitLink(link.id, { url: event.target.value })} placeholder="https://" />
-                            <button type="button" onClick={() => removeLimitLink(link.id)} aria-label={`删除链接 ${index + 1}`}>×</button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className={`limit-result-preview ${selected.limitPageBackgroundMode === "custom" && selected.limitPageBackground ? "custom" : ""}`} style={selected.limitPageBackgroundMode === "custom" && selected.limitPageBackground ? { backgroundImage: `url(${selected.limitPageBackground})` } : undefined}>
-                    <article>{currentLimitContent().title && <h3>{currentLimitContent().title}</h3>}<p>{renderInlineLimitText(currentLimitContent())}</p></article>
-                  </div>
-                </div>
-              </section>
             </div>
           )}
         </section>

@@ -76,7 +76,7 @@ export default function AppearancePage() {
   const [config, setConfig] = useState<Appearance>(defaults);
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
-  const [previewState, setPreviewState] = useState<"form" | "complete" | "closed" | "limit">("form");
+  const [previewState, setPreviewState] = useState<"form" | "end" | "closed">("form");
   const [pageIndex, setPageIndex] = useState(0);
   const [previewLocale, setPreviewLocale] = useState("简中");
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
@@ -265,9 +265,8 @@ export default function AppearancePage() {
             <span className="appearance-mode-summary">分页：{config.pageMode === "one-question" ? "一页一题" : hasPagination ? "按分页组件" : "连续滚动"}</span>
             <div className="appearance-state-preview">
               <button className={previewState === "form" ? "active" : ""} onClick={() => setPreviewState("form")}>填写页</button>
-              <button className={previewState === "complete" ? "active" : ""} onClick={() => setPreviewState("complete")}>提交完成页</button>
+              <button className={previewState === "end" ? "active" : ""} onClick={() => setPreviewState("end")}>问卷结束页</button>
               <button className={previewState === "closed" ? "active" : ""} onClick={() => setPreviewState("closed")}>停止收集页</button>
-              <button className={previewState === "limit" ? "active" : ""} onClick={() => setPreviewState("limit")}>限制结果页</button>
             </div>
             <label className="appearance-language-preview"><span>预览语言</span><select value={previewLocale} onChange={(event) => { setPreviewLocale(event.target.value); setPageIndex(0); }}>{availablePreviewLocales.map((locale) => <option key={locale} value={locale}>{previewLocaleNames[locale] || locale}</option>)}</select></label>
           </div>
@@ -300,14 +299,13 @@ export default function AppearancePage() {
                   </div>
                 </footer>
               </main>
-            </div> : previewState === "complete" ? (
-              <div className="appearance-result-preview">
+            </div> : previewState === "end" ? (
+              <div className={`appearance-result-preview limit ${publication?.limitPageBackgroundMode === "custom" && publication.limitPageBackground ? "custom" : ""}`} style={publication?.limitPageBackgroundMode === "custom" && publication.limitPageBackground ? { backgroundImage: `url(${publication.limitPageBackground})` } : undefined}>
                 {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
                 <article>
-                  {publication?.completionImage && <img className="appearance-completion-image" src={publication.completionImage} alt="" />}
-                  <i>✓</i>
-                  <h1>{translated("form:completion:title", "提交成功")}</h1>
-                  <p>{translated("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。")}</p>
+                  {previewLimitContent.title && <h1>{previewLimitContent.title}</h1>}
+                  <p><InlinePreviewContent content={previewLimitContent} /></p>
+                  <small>提交完成或达到重复填写限制时展示</small>
                 </article>
               </div>
             ) : previewState === "closed" ? (
@@ -321,16 +319,7 @@ export default function AppearancePage() {
                   <small>手动结束、定时结束、达到数量上限或当前不在允许访问时段时展示</small>
                 </article>
               </div>
-            ) : (
-              <div className={`appearance-result-preview limit ${publication?.limitPageBackgroundMode === "custom" && publication.limitPageBackground ? "custom" : ""}`} style={publication?.limitPageBackgroundMode === "custom" && publication.limitPageBackground ? { backgroundImage: `url(${publication.limitPageBackground})` } : undefined}>
-                {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
-                <article>
-                  {previewLimitContent.title && <h1>{previewLimitContent.title}</h1>}
-                  <p><InlinePreviewContent content={previewLimitContent} /></p>
-                  <small>仅在账号、JoyaMaker、IP 或设备限制命中时展示</small>
-                </article>
-              </div>
-            )}
+            ) : null}
           </div>
         </section>
       </div>

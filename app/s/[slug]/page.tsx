@@ -114,7 +114,13 @@ export default function PlayerSurvey() {
     curtainImageMobile: "",
   });
   const [surveyDescription, setSurveyDescription] = useState("");
-  const [completionImage, setCompletionImage] = useState("");
+  const [completionMode, setCompletionMode] = useState<"message" | "redirect">("message");
+  const [completionRedirectUrl, setCompletionRedirectUrl] = useState("");
+  const [endPage, setEndPage] = useState<{
+    backgroundMode: "common" | "custom";
+    background: string;
+    content: Record<string, LimitPageContent>;
+  }>({ backgroundMode: "common", background: "", content: {} });
   const [closedImage, setClosedImage] = useState("");
   const [identityMismatch, setIdentityMismatch] = useState(false);
   const [closedMessage, setClosedMessage] = useState("");
@@ -171,7 +177,13 @@ export default function PlayerSurvey() {
         setAllowLanguageSwitch(publication.allowLanguageSwitch !== false);
       }
       if (publication) {
-        setCompletionImage(publication.completionImage || "");
+        setCompletionMode(publication.completionMode === "redirect" ? "redirect" : "message");
+        setCompletionRedirectUrl(publication.redirectUrl || "");
+        setEndPage({
+          backgroundMode: publication.limitPageBackgroundMode || "common",
+          background: publication.limitPageBackground || "",
+          content: publication.limitPageContent || {},
+        });
         setClosedImage(publication.closedImage || "");
         const existingResponses = JSON.parse(window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`) || "[]") as LiveSurveyResponse[];
         const boundIdentity =
@@ -436,6 +448,10 @@ export default function PlayerSurvey() {
     const existing = JSON.parse(window.localStorage.getItem(key) || "[]");
     window.localStorage.setItem(key, JSON.stringify([response, ...existing]));
     setResponseId(id);
+    if (completionMode === "redirect" && completionRedirectUrl) {
+      window.location.assign(completionRedirectUrl);
+      return;
+    }
     setDone(true);
   }
 
@@ -528,14 +544,28 @@ export default function PlayerSurvey() {
 
   if (done) {
     const translationLocale = locale === "en-US" ? "EN" : locale === "zh-TW" ? "繁中" : locale === "th-TH" ? "ไทย" : "简中";
+    const baseContent = endPage.content[locale] || endPage.content["en-US"] || endPage.content["zh-CN"] || {
+      title: copy.done,
+      body: copy.doneText,
+      links: [],
+    };
+    const resultTranslations = translations[translationLocale] || {};
+    const content: LimitPageContent = {
+      ...baseContent,
+      title: resultTranslations["limit:title"] || baseContent.title,
+      body: resultTranslations["limit:body"] || baseContent.body,
+      links: (baseContent.links || []).map((link) => ({
+        ...link,
+        text: resultTranslations[`limit:link:${link.id}`] || link.text,
+      })),
+    };
     return (
-      <main className={surveyShellClass} style={surveyShellStyle}>
+      <main className={`player-limit-shell ${endPage.backgroundMode}`} style={endPage.backgroundMode === "custom" && endPage.background ? { backgroundImage: `url(${endPage.background})` } : undefined}>
         <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
-        <section className="player-complete">
-          {completionImage && <img className="player-completion-image" src={completionImage} alt="" />}
-          <span>✓</span><h1>{copy.done}</h1><p>{translations[translationLocale]?.["form:completion"] || copy.doneText}</p>
-          <div><small>Response ID</small><strong>{responseId}</strong></div>
-          <button onClick={() => router.push(`/survey/${surveyId}/responses`)}>在答卷列表中查看</button>
+        <section className="player-limit-card player-unified-end-card">
+          {content.title && <h1>{content.title}</h1>}
+          <p><InlineLimitText content={content} /></p>
+          <small>提交成功 · Response ID {responseId}</small>
         </section>
       </main>
     );

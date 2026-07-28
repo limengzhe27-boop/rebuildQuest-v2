@@ -74,6 +74,7 @@ export type Publication = {
   closedMessage: string;
   closedImage: string;
   limitPageBackgroundMode: "common" | "custom";
+  limitPageBackgroundTemplateId: string;
   limitPageBackground: string;
   limitPageContent: Record<string, LimitPageContent>;
   stoppedAt?: string;
@@ -143,6 +144,7 @@ export const defaultPublications: Publication[] = [
     closedMessage: "This survey has ended. Thank you for your interest.",
     closedImage: "",
     limitPageBackgroundMode: "common",
+    limitPageBackgroundTemplateId: "project-default",
     limitPageBackground: "",
     limitPageContent: {
       "en-US": { title: "You have completed this survey", body: "Thank you for participating. This account or environment has reached the submission limit.", links: [] },
@@ -213,6 +215,7 @@ export const defaultPublications: Publication[] = [
     closedMessage: "本次问卷收集已结束，感谢您的关注。",
     closedImage: "",
     limitPageBackgroundMode: "common",
+    limitPageBackgroundTemplateId: "project-default",
     limitPageBackground: "",
     limitPageContent: {
       "zh-CN": { title: "您已完成本次问卷", body: "感谢您的参与，当前账号或填写环境已达到提交次数限制。", links: [] },

@@ -93,9 +93,6 @@ export default function LanguagesPage() {
       if (question.description.trim()) result.push({ id: `${question.id}:description`, source: question.description });
       question.options?.forEach((option, index) => result.push({ id: `${question.id}:option:${index}`, source: option }));
     });
-    if (publication?.completionMode !== "redirect") {
-      result.push({ id: "form:completion", source: publication?.completionMessage || "感谢您的参与，问卷已成功提交。" });
-    }
     result.push({ id: "form:closed", source: publication?.closedMessage || "本次问卷收集已结束，感谢您的关注。" });
     const sourceLocale = publication?.defaultLocale || "zh-CN";
     const limitContent = publication?.limitPageContent?.[sourceLocale];
@@ -272,32 +269,6 @@ export default function LanguagesPage() {
            </div>
 
            <div className="language-result-pages">
-             {publication?.completionMode !== "redirect" ? (
-               <section className="language-result-workspace">
-                 <header><div><strong>提交完成页</strong><small>玩家成功提交问卷后看到的完整页面，单独翻译与校验。</small></div></header>
-                 <div className="result-translation-pair">
-                   <article>
-                     <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
-                     <div className="standalone-result-preview full-page">
-                       {publication?.completionImage && <img src={publication.completionImage} alt="" />}
-                       <i>✓</i><strong>{publication?.completionMessage || "感谢您的参与，问卷已成功提交。"}</strong>
-                     </div>
-                   </article>
-                   <article className="translated">
-                     <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
-                     <div className="standalone-result-editor full-page">
-                       {publication?.completionImage && <img src={publication.completionImage} alt="" />}
-                       {editableField("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。", "完成提示")}
-                     </div>
-                   </article>
-                 </div>
-               </section>
-             ) : (
-               <section className="language-result-workspace compact-notice">
-                 <div className="result-redirect-notice"><span>↗</span><p><strong>提交后跳转指定网页</strong><small>当前不展示提交完成页，因此无需配置该页面的多语言内容。</small></p></div>
-               </section>
-             )}
-
              <section className="language-result-workspace">
                <header><div><strong>停止收集后页面</strong><small>手动结束、定时结束、达到总量或不在开放时段时展示。</small></div></header>
                <div className="result-translation-pair">
@@ -319,7 +290,7 @@ export default function LanguagesPage() {
              </section>
 
              <section className="language-result-workspace">
-               <header><div><strong>重复填写限制结果页</strong><small>用户、IP 或设备达到提交次数上限时展示的完整页面。</small></div></header>
+               <header><div><strong>问卷结束页</strong><small>提交完成和达到重复填写限制时共用；跳转网页模式下仍用于限制结果。</small></div></header>
                <div className="result-translation-pair">
                  <article>
                    <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
