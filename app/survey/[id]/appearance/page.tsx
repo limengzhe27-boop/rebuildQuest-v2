@@ -66,7 +66,7 @@ export default function AppearancePage() {
   const [config, setConfig] = useState<Appearance>(defaults);
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
-  const [previewState, setPreviewState] = useState<"form" | "complete" | "limit">("form");
+  const [previewState, setPreviewState] = useState<"form" | "complete" | "closed" | "limit">("form");
   const [pageIndex, setPageIndex] = useState(0);
   const [previewLocale, setPreviewLocale] = useState("简中");
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
@@ -224,6 +224,7 @@ export default function AppearancePage() {
             <div className="appearance-state-preview">
               <button className={previewState === "form" ? "active" : ""} onClick={() => setPreviewState("form")}>填写页</button>
               <button className={previewState === "complete" ? "active" : ""} onClick={() => setPreviewState("complete")}>提交完成页</button>
+              <button className={previewState === "closed" ? "active" : ""} onClick={() => setPreviewState("closed")}>停止收集页</button>
               <button className={previewState === "limit" ? "active" : ""} onClick={() => setPreviewState("limit")}>限制结果页</button>
             </div>
             <label className="appearance-language-preview"><span>预览语言</span><select value={previewLocale} onChange={(event) => { setPreviewLocale(event.target.value); setPageIndex(0); }}>{availablePreviewLocales.map((locale) => <option key={locale} value={locale}>{previewLocaleNames[locale] || locale}</option>)}</select></label>
@@ -265,6 +266,17 @@ export default function AppearancePage() {
                   <i>✓</i>
                   <h1>{translated("form:completion:title", "提交成功")}</h1>
                   <p>{translated("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。")}</p>
+                </article>
+              </div>
+            ) : previewState === "closed" ? (
+              <div className="appearance-result-preview closed">
+                {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
+                <article>
+                  {publication?.closedImage && <img className="appearance-completion-image" src={publication.closedImage} alt="" />}
+                  <i>■</i>
+                  <h1>{translated("form:closed:title", "本次问卷收集已结束")}</h1>
+                  <p>{translated("form:closed", publication?.closedMessage || "本次问卷收集已结束，感谢您的关注。")}</p>
+                  <small>手动结束、定时结束、达到数量上限或当前不在允许访问时段时展示</small>
                 </article>
               </div>
             ) : (

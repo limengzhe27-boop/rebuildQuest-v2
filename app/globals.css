@@ -1360,6 +1360,18 @@ input:focus-visible {
   background-size: cover;
 }
 
+.appearance-result-preview.closed {
+  background:
+    radial-gradient(circle at 75% 20%, rgba(157, 173, 201, .2), transparent 24%),
+    linear-gradient(180deg, #edf1f6 0%, #f8fafc 100%);
+}
+
+.appearance-result-preview.closed article > i {
+  border-radius: 12px;
+  background: #edf0f5;
+  color: #647187;
+}
+
 .appearance-result-preview > article {
   width: min(100%, 420px);
   border-radius: 11px;
