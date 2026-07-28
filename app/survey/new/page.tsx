@@ -271,7 +271,7 @@ function NewSurveyWizard() {
           </div>
           <div className="wizard-assurance">
             <span>✓</span>
-            <p><strong>草稿自动保存</strong><br />创建后可继续修改所有配置。</p>
+              <p><strong>创建后自动保存</strong><br />完成创建进入编辑器后，所有修改自动保存。</p>
           </div>
         </aside>
 
