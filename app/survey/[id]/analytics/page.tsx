@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
+import { loadQuestions, Question, questionLabels } from "@/lib/survey-builder";
+import { LiveSurveyResponse, MatrixAnswer } from "@/lib/survey-runtime";
 
 const totalResponses = 8421;
 const satisfaction = [
@@ -50,6 +52,36 @@ export default function AnalyticsPage() {
   const [range, setRange] = useState("全部时间");
   const [tab, setTab] = useState<"answers" | "users">("answers");
   const [notice, setNotice] = useState("");
+  const [matrixQuestions, setMatrixQuestions] = useState<Question[]>([]);
+  const [liveResponses, setLiveResponses] = useState<LiveSurveyResponse[]>([]);
+
+  useEffect(() => {
+    setMatrixQuestions(loadQuestions(surveyId).filter((question) => ["matrix", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"].includes(question.type)));
+    try {
+      setLiveResponses(JSON.parse(window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`) || "[]"));
+    } catch {
+      setLiveResponses([]);
+    }
+  }, [surveyId]);
+
+  const matrixReports = useMemo(() => matrixQuestions.map((question) => {
+    const rows = question.matrixRows?.length ? question.matrixRows : ["行 1", "行 2", "行 3"];
+    const columns = question.matrixColumns?.length ? question.matrixColumns : question.options || ["选项 1", "选项 2", "选项 3"];
+    const answers = liveResponses.map((response) => response.answers[question.id]).filter((answer): answer is MatrixAnswer => Boolean(answer && typeof answer === "object" && !Array.isArray(answer)));
+    const numericColumns = columns.every((column) => Number.isFinite(Number(column)));
+    const rowStats = rows.map((row) => {
+      const values = answers.map((answer) => answer[row]).filter((value): value is string | number => typeof value === "string" || typeof value === "number");
+      const counts = columns.map((column) => values.filter((value) => String(value) === String(column)).length);
+      const numericValues = values.map(Number).filter(Number.isFinite);
+      const average = numericColumns && numericValues.length ? numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length : null;
+      return { row, counts, average, answered: values.length };
+    });
+    const responseTotals = numericColumns
+      ? answers.map((answer) => rows.map((row) => Number(answer[row])).filter(Number.isFinite).reduce((sum, value) => sum + value, 0))
+      : [];
+    const averageTotal = responseTotals.length ? responseTotals.reduce((sum, value) => sum + value, 0) / responseTotals.length : null;
+    return { question, rows, columns, rowStats, answers: answers.length, numericColumns, averageTotal };
+  }), [liveResponses, matrixQuestions]);
   function flash(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 2200);
@@ -109,6 +141,27 @@ export default function AnalyticsPage() {
             </table>
             <footer className="text-answer-link"><span>文本题只做主题计数，原始回答请在答卷明细中查看。</span><button onClick={() => router.push(`/survey/${surveyId}/responses`)}>查看全部文本答案 →</button></footer>
           </article>
+
+          {matrixReports.map((report) => (
+            <article className="answer-report-section matrix-answer-report" key={report.question.id}>
+              <header>
+                <div><span>矩阵题　{questionLabels[report.question.type]}</span><h2>{report.question.title}</h2></div>
+                <dl>
+                  <div><dt>回答</dt><dd>{report.answers.toLocaleString()}</dd></div>
+                  {report.numericColumns && <div><dt>平均总分</dt><dd>{report.averageTotal === null ? "—" : report.averageTotal.toFixed(1)}</dd></div>}
+                </dl>
+              </header>
+              <div className="matrix-stat-scroll">
+                <table>
+                  <thead><tr><th>题目/选项</th>{report.columns.map((column) => <th key={column}>{column}</th>)}{report.numericColumns && <th>平均分</th>}</tr></thead>
+                  <tbody>
+                    {report.rowStats.map((row) => <tr key={row.row}><td>{row.row}</td>{row.counts.map((count, index) => <td key={report.columns[index]}>{count}<small>{row.answered ? `${(count / row.answered * 100).toFixed(1)}%` : "0%"}</small></td>)}{report.numericColumns && <td><strong>{row.average === null ? "—" : row.average.toFixed(1)}</strong></td>}</tr>)}
+                  </tbody>
+                </table>
+              </div>
+              {report.numericColumns && <footer className="matrix-score-summary"><span>所有行评分总和用于单份答卷的逻辑判断</span><strong>当前答卷平均总分：{report.averageTotal === null ? "—" : report.averageTotal.toFixed(1)}</strong></footer>}
+            </article>
+          ))}
         </div> : <div className="user-distribution-content">
           <article className="collection-trend-card">
             <header>

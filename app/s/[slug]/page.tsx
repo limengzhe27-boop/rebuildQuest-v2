@@ -6,8 +6,10 @@ import { defaultQuestions, Question, questionLabels } from "@/lib/survey-builder
 import {
   defaultQuestionTranslations,
   LiveSurveyResponse,
+  MatrixAnswer,
   matchRuntimeLocale,
   RuntimeLocale,
+  SurveyAnswer,
   runtimeLocales,
 } from "@/lib/survey-runtime";
 import { LimitPageContent } from "@/lib/survey-publication";
@@ -79,6 +81,9 @@ type StoredRule = {
   action: string;
   target: string;
   enabled: boolean;
+  matrixScope?: "cell" | "row" | "any-row" | "sum" | "average" | "minimum";
+  matrixRow?: string;
+  matrixColumn?: string;
 };
 
 export default function PlayerSurvey() {
@@ -114,7 +119,7 @@ export default function PlayerSurvey() {
     reason: string;
   } | null>(null);
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string | string[] | number>>({});
+  const [answers, setAnswers] = useState<Record<string, string | string[] | number | MatrixAnswer>>({});
   const [consent, setConsent] = useState(false);
   const [done, setDone] = useState(false);
   const [responseId, setResponseId] = useState("");
@@ -271,21 +276,72 @@ export default function PlayerSurvey() {
     };
   }
 
+  function compareAnswer(value: string | number, operator: string, expected: string) {
+    if (operator === "小于") return Number(value) < Number(expected);
+    if (operator === "小于等于") return Number(value) <= Number(expected);
+    if (operator === "大于") return Number(value) > Number(expected);
+    if (operator === "大于等于") return Number(value) >= Number(expected);
+    if (operator === "不等于") return String(value) !== expected;
+    if (operator === "包含") return String(value).includes(expected);
+    if (operator === "不包含") return !String(value).includes(expected);
+    if (operator === "为空") return String(value).trim() === "";
+    if (operator === "不为空") return String(value).trim() !== "";
+    const accepted = expected.split("/").map((item) => item.trim());
+    return accepted.includes(String(value));
+  }
+
+  function answerMatches(
+    sourceQuestion: Question,
+    answer: SurveyAnswer | undefined,
+    operator: string,
+    expected: string,
+    matrixScope?: StoredRule["matrixScope"],
+    matrixRow?: string,
+    matrixColumn?: string,
+  ) {
+    if (answer === undefined || answer === "") return operator === "为空";
+    if (answer && typeof answer === "object" && !Array.isArray(answer)) {
+      const matrixAnswer = answer as MatrixAnswer;
+      const scope = matrixScope || (["matrixScale", "matrixSlider"].includes(sourceQuestion.type) ? "row" : "cell");
+      if (scope === "cell") {
+        const rowValue = matrixAnswer[matrixRow || ""];
+        const selected = Array.isArray(rowValue) ? rowValue.includes(matrixColumn || "") : String(rowValue ?? "") === String(matrixColumn || "");
+        return operator === "未选中" ? !selected : selected;
+      }
+      const rawValues = scope === "row" ? [matrixAnswer[matrixRow || ""]] : Object.values(matrixAnswer);
+      const values = rawValues.flatMap((item) => Array.isArray(item) ? item : [item]).filter((item): item is string | number => item !== undefined);
+      if (scope === "sum" || scope === "average" || scope === "minimum") {
+        const numbers = values.map(Number).filter(Number.isFinite);
+        if (!numbers.length) return false;
+        const aggregate = scope === "sum"
+          ? numbers.reduce((total, item) => total + item, 0)
+          : scope === "average"
+            ? numbers.reduce((total, item) => total + item, 0) / numbers.length
+            : Math.min(...numbers);
+        return compareAnswer(aggregate, operator, expected);
+      }
+      return values.some((item) => compareAnswer(item, operator, expected));
+    }
+    if (Array.isArray(answer)) return answer.some((item) => compareAnswer(item, operator, expected));
+    return compareAnswer(answer, operator, expected);
+  }
+
   function ruleMatches(rule: StoredRule) {
     const questionIndex = Number.parseInt(rule.question.slice(0, 2), 10) - 1;
     const sourceQuestion = questions[questionIndex];
     if (!sourceQuestion) return false;
-    const answer = answers[sourceQuestion.id];
-    if (answer === undefined || answer === "") return false;
-    if (rule.operator === "小于等于") return Number(answer) <= Number(rule.value);
-    if (rule.operator === "不等于") return String(answer) !== rule.value;
-    if (rule.operator === "包含") return String(answer).includes(rule.value);
-    const accepted = rule.value.split("/").map((item) => item.trim());
-    return accepted.includes(String(answer));
+    return answerMatches(sourceQuestion, answers[sourceQuestion.id], rule.operator, rule.value, rule.matrixScope, rule.matrixRow, rule.matrixColumn);
   }
 
   const visibleQuestions = useMemo(() => {
     return questions.filter((question, index) => {
+      if (question.displayLogic?.conditions.length) {
+        const matches = question.displayLogic.conditions.map((condition) => {
+          const source = questions.find((item) => item.id === condition.questionId);
+          return source ? answerMatches(source, answers[source.id], condition.operator, condition.value, condition.matrixScope, condition.matrixRow, condition.matrixColumn) : false;
+        });
+        return question.displayLogic.match === "all" ? matches.every(Boolean) : matches.some(Boolean);
+      }
       if (index < 2 || rules.length === 0) return true;
       const targetingRules = rules.filter(
         (rule) => rule.enabled && rule.target.startsWith(String(index + 1).padStart(2, "0")),
@@ -303,7 +359,7 @@ export default function PlayerSurvey() {
       ? 8
       : Math.round((step / Math.max(visibleQuestions.length, 1)) * 100);
 
-  function updateAnswer(value: string | string[] | number) {
+  function updateAnswer(value: string | string[] | number | MatrixAnswer) {
     if (!current) return;
     setAnswers((previous) => ({ ...previous, [current.id]: value }));
     setValidation("");
@@ -327,7 +383,7 @@ export default function PlayerSurvey() {
     const answer = answers[current.id];
     if (
       isRequired(current) &&
-      (answer === undefined || answer === "" || (Array.isArray(answer) && !answer.length))
+      (answer === undefined || answer === "" || (Array.isArray(answer) && !answer.length) || (typeof answer === "object" && !Array.isArray(answer) && !Object.keys(answer).length))
     ) {
       setValidation(copy.required);
       return;
@@ -528,11 +584,57 @@ function QuestionInput({
   placeholder,
 }: {
   question: Question;
-  value: string | string[] | number | undefined;
-  onChange: (value: string | string[] | number) => void;
+    value: string | string[] | number | MatrixAnswer | undefined;
+  onChange: (value: string | string[] | number | MatrixAnswer) => void;
   placeholder: string;
 }) {
-  if (["single", "image", "sort", "dropdown", "cascade", "matrixSelect", "tableSelect"].includes(question.type)) {
+  if (["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"].includes(question.type)) {
+    const rows = question.matrixRows?.length ? question.matrixRows : ["行 1", "行 2", "行 3"];
+    const columns = question.matrixColumns?.length
+      ? question.matrixColumns
+      : question.options?.length
+        ? question.options
+        : ["选项 1", "选项 2", "选项 3"];
+    const matrixValue: MatrixAnswer = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const updateMatrix = (key: string, nextValue: string | number) => onChange({ ...matrixValue, [key]: nextValue });
+
+    if (question.type === "matrixSlider") {
+      const numericColumns = columns.map(Number).filter((item) => Number.isFinite(item));
+      const min = numericColumns.length ? Math.min(...numericColumns) : 1;
+      const max = numericColumns.length ? Math.max(...numericColumns) : 5;
+      return <div className="player-matrix-sliders">{rows.map((row) => <label key={row}><span>{row}</span><input type="range" min={min} max={max} value={Number(matrixValue[row] ?? min)} onChange={(event) => updateMatrix(row, Number(event.target.value))} /><strong>{matrixValue[row] ?? min}</strong></label>)}</div>;
+    }
+
+    return (
+      <div className="player-matrix-scroll">
+        <div className={`player-matrix-table ${question.type}`} style={{ gridTemplateColumns: `minmax(120px, 1.3fr) repeat(${columns.length}, minmax(72px, 1fr))` }}>
+          <div className="matrix-corner">题目/选项</div>
+          {columns.map((column) => <div className="matrix-column" key={column}>{column}</div>)}
+          {rows.map((row) => (
+            <div className="player-matrix-row" key={row}>
+              <strong>{row}</strong>
+              {columns.map((column) => {
+                const cellKey = `${row}::${column}`;
+                if (question.type === "matrixFill") {
+                  return <input key={column} aria-label={`${row} ${column}`} value={String(matrixValue[cellKey] ?? "")} onChange={(event) => updateMatrix(cellKey, event.target.value)} />;
+                }
+                if (question.type === "matrixDropdown") {
+                  return column === columns[0]
+                    ? <select key={column} value={String(matrixValue[row] ?? "")} onChange={(event) => updateMatrix(row, event.target.value)}><option value="">请选择</option>{columns.map((option) => <option key={option}>{option}</option>)}</select>
+                    : <span className="matrix-empty-cell" key={column} />;
+                }
+                const storedValue = matrixValue[row];
+                const normalizedValue = question.type === "matrixScale" ? Number(column) : column;
+                const selected = storedValue === normalizedValue;
+                return <button type="button" aria-label={`${row} ${column}`} key={column} className={selected ? "selected" : ""} onClick={() => updateMatrix(row, normalizedValue)}><i>{selected ? "●" : "○"}</i></button>;
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (["single", "image", "sort", "dropdown", "cascade", "tableSelect"].includes(question.type)) {
     return <div className="player-options">{question.options?.map((option, index) => {
       const sourceValue = defaultQuestions.find((item) => item.id === question.id)?.options?.[index] || option;
       return <button key={option} className={value === sourceValue ? "selected" : ""} onClick={() => onChange(sourceValue)}><i>{value === sourceValue ? "●" : "○"}</i>{option}</button>;

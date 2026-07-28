@@ -14,7 +14,7 @@ type Rule = {
   action: string;
   target: string;
   enabled: boolean;
-  matrixScope?: "cell" | "row" | "any-row" | "average" | "minimum";
+  matrixScope?: "cell" | "row" | "any-row" | "sum" | "average" | "minimum";
   matrixRow?: string;
   matrixColumn?: string;
 };
@@ -125,8 +125,9 @@ export default function LogicPage() {
             <p><strong>选择矩阵判断对象</strong><small>可判断单元格是否选中，也可比较指定行、任意行或汇总评分</small></p>
             <label><span>判断对象</span><select value={selectedMatrixScope} onChange={(e)=>{const matrixScope=e.target.value as Rule["matrixScope"];update({matrixScope,operator:matrixScope==="cell"?"已选中":isNumericMatrixRule?"小于":"等于",value:""});}}>
               {!isNumericMatrixRule && <option value="cell">指定单元格</option>}
-              <option value="row">指定行的答案</option>
-              <option value="any-row">任意一行的答案</option>
+              <option value="row">{isNumericMatrixRule ? "指定行评分" : "指定行的答案"}</option>
+              <option value="any-row">{isNumericMatrixRule ? "任意一行评分" : "任意一行的答案"}</option>
+              {isNumericMatrixRule && <option value="sum">所有行评分总和</option>}
               {isNumericMatrixRule && <option value="average">全部行平均分</option>}
               {isNumericMatrixRule && <option value="minimum">全部行最低分</option>}
             </select></label>

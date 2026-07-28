@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { responseStatusLabel, SurveyResponse, surveyResponses } from "@/lib/survey-responses";
-import { LiveSurveyResponse, runtimeLocales } from "@/lib/survey-runtime";
+import { LiveSurveyResponse, runtimeLocales, SurveyAnswer } from "@/lib/survey-runtime";
 import { loadQuestions, Question } from "@/lib/survey-builder";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
 type ResponseRow = SurveyResponse & {
-  answers: Record<string, string | string[] | number>;
+  answers: Record<string, SurveyAnswer>;
 };
 
 type ResponseColumn = {
@@ -126,6 +126,12 @@ export default function ResponsesPage() {
     getter: (item) => {
       const value = item.answers[question.id];
       if (Array.isArray(value)) return value.join("、") || "—";
+      if (value && typeof value === "object") {
+        const entries = Object.entries(value);
+        return entries.length
+          ? entries.map(([row, answer]) => `${row.replace("::", " / ")}：${Array.isArray(answer) ? answer.join("、") : answer}`).join("；")
+          : "—";
+      }
       return value === undefined || value === null || value === "" ? "—" : String(value);
     },
   })), [questions]);

@@ -368,16 +368,30 @@ export default function SurveyEditorPage() {
       return;
     }
     setLogicQuestionId(question.id);
-    setLogicDraft(
-      question.displayLogic || {
+    const baseLogic = question.displayLogic || {
         match: "all",
         conditions: [{
           questionId: questions[index - 1].id,
           operator: "等于",
           value: "",
         }],
-      },
-    );
+      };
+    setLogicDraft({
+      ...baseLogic,
+      conditions: baseLogic.conditions.map((condition) => {
+        const source = questions.find((item) => item.id === condition.questionId);
+        if (!isMatrixLogicSource(source)) return condition;
+        const matrixScope = condition.matrixScope || defaultMatrixScope(source);
+        return {
+          ...condition,
+          matrixScope,
+          matrixRow: condition.matrixRow || matrixRows(source)[0],
+          matrixColumn: condition.matrixColumn || matrixColumns(source)[0],
+          operator: matrixScope === "cell" ? "已选中" : condition.operator,
+          value: matrixScope === "cell" ? "" : condition.value,
+        };
+      }),
+    });
   }
 
   function updateLogicCondition(index: number, patch: Partial<LogicCondition>) {
@@ -667,11 +681,11 @@ export default function SurveyEditorPage() {
                         </>
                       )}
                       {(["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown", "tableSelect"] as QuestionType[]).includes(question.type) && (
-                        <div className="matrix-preview">
+                        <div className="matrix-preview" style={{ gridTemplateColumns: `minmax(120px, 1.6fr) repeat(${(question.matrixColumns?.length ? question.matrixColumns : question.options || ["选项 1", "选项 2", "选项 3"]).length}, minmax(62px, .7fr))` }}>
                           <span />
-                          {["不满意", "一般", "满意"].map((item) => <b key={item}>{item}</b>)}
-                          {question.options?.map((row) => (
-                            <div key={row} className="matrix-row"><strong>{row}</strong><i>○</i><i>○</i><i>○</i></div>
+                          {(question.matrixColumns?.length ? question.matrixColumns : question.options || ["选项 1", "选项 2", "选项 3"]).map((item) => <b key={item}>{item}</b>)}
+                          {(question.matrixRows?.length ? question.matrixRows : ["行 1", "行 2", "行 3"]).map((row) => (
+                            <div key={row} className="matrix-row"><strong>{row}</strong>{(question.matrixColumns?.length ? question.matrixColumns : question.options || ["选项 1", "选项 2", "选项 3"]).map((column) => <i key={column}>○</i>)}</div>
                           ))}
                         </div>
                       )}
@@ -755,8 +769,9 @@ export default function SurveyEditorPage() {
                             }}
                           >
                             {!isNumericMatrix(source) && <option value="cell">指定单元格</option>}
-                            <option value="row">指定行的答案</option>
-                            <option value="any-row">任意一行的答案</option>
+                            <option value="row">{isNumericMatrix(source) ? "指定行评分" : "指定行的答案"}</option>
+                            <option value="any-row">{isNumericMatrix(source) ? "任意一行评分" : "任意一行的答案"}</option>
+                            {isNumericMatrix(source) && <option value="sum">所有行评分总和</option>}
                             {isNumericMatrix(source) && <option value="average">全部行平均分</option>}
                             {isNumericMatrix(source) && <option value="minimum">全部行最低分</option>}
                           </select>
@@ -790,11 +805,6 @@ export default function SurveyEditorPage() {
                   </div>
                 );
               })}
-            </div>
-
-            <div className="matrix-logic-tip">
-              <span>矩</span>
-              <p><strong>矩阵题支持单元格、行与汇总判断</strong><small>矩阵选择可判断某个“行 × 列”是否选中；矩阵量表和滑块可直接配置“指定行评分小于 3”“任意一行评分小于 3”或“平均分小于 3”。</small></p>
             </div>
 
             <button className="add-logic-condition" onClick={addLogicCondition}>＋ 添加条件</button>

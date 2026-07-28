@@ -9,13 +9,16 @@ export const runtimeLocales: Record<RuntimeLocale, string> = {
   "th-TH": "ไทย",
 };
 
+export type MatrixAnswer = Record<string, string | string[] | number>;
+export type SurveyAnswer = string | string[] | number | MatrixAnswer;
+
 export type LiveSurveyResponse = {
   id: string;
   surveyId: string;
   submittedAt: string;
   locale: RuntimeLocale;
   durationSeconds: number;
-  answers: Record<string, string | string[] | number>;
+  answers: Record<string, SurveyAnswer>;
   questions: Pick<Question, "id" | "title" | "type">[];
   source: string;
   joymakerId?: string;

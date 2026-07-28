@@ -8818,6 +8818,166 @@ input:focus-visible {
   font-size: 10px;
 }
 
+.player-matrix-scroll {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e0e5ec;
+  border-radius: var(--player-radius, 10px);
+  background: #fff;
+}
+
+.player-matrix-table {
+  display: grid;
+  min-width: 560px;
+  color: #39465a;
+}
+
+.player-matrix-table > .matrix-corner,
+.player-matrix-table > .matrix-column {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid #e4e8ee;
+  background: #f6f8fb;
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.player-matrix-table > .matrix-corner {
+  justify-content: flex-start;
+}
+
+.player-matrix-row {
+  display: contents;
+}
+
+.player-matrix-row > strong,
+.player-matrix-row > button,
+.player-matrix-row > input,
+.player-matrix-row > select,
+.player-matrix-row > .matrix-empty-cell {
+  display: flex;
+  min-width: 0;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-bottom: 1px solid #edf0f4;
+  border-radius: 0;
+  background: #fff;
+  padding: 8px;
+}
+
+.player-matrix-row > strong {
+  justify-content: flex-start;
+  border-right: 1px solid #edf0f4;
+  color: #354258;
+  font-size: 13px;
+}
+
+.player-matrix-row > button {
+  color: #9ca6b5;
+  cursor: pointer;
+}
+
+.player-matrix-row > button i {
+  color: inherit;
+  font-size: 20px;
+  font-style: normal;
+}
+
+.player-matrix-row > button.selected {
+  background: #f5f8ff;
+  color: var(--player);
+}
+
+.player-matrix-row > input,
+.player-matrix-row > select {
+  width: 100%;
+  border-left: 1px solid #edf0f4;
+  color: #46546a;
+  outline: none;
+}
+
+.player-matrix-sliders {
+  display: grid;
+  gap: 10px;
+}
+
+.player-matrix-sliders label {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(160px, 3fr) 38px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e2e7ef;
+  border-radius: var(--player-radius, 10px);
+  padding: 13px 15px;
+}
+
+.player-matrix-sliders label span {
+  color: #39465a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.player-matrix-sliders label strong {
+  color: var(--player);
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .player-matrix-scroll {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .player-matrix-sliders label {
+    grid-template-columns: 1fr 38px;
+  }
+
+  .player-matrix-sliders label input {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+.matrix-stat-scroll {
+  overflow-x: auto;
+}
+
+.matrix-answer-report .matrix-stat-scroll table {
+  min-width: 720px;
+}
+
+.matrix-answer-report tbody td:not(:first-child) {
+  text-align: center;
+}
+
+.matrix-answer-report tbody td small {
+  display: block;
+  margin-top: 3px;
+  color: #8a96a8;
+  font-size: 10px;
+}
+
+.matrix-score-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #e5eaf1;
+  padding: 12px 16px;
+  color: #7e899a;
+  font-size: 11px;
+}
+
+.matrix-score-summary strong {
+  color: #34445d;
+}
+
 .setting-with-select select {
   min-width: 170px;
   height: 34px;

@@ -58,7 +58,7 @@ export type Question = {
       questionId: string;
       operator: "等于" | "不等于" | "包含" | "不包含" | "大于" | "大于等于" | "小于" | "小于等于" | "为空" | "不为空" | "已选中" | "未选中";
       value: string;
-      matrixScope?: "cell" | "row" | "any-row" | "average" | "minimum";
+      matrixScope?: "cell" | "row" | "any-row" | "sum" | "average" | "minimum";
       matrixRow?: string;
       matrixColumn?: string;
     }[];
@@ -140,7 +140,7 @@ export function createQuestion(type: QuestionType): Question {
     description: "",
     required: false,
   };
-  if (["single", "multiple", "sort", "image", "dropdown", "cascade", "matrixSelect", "tableSelect"].includes(type)) {
+  if (["single", "multiple", "sort", "image", "dropdown", "cascade", "tableSelect"].includes(type)) {
     return { ...common, options: ["选项 1", "选项 2", "选项 3"], ...(type === "multiple" ? { maxSelections: undefined } : {}) };
   }
   if (type === "rating") return { ...common, min: 1, max: 5, minLabel: "非常不满意", maxLabel: "非常满意" };
@@ -168,7 +168,7 @@ export function loadQuestions(surveyId: string): Question[] {
         questionId: string;
         operator: "等于" | "不等于" | "包含" | "不包含" | "大于" | "大于等于" | "小于" | "小于等于" | "为空" | "不为空";
         value: string;
-        matrixScope?: "cell" | "row" | "any-row" | "average" | "minimum";
+        matrixScope?: "cell" | "row" | "any-row" | "sum" | "average" | "minimum";
         matrixRow?: string;
         matrixColumn?: string;
       };
