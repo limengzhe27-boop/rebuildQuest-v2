@@ -53,7 +53,7 @@ export default function AnalyticsPage() {
         <button className="editor-back" onClick={() => router.push("/")}>‹</button>
         <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="live-dot" />统计数据更新于 2 分钟前</small></div></div>
         <SurveyNav surveyId={surveyId} active="analytics" onNotice={flash} />
-        <div className="editor-actions"><button className="secondary-button" onClick={() => router.push(`/survey/${surveyId}/responses`)}>查看答卷明细</button><button className="primary-button" onClick={() => flash("统计结果已开始导出")}>⇩ 导出统计</button></div>
+        <div className="editor-actions"><button className="secondary-button" onClick={() => router.push(`/survey/${surveyId}/responses`)}>查看答卷明细</button></div>
       </header>
 
       <section className="analytics-simple-shell">
