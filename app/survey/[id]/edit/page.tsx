@@ -89,6 +89,7 @@ export default function SurveyEditorPage() {
   const editingTemplateId = searchParams.get("templateId");
   const surveyTitle = useSurveyTitle(surveyId);
   const [templateEditorTitle, setTemplateEditorTitle] = useState("");
+  const [surveyDescription, setSurveyDescription] = useState("");
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [selectedId, setSelectedId] = useState(defaultQuestions[0].id);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
@@ -119,6 +120,12 @@ export default function SurveyEditorPage() {
           setTemplateEditorTitle(template.label || template.name || "未命名模板");
           setEditorTemplateCategories(template.categories?.length ? template.categories : [template.category || "其他"]);
         }
+      } catch {}
+    } else {
+      try {
+        const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
+        const draft = drafts.find((item: { id?: number | string }) => String(item.id) === String(surveyId));
+        setSurveyDescription(draft?.description || "");
       } catch {}
     }
     setQuestions(loadedQuestions.map((question) =>
@@ -429,7 +436,7 @@ export default function SurveyEditorPage() {
               <header className="survey-cover">
                 <span>RO3 · PLAYER RESEARCH</span>
                 <h1>{surveyTitle}</h1>
-                <p>感谢您参与本次先锋测试。问卷预计需要 3–5 分钟完成，您的反馈将帮助我们持续优化游戏体验。</p>
+                <p>{surveyDescription || "感谢您参与本次先锋测试。问卷预计需要 3–5 分钟完成，您的反馈将帮助我们持续优化游戏体验。"}</p>
                 <div><i /> 当前语言：English（默认）<button onClick={() => router.push(`/survey/${surveyId}/languages`)}>管理语言</button></div>
               </header>
 

@@ -93,6 +93,7 @@ export default function PlayerSurvey() {
   const [allowLanguageSwitch, setAllowLanguageSwitch] = useState(true);
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
   const [primary, setPrimary] = useState("#356fe6");
+  const [surveyDescription, setSurveyDescription] = useState("");
   const [closedMessage, setClosedMessage] = useState("");
   const [closedReason, setClosedReason] = useState<"ended" | "outside-hours">("ended");
   const [limitPage, setLimitPage] = useState<{
@@ -171,6 +172,7 @@ export default function PlayerSurvey() {
 
       const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
       const draft = drafts.find((item: { id?: number | string }) => String(item.id) === surveyId);
+      if (draft?.description) setSurveyDescription(draft.description);
       const configuredLocales = (draft?.languages || Object.keys(runtimeLocales))
         .map((item: string) => matchRuntimeLocale(item))
         .filter((item: RuntimeLocale | null): item is RuntimeLocale => Boolean(item));
@@ -361,7 +363,7 @@ export default function PlayerSurvey() {
       <section className="player-survey-card">
         {step === 0 ? (
           <div className="player-cover">
-            <span>RO3 · PLAYER RESEARCH</span><h1>{surveyTitle}</h1><p>{copy.intro}</p>
+            <span>RO3 · PLAYER RESEARCH</span><h1>{surveyTitle}</h1><p>{surveyDescription || copy.intro}</p>
             <ul><li><i>◷</i>3–5 min</li><li><i>▤</i>{visibleQuestions.length} questions</li><li><i>⌾</i>Global data region</li></ul>
             <label><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>{copy.consent}</span></label>
             <button disabled={!consent} onClick={() => setStep(1)}>{copy.start} →</button>

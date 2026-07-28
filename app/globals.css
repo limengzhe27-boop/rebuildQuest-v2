@@ -1330,6 +1330,25 @@ input:focus-visible {
   width: min(520px, calc(100vw - 32px));
 }
 
+.settings-autosave-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #718097;
+  font-size: 12px;
+}
+
+.settings-autosave-state i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #efaa36;
+}
+
+.settings-autosave-state i.saved {
+  background: #38ad73;
+}
+
 .breadcrumb {
   margin-bottom: 11px;
   color: #98a3b5;

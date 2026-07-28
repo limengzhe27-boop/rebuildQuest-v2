@@ -18,7 +18,7 @@ const allColumns: { key: string; label: string; getter: (item: SurveyResponse) =
   { key: "lineUserInfo", label: "LINE 信息", getter: (item) => item.lineUserInfo },
   { key: "country", label: "国家/地区", getter: (item) => item.country },
   { key: "submitAddress", label: "提交地区", getter: (item) => item.submitAddress },
-  { key: "locale", label: "问卷语言", getter: (item) => item.locale },
+  { key: "locale", label: "填写语言", getter: (item) => item.locale },
   { key: "channel", label: "来源", getter: (item) => item.channel },
   { key: "sourceParameter", label: "来源参数", getter: (item) => item.sourceParameter },
   { key: "submitIp", label: "提交 IP", getter: (item) => item.submitIp },
@@ -172,7 +172,7 @@ export default function ResponsesPage() {
 
         <div className="responses-toolbar response-table-toolbar">
           <div className="responses-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索答卷、账号、IP、渠道、答案或判定原因" /></div>
-          <select value={locale} onChange={(event) => setLocale(event.target.value)}><option value="all">全部语言</option><option>English</option><option>繁體中文</option><option>ไทย</option></select>
+          <select value={locale} onChange={(event) => setLocale(event.target.value)} title="按玩家提交答卷时实际使用的问卷语言筛选"><option value="all">全部填写语言</option><option>English</option><option>繁體中文</option><option>ไทย</option></select>
           <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">全部状态</option><option value="valid">有效</option><option value="invalid">无效</option></select>
           <div className="column-selector">
             <button onClick={() => setShowColumns(!showColumns)}>☷ 显示字段 <em>{visibleColumns.length}/{allColumns.length}</em></button>

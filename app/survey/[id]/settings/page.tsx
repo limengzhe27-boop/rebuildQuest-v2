@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultPublications, loadPublications, Publication } from "@/lib/survey-publication";
 import { loadQuestions, Question } from "@/lib/survey-builder";
@@ -16,10 +16,12 @@ export default function SurveySettingsPage() {
   const [section, setSection] = useState<"basic" | "submission" | "collection">("basic");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [autoSave, setAutoSave] = useState(true);
-  const [draftInfo, setDraftInfo] = useState({ game: "RO3", group: "", note: "" });
+  const [draftInfo, setDraftInfo] = useState({ game: "RO3", group: "", description: "", note: "" });
+  const [allProjectGroups, setAllProjectGroups] = useState<Array<{ project: string; name: string }>>([]);
   const [limitPageLocale, setLimitPageLocale] = useState("zh-CN");
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
 
   useEffect(() => {
     setPublications(loadPublications(surveyId));
@@ -28,16 +30,44 @@ export default function SurveySettingsPage() {
     try {
       const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
       const draft = drafts.find((item: { id?: number | string }) => String(item.id) === String(surveyId));
-      if (draft) setDraftInfo({ game: draft.game || "通用", group: draft.group || "", note: draft.note || "" });
+      if (draft) setDraftInfo({ game: draft.game || "通用", group: draft.group || "", description: draft.description || "", note: draft.note || "" });
+      const customGroups = JSON.parse(window.localStorage.getItem("joydata-survey-projects") || "[]");
+      const groups = [
+        ...drafts.map((item: { game?: string; group?: string }) => ({ project: item.game || "通用", name: item.group || "" })),
+        ...customGroups.map((item: { project?: string; name?: string }) => ({ project: item.project || "通用", name: item.name || "" })),
+      ].filter((item) => item.name);
+      setAllProjectGroups(groups);
     } catch {}
     setHydrated(true);
   }, [surveyId]);
 
   useEffect(() => {
     if (!hydrated) return;
-    window.localStorage.setItem(`joydata-survey-publications-${surveyId}`, JSON.stringify(publications));
-    window.localStorage.setItem(`joydata-survey-autosave-${surveyId}`, String(autoSave));
+    setSaveState("saving");
+    const timer = window.setTimeout(() => {
+      window.localStorage.setItem(`joydata-survey-publications-${surveyId}`, JSON.stringify(publications));
+      window.localStorage.setItem(`joydata-survey-autosave-${surveyId}`, String(autoSave));
+      setSaveState("saved");
+    }, 500);
+    return () => window.clearTimeout(timer);
   }, [publications, autoSave, surveyId, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    setSaveState("saving");
+    const timer = window.setTimeout(() => {
+      try {
+        const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
+        const next = drafts.map((item: { id?: number | string }) =>
+          String(item.id) === String(surveyId) ? { ...item, ...draftInfo, updated: "刚刚" } : item,
+        );
+        window.localStorage.setItem("joydata-survey-drafts", JSON.stringify(next));
+      } finally {
+        setSaveState("saved");
+      }
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [draftInfo, hydrated, surveyId]);
 
   const selected = publications[0];
 
@@ -50,19 +80,6 @@ export default function SurveySettingsPage() {
   function flash(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 2200);
-  }
-
-  function saveBasicInfo() {
-    try {
-      const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
-      const next = drafts.map((item: { id?: number | string }) =>
-        String(item.id) === String(surveyId) ? { ...item, ...draftInfo, updated: "刚刚" } : item,
-      );
-      window.localStorage.setItem("joydata-survey-drafts", JSON.stringify(next));
-      flash("基本信息已保存");
-    } catch {
-      flash("基本信息保存失败");
-    }
   }
 
   function updateLimitContent(patch: Partial<{ title: string; body: string; linkText: string; linkUrl: string }>) {
@@ -102,6 +119,11 @@ export default function SurveySettingsPage() {
     });
   }
 
+  const projectGroupOptions = useMemo(
+    () => Array.from(new Set(allProjectGroups.filter((item) => item.project === draftInfo.game).map((item) => item.name).concat(draftInfo.group ? [draftInfo.group] : []))),
+    [allProjectGroups, draftInfo.game, draftInfo.group],
+  );
+
   if (!selected) return null;
 
   return (
@@ -113,9 +135,7 @@ export default function SurveySettingsPage() {
           <div><strong>{surveyTitle}</strong><small><i className="saved" />设置自动保存</small></div>
         </div>
         <SurveyNav surveyId={surveyId} active="settings" />
-        <div className="editor-actions">
-          <button className="primary-button" onClick={() => flash("设置已保存")}>保存设置</button>
-        </div>
+        <div className="editor-actions"><span className="settings-autosave-state"><i className={saveState === "saved" ? "saved" : ""} />{saveState === "saved" ? "所有设置已自动保存" : "正在自动保存…"}</span></div>
       </header>
 
       <div className="settings-workspace">
@@ -142,11 +162,11 @@ export default function SurveySettingsPage() {
               <section className="config-card">
                 <header><div><strong>问卷基本信息</strong><small>以下信息仅后台成员可见，不会展示给玩家</small></div></header>
                 <div className="basic-info-grid">
-                  <label><span>所属项目</span><select value={draftInfo.game} onChange={(event) => setDraftInfo((current) => ({ ...current, game: event.target.value }))}><option>RO3</option><option>ROOC</option><option>HMT</option><option>RO国服</option><option>通用</option></select></label>
-                  <label><span>项目分组</span><input value={draftInfo.group} onChange={(event) => setDraftInfo((current) => ({ ...current, group: event.target.value }))} placeholder="输入项目分组" /></label>
+                  <label><span>所属项目</span><select value={draftInfo.game} onChange={(event) => setDraftInfo((current) => ({ ...current, game: event.target.value, group: "" }))}><option>RO3</option><option>ROOC</option><option>HMT</option><option>RO国服</option><option>通用</option></select></label>
+                  <label><span>项目分组</span><select value={draftInfo.group} onChange={(event) => setDraftInfo((current) => ({ ...current, group: event.target.value }))}><option value="">请选择项目分组</option>{projectGroupOptions.map((group) => <option key={group} value={group}>{group}</option>)}</select><small>如需新分组，请先在问卷工作台的“管理项目分组”中创建。</small></label>
+                  <label className="full"><span>问卷描述</span><textarea value={draftInfo.description} onChange={(event) => setDraftInfo((current) => ({ ...current, description: event.target.value }))} placeholder="向玩家说明本次问卷的目的、预计耗时或填写须知" /><small>展示在玩家填写页的问卷封面。</small></label>
                   <label className="full"><span>内部备注</span><textarea value={draftInfo.note} onChange={(event) => setDraftInfo((current) => ({ ...current, note: event.target.value }))} placeholder="记录调研背景、目标玩家、负责人或其他内部说明" /><small>创建问卷时填写的备注会显示在这里，可随时修改。</small></label>
                 </div>
-                <footer className="config-card-footer"><button className="primary-button" onClick={saveBasicInfo}>保存基本信息</button></footer>
               </section>
             </div>
           ) : section === "submission" ? (

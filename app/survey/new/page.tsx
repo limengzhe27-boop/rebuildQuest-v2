@@ -75,6 +75,7 @@ function NewSurveyWizard() {
   const [availableTemplateCategories, setAvailableTemplateCategories] = useState(defaultTemplateCategories);
   const [customTemplates, setCustomTemplates] = useState<Record<string, TemplatePreset>>({});
   const [internalNote, setInternalNote] = useState("");
+  const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const allTemplates = useMemo(() => ({ ...templatePresets, ...customTemplates }), [customTemplates]);
   const template = allTemplates[selectedTemplateId];
@@ -207,6 +208,7 @@ function NewSurveyWizard() {
       creationMode: mode,
       templateId: mode === "template" ? selectedTemplateId : undefined,
       note: internalNote.trim(),
+      description: description.trim(),
       createdAt: new Date().toISOString(),
     };
     const key = "joydata-survey-drafts";
@@ -297,6 +299,15 @@ function NewSurveyWizard() {
                       placeholder="例如：RO3 先锋测试玩家体验调研"
                     />
                     <small>建议包含游戏、场景和时间，便于后续查找。</small>
+                  </label>
+                  <label className="wizard-field full">
+                    <span>问卷描述</span>
+                    <textarea
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      placeholder="选填：向玩家说明本次问卷的目的、预计耗时或填写须知。"
+                    />
+                    <small>会展示在问卷封面，可在“设置 → 基本信息”中继续修改。</small>
                   </label>
                   <label className="wizard-field">
                     <span>所属项目 <b>*</b></span>
@@ -489,6 +500,7 @@ function NewSurveyWizard() {
                   <div><span>问卷名称</span><strong>{name}</strong></div>
                   <div><span>所属项目</span><strong>{game}</strong></div>
                   <div><span>项目分组</span><strong>{projectGroup}</strong></div>
+                  {description.trim() && <div><span>问卷描述</span><strong>{description.trim()}</strong></div>}
                   {template && <div><span>使用模板</span><strong>{template.label}</strong></div>}
                   <div><span>工作空间</span><strong>{region}</strong></div>
                   <div><span>问卷语言</span><strong>{languages.join("、")}</strong></div>
