@@ -17,7 +17,14 @@ export default function SurveySettingsPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [autoSave, setAutoSave] = useState(true);
   const [draftInfo, setDraftInfo] = useState({ game: "RO3", group: "", description: "", note: "" });
-  const [allProjectGroups, setAllProjectGroups] = useState<Array<{ project: string; name: string }>>([]);
+  const [allProjectGroups, setAllProjectGroups] = useState<Array<{ project: string; name: string }>>([
+    { project: "RO3", name: "3.6版本先锋测试" },
+    { project: "RO3", name: "3.7版本回归调研" },
+    { project: "ROOC", name: "1.8职业平衡调研" },
+    { project: "HMT", name: "2026 Q3 VIP满意度" },
+    { project: "RO国服", name: "2026暑期回归研究" },
+    { project: "通用", name: "公司通用调研" },
+  ]);
   const [limitPageLocale, setLimitPageLocale] = useState("zh-CN");
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
@@ -36,7 +43,7 @@ export default function SurveySettingsPage() {
         ...drafts.map((item: { game?: string; group?: string }) => ({ project: item.game || "通用", name: item.group || "" })),
         ...customGroups.map((item: { project?: string; name?: string }) => ({ project: item.project || "通用", name: item.name || "" })),
       ].filter((item) => item.name);
-      setAllProjectGroups(groups);
+      setAllProjectGroups((current) => [...current, ...groups]);
     } catch {}
     setHydrated(true);
   }, [surveyId]);
@@ -160,7 +167,7 @@ export default function SurveySettingsPage() {
           {section === "basic" ? (
             <div className="publish-config-stack">
               <section className="config-card">
-                <header><div><strong>问卷基本信息</strong><small>以下信息仅后台成员可见，不会展示给玩家</small></div></header>
+                <header><div><strong>问卷基本信息</strong><small>问卷描述会展示给玩家；项目、分组和内部备注仅后台可见</small></div></header>
                 <div className="basic-info-grid">
                   <label><span>所属项目</span><select value={draftInfo.game} onChange={(event) => setDraftInfo((current) => ({ ...current, game: event.target.value, group: "" }))}><option>RO3</option><option>ROOC</option><option>HMT</option><option>RO国服</option><option>通用</option></select></label>
                   <label><span>项目分组</span><select value={draftInfo.group} onChange={(event) => setDraftInfo((current) => ({ ...current, group: event.target.value }))}><option value="">请选择项目分组</option>{projectGroupOptions.map((group) => <option key={group} value={group}>{group}</option>)}</select><small>如需新分组，请先在问卷工作台的“管理项目分组”中创建。</small></label>

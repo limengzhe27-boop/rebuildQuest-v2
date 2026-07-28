@@ -283,7 +283,7 @@ function NewSurveyWizard() {
                   <span>01</span>
                   <div>
                     <h2>填写基础信息</h2>
-                    <p>这些信息用于后台管理，不会直接展示给玩家。</p>
+                    <p>名称与描述用于问卷展示；项目、分组和内部备注用于后台管理。</p>
                   </div>
                 </div>
                 <div className="wizard-fields">
@@ -342,7 +342,7 @@ function NewSurveyWizard() {
                       onChange={(event) => setInternalNote(event.target.value)}
                       placeholder="选填：记录调研背景、目标玩家或负责人信息。"
                     />
-                    <small>创建后可在“设置 → 基础信息”中查看和修改，仅后台成员可见。</small>
+                    <small>创建后可在“设置 → 基本信息”中查看和修改，仅后台成员可见。</small>
                   </label>
                 </div>
               </div>
