@@ -214,7 +214,6 @@ export default function ResponsesPage() {
         <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="live-dot" />答卷明细 · 海外数据区</small></div></div>
         <SurveyNav surveyId={surveyId} active="responses" onNotice={flash} />
         <div className="editor-actions">
-          <button className="secondary-button" onClick={() => router.push(`/survey/${surveyId}/analytics`)}>返回统计</button>
           <div className="export-menu-wrap">
             <button className="primary-button" onClick={() => setShowExport(!showExport)}>⇩ 导出明细⌄</button>
             {showExport && <div className="export-format-menu"><button onClick={exportExcel}><span>XL</span><p><strong>Excel</strong><small>.xls · 保留中文与列结构</small></p></button><button onClick={exportCsv}><span>CSV</span><p><strong>CSV</strong><small>.csv · 适合数据分析工具</small></p></button><button onClick={() => { setShowExport(false); setShowFeishuExport(true); }}><span>飞</span><p><strong>飞书多维表格</strong><small>新建多维表格并写入当前数据</small></p></button></div>}
