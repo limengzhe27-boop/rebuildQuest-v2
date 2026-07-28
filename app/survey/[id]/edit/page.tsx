@@ -97,13 +97,18 @@ export default function SurveyEditorPage() {
   const [logicQuestionId, setLogicQuestionId] = useState<string | null>(null);
   const [logicDraft, setLogicDraft] = useState<NonNullable<Question["displayLogic"]> | null>(null);
   const [moreQuestionId, setMoreQuestionId] = useState<string | null>(null);
+  const [supportEditor, setSupportEditor] = useState<{ questionId: string; type: "description" | "image" } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const hydrated = useRef(false);
 
   useEffect(() => {
-    setQuestions(loadQuestions(surveyId));
+    setQuestions(loadQuestions(surveyId).map((question) =>
+      question.helpText !== undefined
+        ? { ...question, description: question.description || question.helpText, helpText: undefined }
+        : question,
+    ));
     try {
       const savedCategories = JSON.parse(window.localStorage.getItem("joydata-template-categories") || "[]");
       if (savedCategories.length) setAvailableTemplateCategories(Array.from(new Set([...defaultTemplateCategories, ...savedCategories])));
@@ -456,27 +461,38 @@ export default function SurveyEditorPage() {
                         </div>
                       </div>
                       <div className="inline-title-row"><b>{question.required ? "*" : ""}</b><textarea value={question.title} onChange={(event) => updateQuestion(question.id, { title: event.target.value })} aria-label="题目标题" /></div>
-                      <input className="inline-description" value={question.description} onChange={(event) => updateQuestion(question.id, { description: event.target.value })} placeholder="添加题目描述（选填）" aria-label="题目描述" />
                       <div className="question-support-tools">
                         <button
-                          className={question.helpText !== undefined ? "active" : ""}
+                          className={question.description || (supportEditor?.questionId === question.id && supportEditor.type === "description") ? "active" : ""}
                           onClick={(event) => {
                             event.stopPropagation();
                             setSelectedId(question.id);
-                            updateQuestion(question.id, { helpText: question.helpText === undefined ? "" : undefined });
+                            setSupportEditor((current) =>
+                              current?.questionId === question.id && current.type === "description"
+                                ? null
+                                : { questionId: question.id, type: "description" },
+                            );
                           }}
-                        >＋ {question.helpText === undefined ? "添加提示" : "移除提示"}</button>
+                        >＋ {question.description ? "编辑提示" : "添加提示"}</button>
                         <button
-                          className={question.referenceImage !== undefined ? "active" : ""}
+                          className={question.referenceImage || (supportEditor?.questionId === question.id && supportEditor.type === "image") ? "active" : ""}
                           onClick={(event) => {
                             event.stopPropagation();
                             setSelectedId(question.id);
-                            updateQuestion(question.id, { referenceImage: question.referenceImage === undefined ? "" : undefined });
+                            setSupportEditor((current) =>
+                              current?.questionId === question.id && current.type === "image"
+                                ? null
+                                : { questionId: question.id, type: "image" },
+                            );
                           }}
-                        >▧ {question.referenceImage === undefined ? "添加图片" : "移除图片"}</button>
+                        >▧ {question.referenceImage ? "编辑图片" : "添加图片"}</button>
                       </div>
-                      {question.helpText !== undefined && <input className="question-help-input" value={question.helpText} onChange={(event) => updateQuestion(question.id, { helpText: event.target.value })} placeholder="输入填写提示，例如评分标准或示例说明" />}
-                      {question.referenceImage !== undefined && <div className="question-reference-editor"><input value={question.referenceImage} onChange={(event) => updateQuestion(question.id, { referenceImage: event.target.value })} placeholder="粘贴参考图片地址" /><span>{question.referenceImage ? "已添加参考图" : "参考图将在题目下方展示"}</span></div>}
+                      {supportEditor?.questionId === question.id && supportEditor.type === "description"
+                        ? <div className="question-support-editor"><input className="inline-description" autoFocus value={question.description} onChange={(event) => updateQuestion(question.id, { description: event.target.value })} placeholder="输入题目提示或辅助说明" aria-label="题目提示" /><button onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { description: "" }); setSupportEditor(null); }}>×</button></div>
+                        : question.description && <p className="question-description-preview">{question.description}</p>}
+                      {supportEditor?.questionId === question.id && supportEditor.type === "image"
+                        ? <div className="question-reference-editor"><input autoFocus value={question.referenceImage || ""} onChange={(event) => updateQuestion(question.id, { referenceImage: event.target.value })} placeholder="粘贴参考图片地址" /><span>{question.referenceImage ? "已添加参考图" : "参考图将在题目下方展示"}</span><button onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { referenceImage: undefined }); setSupportEditor(null); }}>×</button></div>
+                        : question.referenceImage && <div className="question-reference-summary">▧ 已添加参考图片</div>}
                       {(["single", "multiple", "dropdown", "cascade"] as QuestionType[]).includes(question.type) && (
                         <div className={`choice-preview ${selectedId === question.id ? "editing" : ""}`}>
                           {question.options?.map((option, optionIndex) => (
