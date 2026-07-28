@@ -96,7 +96,7 @@ export default function PlayerSurvey() {
   const [primary, setPrimary] = useState("#356fe6");
   const [surveyDescription, setSurveyDescription] = useState("");
   const [closedMessage, setClosedMessage] = useState("");
-  const [closedReason, setClosedReason] = useState<"ended" | "outside-hours">("ended");
+  const [closedReason, setClosedReason] = useState<"ended" | "not-started" | "outside-hours">("ended");
   const [limitPage, setLimitPage] = useState<{
     backgroundMode: "common" | "custom";
     background: string;
@@ -152,12 +152,21 @@ export default function PlayerSurvey() {
           });
         }
       }
+      const now = Date.now();
+      const startsAt = publication?.startAt ? new Date(publication.startAt).getTime() : 0;
+      const endsAt = publication?.endAt ? new Date(publication.endAt).getTime() : 0;
       if (publication?.status === "stopped") {
         setClosedReason("ended");
         setClosedMessage(
           publication.closedMessage ||
             "This survey has ended. Thank you for your interest.",
         );
+      } else if (publication?.scheduleEnabled && startsAt && now < startsAt) {
+        setClosedReason("not-started");
+        setClosedMessage(`本问卷将于 ${new Date(startsAt).toLocaleString()} 开放填写。`);
+      } else if (publication?.scheduleEnabled && endsAt && now > endsAt) {
+        setClosedReason("ended");
+        setClosedMessage(publication.closedMessage || "本问卷已超过允许填写时间，感谢您的关注。");
       } else if (publication?.dailyWindowEnabled) {
         const currentTime = new Date().toTimeString().slice(0, 5);
         const start = publication.dailyStartTime || "00:00";
@@ -316,9 +325,12 @@ export default function PlayerSurvey() {
       <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
         <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
         <section className="player-closed">
-          <span>{closedReason === "outside-hours" ? "◷" : "■"}</span><small>{closedReason === "outside-hours" ? "CURRENTLY UNAVAILABLE" : "SURVEY CLOSED"}</small>
+          <span>{closedReason === "ended" ? "■" : "◷"}</span><small>{closedReason === "ended" ? "SURVEY CLOSED" : "CURRENTLY UNAVAILABLE"}</small>
           <h1>{surveyTitle}</h1><p>{closedMessage}</p>
-          <div><strong>{closedReason === "outside-hours" ? "当前不在允许访问时段" : "本次问卷收集已结束"}</strong><small>{closedReason === "outside-hours" ? "到达开放时间后，使用原链接即可继续访问。" : "如有疑问，请联系问卷发布方。"}</small></div>
+          <div>
+            <strong>{closedReason === "not-started" ? "问卷尚未开始" : closedReason === "outside-hours" ? "当前不在允许访问时段" : "本次问卷收集已结束"}</strong>
+            <small>{closedReason === "ended" ? "如有疑问，请联系问卷发布方。" : "到达开放时间后，使用原链接即可继续访问。"}</small>
+          </div>
         </section>
       </main>
     );

@@ -329,34 +329,38 @@ export default function SurveySettingsPage() {
               </section>
 
               <section className="config-card">
-                <header><div><strong>回收时间与总量</strong><small>达到任一启用条件后停止接收新答卷</small></div><span className="auto-stop-tag">任一满足即结束</span></header>
+                <header><div><strong>答卷数量上限</strong><small>有效答卷达到设定数量后自动结束收集</small></div></header>
                 <div className="collection-condition-list">
-                  <article>
-                    <div className="condition-icon">◷</div>
-                    <p><strong>允许填写时间</strong><small>仅在开始与结束时间范围内接收答卷</small></p>
-                    <input type="datetime-local" value={selected.endAt} onChange={(event) => updateSelected({ endAt: event.target.value, scheduleEnabled: true })} />
-                    <button className={`mini-switch ${selected.scheduleEnabled ? "on" : ""}`} onClick={() => updateSelected({ scheduleEnabled: !selected.scheduleEnabled })}><i /></button>
-                  </article>
                   <article>
                     <div className="condition-icon">▤</div>
                     <p><strong>设定答题次数上限</strong><small>有效答卷达到数量上限后自动结束</small></p>
                     <div className="condition-number"><input type="number" disabled={!selected.quotaEnabled} value={selected.totalLimit} onChange={(event) => updateSelected({ totalLimit: Number(event.target.value) })} /><span>份</span></div>
                     <button className={`mini-switch ${selected.quotaEnabled ? "on" : ""}`} onClick={() => updateSelected({ quotaEnabled: !selected.quotaEnabled })}><i /></button>
                   </article>
-                  <article>
-                    <div className="condition-icon">◴</div>
-                    <p><strong>每日允许访问时段</strong><small>每天仅在设定时间段内允许打开和填写问卷</small></p>
-                    <div className="daily-time-range">
-                      <input type="time" disabled={!selected.dailyWindowEnabled} value={selected.dailyStartTime} onChange={(event) => updateSelected({ dailyStartTime: event.target.value })} />
-                      <span>至</span>
-                      <input type="time" disabled={!selected.dailyWindowEnabled} value={selected.dailyEndTime} onChange={(event) => updateSelected({ dailyEndTime: event.target.value })} />
-                    </div>
-                    <button className={`mini-switch ${selected.dailyWindowEnabled ? "on" : ""}`} onClick={() => updateSelected({ dailyWindowEnabled: !selected.dailyWindowEnabled })}><i /></button>
-                  </article>
                 </div>
-                <div className="collection-start-row">
-                  <label><span>开始时间</span><input type="datetime-local" disabled={!selected.scheduleEnabled} value={selected.startAt} onChange={(event) => updateSelected({ startAt: event.target.value })} /></label>
-                  <label><span>结束时间</span><input type="datetime-local" disabled={!selected.scheduleEnabled} value={selected.endAt} onChange={(event) => updateSelected({ endAt: event.target.value })} /></label>
+              </section>
+
+              <section className="config-card availability-card">
+                <header><div><strong>允许填写时间</strong><small>设置问卷开放的日期范围，以及每天允许访问的时间段</small></div></header>
+                <div className="availability-setting-row">
+                  <div className="condition-icon">◷</div>
+                  <p><strong>开放日期范围</strong><small>开始时间前不可填写，结束时间后自动停止收集</small></p>
+                  <div className="availability-date-range">
+                    <input type="datetime-local" disabled={!selected.scheduleEnabled} value={selected.startAt} onChange={(event) => updateSelected({ startAt: event.target.value })} aria-label="允许填写开始时间" />
+                    <span>至</span>
+                    <input type="datetime-local" disabled={!selected.scheduleEnabled} value={selected.endAt} onChange={(event) => updateSelected({ endAt: event.target.value })} aria-label="允许填写结束时间" />
+                  </div>
+                  <button className={`mini-switch ${selected.scheduleEnabled ? "on" : ""}`} onClick={() => updateSelected({ scheduleEnabled: !selected.scheduleEnabled })}><i /></button>
+                </div>
+                <div className="availability-setting-row">
+                  <div className="condition-icon">◴</div>
+                  <p><strong>每天可填写时段</strong><small>例如每天 10:00—22:00，时段外暂时不可访问</small></p>
+                  <div className="availability-time-range">
+                    <input type="time" disabled={!selected.dailyWindowEnabled} value={selected.dailyStartTime} onChange={(event) => updateSelected({ dailyStartTime: event.target.value })} aria-label="每天允许填写开始时间" />
+                    <span>至</span>
+                    <input type="time" disabled={!selected.dailyWindowEnabled} value={selected.dailyEndTime} onChange={(event) => updateSelected({ dailyEndTime: event.target.value })} aria-label="每天允许填写结束时间" />
+                  </div>
+                  <button className={`mini-switch ${selected.dailyWindowEnabled ? "on" : ""}`} onClick={() => updateSelected({ dailyWindowEnabled: !selected.dailyWindowEnabled })}><i /></button>
                 </div>
               </section>
 

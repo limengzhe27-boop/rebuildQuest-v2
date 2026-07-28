@@ -1158,6 +1158,7 @@ input:focus-visible {
   color: #5c6980;
   font-size: 12px;
   line-height: 1.7;
+  white-space: pre-wrap;
 }
 
 .limit-result-preview a {
@@ -1200,6 +1201,7 @@ input:focus-visible {
   margin: 0;
   color: #58657a;
   line-height: 1.75;
+  white-space: pre-wrap;
 }
 
 .player-limit-card a {
@@ -1383,6 +1385,75 @@ input:focus-visible {
   color: #68758a;
   font-size: 10px;
   line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.availability-card {
+  display: grid;
+  gap: 0;
+}
+
+.availability-setting-row {
+  display: grid;
+  grid-template-columns: 32px minmax(210px, 1fr) minmax(420px, 1.5fr) 30px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #edf0f3;
+}
+
+.availability-setting-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.availability-setting-row > p {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+.availability-setting-row > p strong {
+  font-size: 10px;
+}
+
+.availability-setting-row > p small {
+  color: #8b95a6;
+  font-size: 8px;
+}
+
+.availability-date-range,
+.availability-time-range {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.availability-date-range input,
+.availability-time-range input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid #d6dde7;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0 9px;
+  color: #4c596f;
+  font-size: 9px;
+}
+
+.availability-date-range input:disabled,
+.availability-time-range input:disabled {
+  background: #f3f4f6;
+  color: #a0a8b5;
+}
+
+.availability-date-range span,
+.availability-time-range span {
+  color: #8b95a6;
+  font-size: 9px;
 }
 
 .appearance-result-preview p a {
