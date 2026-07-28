@@ -65,6 +65,7 @@ export type Publication = {
   ageConsent: boolean;
   completionMode: "message" | "redirect";
   completionMessage: string;
+  completionImage: string;
   closedMessage: string;
   limitPageBackgroundMode: "common" | "custom";
   limitPageBackground: string;
@@ -122,6 +123,7 @@ export const defaultPublications: Publication[] = [
     ageConsent: true,
     completionMode: "message",
     completionMessage: "Thank you! Your feedback has been submitted.",
+    completionImage: "",
     closedMessage: "This survey has ended. Thank you for your interest.",
     limitPageBackgroundMode: "common",
     limitPageBackground: "",
@@ -180,6 +182,7 @@ export const defaultPublications: Publication[] = [
     ageConsent: false,
     completionMode: "message",
     completionMessage: "提交成功，感谢您的反馈。",
+    completionImage: "",
     closedMessage: "本次问卷收集已结束，感谢您的关注。",
     limitPageBackgroundMode: "common",
     limitPageBackground: "",

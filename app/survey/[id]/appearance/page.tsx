@@ -172,10 +172,17 @@ export default function AppearancePage() {
             <label className="segmented-setting appearance-segment-gap"><span>主按钮</span><div><button className={config.buttonStyle === "filled" ? "active" : ""} onClick={() => update({ buttonStyle: "filled" })}>填充</button><button className={config.buttonStyle === "outline" ? "active" : ""} onClick={() => update({ buttonStyle: "outline" })}>描边</button></div></label>
             <label className="range-setting"><span>圆角大小 <em>{config.radius}px</em></span><input type="range" min="0" max="20" value={config.radius} onChange={(event) => update({ radius: Number(event.target.value) })} /></label>
           </section>
-          <section><h3>页面组件</h3>{[
-            ["语言切换入口", "languageSwitch"],
-            ["填写进度条", "progress"],
-          ].map(([label, key]) => <div className="appearance-toggle" key={key}><span>{label}</span><button className={`mini-switch ${config[key as keyof Appearance] ? "on" : ""}`} onClick={() => update({ [key]: !config[key as keyof Appearance] })}><i /></button></div>)}</section>
+          <section>
+            <h3>填写页组件</h3>
+            <div className="appearance-option-row">
+              <div><strong>语言切换入口</strong><small>显示在问卷内容顶部，玩家下滑后会随页面离开视野。</small></div>
+              <button className={`mini-switch ${config.languageSwitch ? "on" : ""}`} onClick={() => update({ languageSwitch: !config.languageSwitch })}><i /></button>
+            </div>
+            <div className="appearance-option-row">
+              <div><strong>当前位置进度条</strong><small>固定在填写区顶部，表示当前浏览到的题目位置，不代表已完成比例。</small></div>
+              <button className={`mini-switch ${config.progress ? "on" : ""}`} onClick={() => update({ progress: !config.progress })}><i /></button>
+            </div>
+          </section>
         </aside>
 
         <section className={`appearance-preview ${config.background}`} style={{ "--theme": config.primary, "--radius": `${config.radius}px` } as React.CSSProperties}>
@@ -198,6 +205,7 @@ export default function AppearancePage() {
                 setScrollProgress(available > 0 ? Math.round(target.scrollTop / available * 100) : 100);
               }}
             >
+              {config.progress && <div className="mini-progress"><i style={{ width: hasPagination ? `${(pageIndex + 1) / pages.length * 100}%` : `${Math.max(3, scrollProgress)}%` }} /></div>}
               {config.languageSwitch && (
                 <label className="appearance-player-language">
                   <span>🌐</span>
@@ -206,7 +214,6 @@ export default function AppearancePage() {
                   </select>
                 </label>
               )}
-              {config.progress && <div className="mini-progress"><i style={{ width: hasPagination ? `${(pageIndex + 1) / pages.length * 100}%` : `${Math.max(3, scrollProgress)}%` }} /></div>}
               <header><h1>{translated("form:title", surveyTitle)}</h1><p>{translated("form:intro", "感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。")}</p></header>
               <main className="appearance-form-content">
                 {visibleQuestions.map(renderQuestion)}
@@ -222,6 +229,7 @@ export default function AppearancePage() {
               <div className="appearance-result-preview">
                 {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
                 <article>
+                  {publication?.completionImage && <img className="appearance-completion-image" src={publication.completionImage} alt="" />}
                   <i>✓</i>
                   <h1>{translated("form:completion:title", "提交成功")}</h1>
                   <p>{translated("form:completion", publication?.completionMessage || "感谢您的参与，问卷已成功提交。")}</p>

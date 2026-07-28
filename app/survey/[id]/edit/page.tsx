@@ -78,6 +78,7 @@ const palette: { title: string; items: { type: QuestionType; icon: string }[] }[
 ];
 
 const defaultTemplateCategories = ["版本测试", "满意度", "用户洞察", "运营活动", "服务体验", "招募筛选", "其他"];
+const defaultSurveyIntro = "感谢您参与本次调研。请根据实际体验完成以下问题，您的反馈将帮助我们持续优化产品体验。";
 
 type LogicCondition = NonNullable<Question["displayLogic"]>["conditions"][number];
 
@@ -88,8 +89,9 @@ export default function SurveyEditorPage() {
   const surveyId = params.id;
   const editingTemplateId = searchParams.get("templateId");
   const surveyTitle = useSurveyTitle(surveyId);
+  const [surveyName, setSurveyName] = useState(surveyTitle);
   const [templateEditorTitle, setTemplateEditorTitle] = useState("");
-  const [surveyDescription, setSurveyDescription] = useState("");
+  const [surveyDescription, setSurveyDescription] = useState(defaultSurveyIntro);
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [selectedId, setSelectedId] = useState(defaultQuestions[0].id);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
@@ -118,6 +120,7 @@ export default function SurveyEditorPage() {
         if (template) {
           loadedQuestions = template.schema?.length ? template.schema : defaultQuestions;
           setTemplateEditorTitle(template.label || template.name || "未命名模板");
+          setSurveyName(template.label || template.name || "未命名模板");
           setEditorTemplateCategories(template.categories?.length ? template.categories : [template.category || "其他"]);
         }
       } catch {}
@@ -125,7 +128,8 @@ export default function SurveyEditorPage() {
       try {
         const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
         const draft = drafts.find((item: { id?: number | string }) => String(item.id) === String(surveyId));
-        setSurveyDescription(draft?.description || "");
+        setSurveyName(draft?.name || surveyTitle);
+        setSurveyDescription(draft?.description || defaultSurveyIntro);
       } catch {}
     }
     setQuestions(loadedQuestions.map((question) =>
@@ -155,11 +159,18 @@ export default function SurveyEditorPage() {
           `joydata-survey-schema-${surveyId}`,
           JSON.stringify(questions),
         );
+        try {
+          const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
+          const next = drafts.map((item: { id?: number | string }) => String(item.id) === String(surveyId)
+            ? { ...item, name: surveyName.trim() || "未命名问卷", description: surveyDescription.trim() || defaultSurveyIntro, updated: "刚刚" }
+            : item);
+          window.localStorage.setItem("joydata-survey-drafts", JSON.stringify(next));
+        } catch {}
       }
       setSaveState("saved");
     }, 650);
     return () => window.clearTimeout(timer);
-  }, [editingTemplateId, questions, surveyId]);
+  }, [editingTemplateId, questions, surveyDescription, surveyId, surveyName]);
 
   function flash(message: string) {
     setNotice(message);
@@ -256,6 +267,19 @@ export default function SurveyEditorPage() {
 
   function updateQuestion(id: string, patch: Partial<Question>) {
     setQuestions((current) => current.map((question) => question.id === id ? { ...question, ...patch } : question));
+  }
+
+  function previewCurrentSurvey() {
+    const previewId = editingTemplateId ? `template-preview-${editingTemplateId}` : surveyId;
+    window.localStorage.setItem(`joydata-survey-schema-${previewId}`, JSON.stringify(questions));
+    if (editingTemplateId) {
+      try {
+        const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
+        const withoutPreview = drafts.filter((item: { id?: number | string }) => String(item.id) !== previewId);
+        window.localStorage.setItem("joydata-survey-drafts", JSON.stringify([{ id: previewId, name: surveyName || "模板预览", description: surveyDescription || defaultSurveyIntro, languages: ["简中", "EN"] }, ...withoutPreview]));
+      } catch {}
+    }
+    window.open(`/s/editor-preview?surveyId=${encodeURIComponent(previewId)}`, "_blank");
   }
 
   function uploadReferenceImage(questionId: string, file?: File) {
@@ -409,7 +433,7 @@ export default function SurveyEditorPage() {
         <div className="editor-title">
           <span className="survey-doc-icon">▤</span>
           <div>
-            <strong>{editingTemplateId ? templateEditorTitle : surveyTitle}</strong>
+            <strong>{surveyName || (editingTemplateId ? templateEditorTitle : surveyTitle)}</strong>
             <small>
               <i className={saveState === "saved" ? "saved" : ""} />
               {saveState === "saved" ? "所有更改已保存" : "正在自动保存…"}
@@ -418,6 +442,7 @@ export default function SurveyEditorPage() {
         </div>
         {editingTemplateId ? <div className="template-editor-label">模板编辑器</div> : <SurveyNav surveyId={surveyId} active="edit" onNotice={flash} />}
         <div className="editor-actions">
+          <button className="secondary-button" onClick={previewCurrentSurvey}>预览</button>
           {editingTemplateId ? <button className="secondary-button" onClick={() => setShowTemplateSettings(true)}>模板分类</button> : <button className="secondary-button" onClick={openTemplateSave}>设为模板</button>}
         </div>
       </header>
@@ -426,12 +451,11 @@ export default function SurveyEditorPage() {
         <aside className="component-library">
           <div className="panel-small-heading">
             <div><strong>题型组件</strong><small>点击添加到问卷</small></div>
-            <button onClick={() => flash("已收起全部分类")}>−</button>
           </div>
           <div className="component-search"><span>⌕</span><input placeholder="搜索题型" /></div>
           {palette.map((group) => (
             <section className="component-group" key={group.title}>
-              <h3>{group.title}<span>⌃</span></h3>
+              <h3>{group.title}</h3>
               <div className="component-grid">
                 {group.items.map((item) => (
                   <button key={item.type} onClick={() => addQuestion(item.type)}>
@@ -454,8 +478,8 @@ export default function SurveyEditorPage() {
             <div className="survey-canvas">
               <header className="survey-cover">
                 <span>RO3 · PLAYER RESEARCH</span>
-                <h1>{surveyTitle}</h1>
-                <p>{surveyDescription || "感谢您参与本次先锋测试。问卷预计需要 3–5 分钟完成，您的反馈将帮助我们持续优化游戏体验。"}</p>
+                <input className="survey-cover-title-input" value={surveyName} onChange={(event) => setSurveyName(event.target.value)} aria-label="问卷标题" />
+                <textarea className="survey-cover-intro-input" value={surveyDescription} onChange={(event) => setSurveyDescription(event.target.value)} aria-label="问卷开场说明" />
                 <div><i /> 当前语言：English（默认）<button onClick={() => router.push(`/survey/${surveyId}/languages`)}>管理语言</button></div>
               </header>
 

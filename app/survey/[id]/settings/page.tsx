@@ -32,6 +32,7 @@ export default function SurveySettingsPage() {
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
   const limitBodyRef = useRef<HTMLTextAreaElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
+  const completionImageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setPublications(loadPublications(surveyId));
@@ -183,6 +184,24 @@ export default function SurveySettingsPage() {
     reader.readAsDataURL(file);
   }
 
+  function uploadCompletionImage(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      flash("请选择图片文件");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      flash("图片不能超过 5MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateSelected({ completionImage: String(reader.result || "") });
+      flash("完成页图片已上传");
+    };
+    reader.readAsDataURL(file);
+  }
+
   function renderInlineLimitText(content: LimitPageContent) {
     const links = new Map(content.links.map((link) => [link.id, link]));
     return content.body.split(/(\{\{[^}]+\}\})/g).map((part, index) => {
@@ -260,12 +279,10 @@ export default function SurveySettingsPage() {
           {section === "basic" ? (
             <div className="publish-config-stack">
               <section className="config-card">
-                <header><div><strong>问卷基本信息</strong><small>填写页说明展示给玩家；项目、分组和协作备注仅后台可见</small></div></header>
+                <header><div><strong>问卷归档信息</strong><small>用于后台筛选与管理；标题和开场说明请直接在编辑器封面修改</small></div></header>
                 <div className="basic-info-grid">
                   <label><span>所属项目</span><select value={draftInfo.game} onChange={(event) => setDraftInfo((current) => ({ ...current, game: event.target.value, group: "" }))}><option>RO3</option><option>ROOC</option><option>HMT</option><option>RO国服</option><option>通用</option></select></label>
                   <label><span>项目分组</span><select value={draftInfo.group} onChange={(event) => setDraftInfo((current) => ({ ...current, group: event.target.value }))}><option value="">请选择项目分组</option>{projectGroupOptions.map((group) => <option key={group} value={group}>{group}</option>)}</select><small>如需新分组，请先在问卷工作台的“管理项目分组”中创建。</small></label>
-                  <label className="full"><span>填写页说明</span><textarea value={draftInfo.description} onChange={(event) => setDraftInfo((current) => ({ ...current, description: event.target.value }))} placeholder="向玩家说明本次问卷的目的、预计耗时或填写须知" /><small>展示在玩家填写页的问卷标题下方。</small></label>
-                  <label className="full"><span>内部协作备注</span><textarea value={draftInfo.note} onChange={(event) => setDraftInfo((current) => ({ ...current, note: event.target.value }))} placeholder="记录调研背景、目标玩家、负责人或其他内部说明" /><small>仅后台协作者可见，可随时修改。</small></label>
                 </div>
               </section>
             </div>
@@ -278,11 +295,22 @@ export default function SurveySettingsPage() {
                   <button className={selected.completionMode === "redirect" ? "active" : ""} onClick={() => updateSelected({ completionMode: "redirect" })}>↗ 跳转指定网页</button>
                 </div>
                 {selected.completionMode === "message" ? (
-                  <label className="large-config-field"><span>提交成功提示语</span><textarea value={selected.completionMessage} onChange={(event) => updateSelected({ completionMessage: event.target.value })} /></label>
+                  <>
+                    <label className="large-config-field"><span>提交成功提示语</span><textarea value={selected.completionMessage} onChange={(event) => updateSelected({ completionMessage: event.target.value })} /></label>
+                    <div className="completion-image-setting">
+                      <input ref={completionImageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadCompletionImage(event.target.files?.[0])} />
+                      <button type="button" onClick={() => completionImageInputRef.current?.click()}>{selected.completionImage ? "更换完成页图片" : "＋ 添加完成页图片"}</button>
+                      <small>选填，支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small>
+                      {selected.completionImage && <button className="text-danger" type="button" onClick={() => updateSelected({ completionImage: "" })}>移除图片</button>}
+                    </div>
+                  </>
                 ) : (
                   <label className="large-config-field"><span>跳转地址</span><input placeholder="https://" value={selected.redirectUrl} onChange={(event) => updateSelected({ redirectUrl: event.target.value })} /></label>
                 )}
-                <div className="completion-preview"><span>✓</span><strong>{selected.completionMessage || "提交成功"}</strong><small>玩家完成问卷后看到的效果</small></div>
+                <div className="completion-preview">
+                  {selected.completionImage && <img src={selected.completionImage} alt="完成页图片预览" />}
+                  <span>✓</span><strong>{selected.completionMessage || "提交成功"}</strong><small>玩家完成问卷后看到的效果</small>
+                </div>
               </section>
 
               <section className="config-card">

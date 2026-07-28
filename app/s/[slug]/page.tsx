@@ -92,9 +92,11 @@ export default function PlayerSurvey() {
   const [locale, setLocale] = useState<RuntimeLocale>("en-US");
   const [availableLocales, setAvailableLocales] = useState<RuntimeLocale[]>(["zh-CN", "en-US", "zh-TW", "th-TH"]);
   const [allowLanguageSwitch, setAllowLanguageSwitch] = useState(true);
+  const [showProgress, setShowProgress] = useState(true);
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
   const [primary, setPrimary] = useState("#356fe6");
   const [surveyDescription, setSurveyDescription] = useState("");
+  const [completionImage, setCompletionImage] = useState("");
   const [closedMessage, setClosedMessage] = useState("");
   const [closedReason, setClosedReason] = useState<"ended" | "not-started" | "outside-hours">("ended");
   const [limitPage, setLimitPage] = useState<{
@@ -125,6 +127,7 @@ export default function PlayerSurvey() {
       );
       if (appearance.primary) setPrimary(appearance.primary);
       if (typeof appearance.languageSwitch === "boolean") setAllowLanguageSwitch(appearance.languageSwitch);
+      if (typeof appearance.progress === "boolean") setShowProgress(appearance.progress);
 
       const publications = JSON.parse(
         window.localStorage.getItem(`joydata-survey-publications-${surveyId}`) || "[]",
@@ -134,6 +137,7 @@ export default function PlayerSurvey() {
         setAllowLanguageSwitch(publication.allowLanguageSwitch !== false);
       }
       if (publication) {
+        setCompletionImage(publication.completionImage || "");
         const existingResponses = JSON.parse(window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`) || "[]") as LiveSurveyResponse[];
         const joymakerId = searchParams.get("joyamaker_id") || searchParams.get("joymaker_id") || window.localStorage.getItem("joydata-joyamaker-id") || window.localStorage.getItem("joydata-joymaker-id") || "";
         const clientIp = searchParams.get("client_ip") || "preview-device-ip";
@@ -371,6 +375,7 @@ export default function PlayerSurvey() {
       <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
         <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
         <section className="player-complete">
+          {completionImage && <img className="player-completion-image" src={completionImage} alt="" />}
           <span>✓</span><h1>{copy.done}</h1><p>{translations[translationLocale]?.["form:completion"] || copy.doneText}</p>
           <div><small>Response ID</small><strong>{responseId}</strong></div>
           <button onClick={() => router.push(`/survey/${surveyId}/responses`)}>在答卷列表中查看</button>
@@ -382,7 +387,7 @@ export default function PlayerSurvey() {
   return (
     <main className="player-survey-shell" style={{ "--player": primary } as React.CSSProperties}>
       <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
-      <div className="player-progress"><i style={{ width: `${progress}%` }} /></div>
+      {showProgress && <div className="player-progress"><i style={{ width: `${progress}%` }} /></div>}
       <section className="player-survey-card">
         {step === 0 ? (
           <div className="player-cover">

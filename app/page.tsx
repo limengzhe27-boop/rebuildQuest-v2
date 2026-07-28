@@ -132,6 +132,7 @@ export default function Home() {
   const [movingSurvey, setMovingSurvey] = useState<Survey | null>(null);
   const [moveProject, setMoveProject] = useState("RO3");
   const [moveGroup, setMoveGroup] = useState("");
+  const [moveCreateNewGroup, setMoveCreateNewGroup] = useState(false);
   const [editingGroup, setEditingGroup] = useState<{ name: string; project: string } | null>(null);
   const [editingGroupName, setEditingGroupName] = useState("");
   const [toast, setToast] = useState("");
@@ -312,10 +313,8 @@ export default function Home() {
         ? { ...survey, game: moveProject, group: groupName, updated: "刚刚" }
         : survey,
     ));
-    const exists = customProjects.some((group) =>
-      group.region === movingSurvey.region && group.project === moveProject && group.name === groupName,
-    );
-    if (!exists) {
+    const exists = projectGroups.some((group) => group.project === moveProject && group.name === groupName);
+    if (moveCreateNewGroup && !exists) {
       const next = [...customProjects, { name: groupName, project: moveProject, region: movingSurvey.region }];
       setCustomProjects(next);
       window.localStorage.setItem("joydata-survey-projects", JSON.stringify(next));
@@ -669,7 +668,7 @@ export default function Home() {
                                 )}
                                 <button onClick={() => duplicateSurvey(survey)}>⧉ 复制问卷</button>
                                 <button onClick={() => { setTemplateSurvey(survey); setTemplateCategories([]); setTemplateMode("full"); setMenuSurvey(null); }}>▦ 设为模板</button>
-                                <button onClick={() => { setMovingSurvey(survey); setMoveProject(survey.game); setMoveGroup(survey.group); setMenuSurvey(null); }}>▱ 更改项目与分组</button>
+                                <button onClick={() => { setMovingSurvey(survey); setMoveProject(survey.game); setMoveGroup(survey.group); setMoveCreateNewGroup(false); setMenuSurvey(null); }}>▱ 更改项目与分组</button>
                                 <i />
                                 <button className="danger" onClick={() => { setConfirmDelete(survey); setMenuSurvey(null); }}>⌫ 移入回收站</button>
                               </>
@@ -808,8 +807,19 @@ export default function Home() {
           <section className="project-manager-modal move-survey-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
             <header><div><span className="modal-eyebrow">PROJECT & GROUP</span><h2>更改项目与分组</h2><p>{movingSurvey.name}</p></div><button aria-label="关闭" onClick={() => setMovingSurvey(null)}>×</button></header>
             <div className="move-survey-form">
-              <label><span>所属项目</span><select value={moveProject} onChange={(event) => { setMoveProject(event.target.value); setMoveGroup(""); }}><option>RO3</option><option>ROOC</option><option>HMT</option><option>RO国服</option><option>通用</option></select></label>
-              <label><span>项目分组</span><input list="move-group-options" value={moveGroup} onChange={(event) => setMoveGroup(event.target.value)} placeholder="选择已有分组或输入新分组" /><datalist id="move-group-options">{projectGroups.filter((group) => group.project === moveProject).map((group) => <option key={`${group.project}-${group.name}`} value={group.name} />)}</datalist><small>输入不存在的名称时，将在该项目下新建分组。</small></label>
+              <label><span>所属项目</span><select value={moveProject} onChange={(event) => { setMoveProject(event.target.value); setMoveGroup(""); setMoveCreateNewGroup(false); }}><option>RO3</option><option>ROOC</option><option>HMT</option><option>RO国服</option><option>通用</option></select><small>先选择项目，再选择该项目下的分组。</small></label>
+              <label>
+                <span>项目分组</span>
+                {moveCreateNewGroup ? (
+                  <input autoFocus value={moveGroup} onChange={(event) => setMoveGroup(event.target.value)} placeholder="输入新分组名称，例如：3.7版本回访" />
+                ) : (
+                  <select value={moveGroup} onChange={(event) => setMoveGroup(event.target.value)}>
+                    <option value="">请选择项目分组</option>
+                    {projectGroups.filter((group) => group.project === moveProject).map((group) => <option key={`${group.project}-${group.name}`} value={group.name}>{group.name}（{group.count} 份问卷）</option>)}
+                  </select>
+                )}
+                <button className="move-create-group-toggle" type="button" onClick={() => { setMoveCreateNewGroup((current) => !current); setMoveGroup(""); }}>{moveCreateNewGroup ? "选择已有分组" : "＋ 新建分组"}</button>
+              </label>
             </div>
             <footer><button className="secondary-button" onClick={() => setMovingSurvey(null)}>取消</button><button className="primary-button" onClick={saveSurveyProjectGroup}>保存</button></footer>
           </section>
