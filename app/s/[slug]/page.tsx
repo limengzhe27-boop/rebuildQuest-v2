@@ -95,6 +95,12 @@ export default function PlayerSurvey() {
   const [primary, setPrimary] = useState("#356fe6");
   const [closedMessage, setClosedMessage] = useState("");
   const [closedReason, setClosedReason] = useState<"ended" | "outside-hours">("ended");
+  const [limitPage, setLimitPage] = useState<{
+    backgroundMode: "common" | "custom";
+    background: string;
+    content: Record<string, { title: string; body: string; linkText: string; linkUrl: string }>;
+    reason: string;
+  } | null>(null);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[] | number>>({});
   const [consent, setConsent] = useState(false);
@@ -124,6 +130,25 @@ export default function PlayerSurvey() {
       const publication = publications.find((item: { slug: string }) => item.slug === params.slug);
       if (publication && typeof appearance.languageSwitch !== "boolean") {
         setAllowLanguageSwitch(publication.allowLanguageSwitch !== false);
+      }
+      if (publication) {
+        const existingResponses = JSON.parse(window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`) || "[]") as LiveSurveyResponse[];
+        const joymakerId = searchParams.get("joymaker_id") || window.localStorage.getItem("joydata-joymaker-id") || "";
+        const clientIp = searchParams.get("client_ip") || "preview-device-ip";
+        const joymakerCount = joymakerId ? existingResponses.filter((item) => item.joymakerId === joymakerId).length : 0;
+        const ipCount = existingResponses.filter((item) => item.clientIp === clientIp).length;
+        const triggeredByJoymaker = publication.joymakerUniqueSubmission && joymakerId && joymakerCount >= 1;
+        const triggeredByAccount = publication.accountLimitEnabled && joymakerId && joymakerCount >= (publication.perAccountLimit || 1);
+        const triggeredByIp = publication.ipLimit && ipCount >= (publication.perIpLimit || 1);
+        const triggeredByDevice = publication.deviceLimit && existingResponses.length >= (publication.perDeviceLimit || 1);
+        if (triggeredByJoymaker || triggeredByAccount || triggeredByIp || triggeredByDevice) {
+          setLimitPage({
+            backgroundMode: publication.limitPageBackgroundMode || "common",
+            background: publication.limitPageBackground || "",
+            content: publication.limitPageContent || {},
+            reason: triggeredByJoymaker ? "JoyMaker 用户已提交" : triggeredByAccount ? "账号提交次数已达上限" : triggeredByIp ? "IP 提交次数已达上限" : "设备提交次数已达上限",
+          });
+        }
       }
       if (publication?.status === "stopped") {
         setClosedReason("ended");
@@ -272,6 +297,8 @@ export default function PlayerSurvey() {
         type,
       })),
       source: searchParams.get("ext_value") || searchParams.get("source") || "Direct",
+      joymakerId: searchParams.get("joymaker_id") || window.localStorage.getItem("joydata-joymaker-id") || undefined,
+      clientIp: searchParams.get("client_ip") || "preview-device-ip",
       status: "valid",
     };
     const key = `joydata-survey-live-responses-${surveyId}`;
@@ -289,6 +316,26 @@ export default function PlayerSurvey() {
           <span>{closedReason === "outside-hours" ? "◷" : "■"}</span><small>{closedReason === "outside-hours" ? "CURRENTLY UNAVAILABLE" : "SURVEY CLOSED"}</small>
           <h1>{surveyTitle}</h1><p>{closedMessage}</p>
           <div><strong>{closedReason === "outside-hours" ? "当前不在允许访问时段" : "本次问卷收集已结束"}</strong><small>{closedReason === "outside-hours" ? "到达开放时间后，使用原链接即可继续访问。" : "如有疑问，请联系问卷发布方。"}</small></div>
+        </section>
+      </main>
+    );
+  }
+
+  if (limitPage) {
+    const content = limitPage.content[locale] || limitPage.content["en-US"] || limitPage.content["zh-CN"] || {
+      title: "You have completed this survey",
+      body: "Thank you for participating. The submission limit has been reached.",
+      linkText: "",
+      linkUrl: "",
+    };
+    return (
+      <main className={`player-limit-shell ${limitPage.backgroundMode}`} style={limitPage.backgroundMode === "custom" && limitPage.background ? { backgroundImage: `url(${limitPage.background})` } : undefined}>
+        <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
+        <section className="player-limit-card">
+          <h1>{content.title}</h1>
+          <p>{content.body}</p>
+          {content.linkText && content.linkUrl && <a href={content.linkUrl} target="_blank" rel="noreferrer">{content.linkText}</a>}
+          <small>{limitPage.reason}</small>
         </section>
       </main>
     );

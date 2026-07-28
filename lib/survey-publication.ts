@@ -16,6 +16,13 @@ export type PublicationChannel = {
   enabled: boolean;
 };
 
+export type LimitPageContent = {
+  title: string;
+  body: string;
+  linkText: string;
+  linkUrl: string;
+};
+
 export type Publication = {
   id: string;
   name: string;
@@ -36,6 +43,7 @@ export type Publication = {
   totalLimit: number;
   perAccountLimit: number;
   accountLimitEnabled: boolean;
+  joymakerUniqueSubmission: boolean;
   deviceLimit: boolean;
   perDeviceLimit: number;
   ipLimit: boolean;
@@ -53,6 +61,9 @@ export type Publication = {
   completionMode: "message" | "redirect";
   completionMessage: string;
   closedMessage: string;
+  limitPageBackgroundMode: "common" | "custom";
+  limitPageBackground: string;
+  limitPageContent: Record<string, LimitPageContent>;
   stoppedAt?: string;
   stopReason?: string;
   redirectUrl: string;
@@ -89,6 +100,7 @@ export const defaultPublications: Publication[] = [
     totalLimit: 10000,
     perAccountLimit: 1,
     accountLimitEnabled: true,
+    joymakerUniqueSubmission: true,
     deviceLimit: true,
     perDeviceLimit: 1,
     ipLimit: false,
@@ -106,6 +118,14 @@ export const defaultPublications: Publication[] = [
     completionMode: "message",
     completionMessage: "Thank you! Your feedback has been submitted.",
     closedMessage: "This survey has ended. Thank you for your interest.",
+    limitPageBackgroundMode: "common",
+    limitPageBackground: "",
+    limitPageContent: {
+      "en-US": { title: "You have completed this survey", body: "Thank you for participating. This account or environment has reached the submission limit.", linkText: "Make a reservation now", linkUrl: "" },
+      "zh-CN": { title: "您已完成本次问卷", body: "感谢您的参与，当前账号或填写环境已达到提交次数限制。", linkText: "立即预约", linkUrl: "" },
+      "zh-TW": { title: "您已完成本次問卷", body: "感謝您的參與，目前帳號或填寫環境已達提交次數限制。", linkText: "立即預約", linkUrl: "" },
+      "th-TH": { title: "คุณทำแบบสอบถามนี้เสร็จแล้ว", body: "ขอบคุณที่เข้าร่วม บัญชีหรือสภาพแวดล้อมนี้ถึงขีดจำกัดการส่งแล้ว", linkText: "จองตอนนี้", linkUrl: "" },
+    },
     redirectUrl: "",
     redirectRules: [],
     channels: [
@@ -138,6 +158,7 @@ export const defaultPublications: Publication[] = [
     totalLimit: 3000,
     perAccountLimit: 1,
     accountLimitEnabled: true,
+    joymakerUniqueSubmission: true,
     deviceLimit: true,
     perDeviceLimit: 1,
     ipLimit: false,
@@ -155,6 +176,14 @@ export const defaultPublications: Publication[] = [
     completionMode: "message",
     completionMessage: "提交成功，感谢您的反馈。",
     closedMessage: "本次问卷收集已结束，感谢您的关注。",
+    limitPageBackgroundMode: "common",
+    limitPageBackground: "",
+    limitPageContent: {
+      "zh-CN": { title: "您已完成本次问卷", body: "感谢您的参与，当前账号或填写环境已达到提交次数限制。", linkText: "立即预约", linkUrl: "" },
+      "en-US": { title: "You have completed this survey", body: "Thank you for participating. This account or environment has reached the submission limit.", linkText: "Make a reservation now", linkUrl: "" },
+      "zh-TW": { title: "您已完成本次問卷", body: "感謝您的參與，目前帳號或填寫環境已達提交次數限制。", linkText: "立即預約", linkUrl: "" },
+      "th-TH": { title: "คุณทำแบบสอบถามนี้เสร็จแล้ว", body: "ขอบคุณที่เข้าร่วม บัญชีหรือสภาพแวดล้อมนี้ถึงขีดจำกัดการส่งแล้ว", linkText: "จองตอนนี้", linkUrl: "" },
+    },
     redirectUrl: "",
     redirectRules: [],
     channels: [],

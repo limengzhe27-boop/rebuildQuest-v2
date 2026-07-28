@@ -18,6 +18,8 @@ export type LiveSurveyResponse = {
   answers: Record<string, string | string[] | number>;
   questions: Pick<Question, "id" | "title" | "type">[];
   source: string;
+  joymakerId?: string;
+  clientIp?: string;
   status: "valid";
 };
 
