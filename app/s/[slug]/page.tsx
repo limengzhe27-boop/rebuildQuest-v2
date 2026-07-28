@@ -109,7 +109,9 @@ export default function PlayerSurvey() {
     background: "soft",
     pageMode: "continuous",
     headerImage: "",
+    headerImageMobile: "",
     curtainImage: "",
+    curtainImageMobile: "",
   });
   const [surveyDescription, setSurveyDescription] = useState("");
   const [completionImage, setCompletionImage] = useState("");
@@ -154,7 +156,9 @@ export default function PlayerSurvey() {
         background: ["plain", "soft", "dark"].includes(appearance.background) ? appearance.background : "soft",
         pageMode: appearance.pageMode === "one-question" ? "one-question" : "continuous",
         headerImage: appearance.headerImage || "",
+        headerImageMobile: appearance.headerImageMobile || "",
         curtainImage: appearance.curtainImage || "",
+        curtainImageMobile: appearance.curtainImageMobile || "",
       }));
       if (typeof appearance.languageSwitch === "boolean") setAllowLanguageSwitch(appearance.languageSwitch);
       if (typeof appearance.progress === "boolean") setShowProgress(appearance.progress);
@@ -454,11 +458,13 @@ export default function PlayerSurvey() {
     submitResponse();
   }
 
-  const surveyShellClass = `player-survey-shell appearance-${appearanceConfig.background} density-${appearanceConfig.density} font-${appearanceConfig.fontSize} button-${appearanceConfig.buttonStyle} width-${appearanceConfig.contentWidth}`;
+  const hasCurtain = Boolean(appearanceConfig.curtainImage || appearanceConfig.curtainImageMobile);
+  const surveyShellClass = `player-survey-shell ${hasCurtain ? "has-curtain" : ""} appearance-${appearanceConfig.background} density-${appearanceConfig.density} font-${appearanceConfig.fontSize} button-${appearanceConfig.buttonStyle} width-${appearanceConfig.contentWidth}`;
   const surveyShellStyle = {
     "--player": primary,
     "--player-radius": `${appearanceConfig.radius}px`,
-    ...(appearanceConfig.curtainImage ? { backgroundImage: `url(${appearanceConfig.curtainImage})` } : {}),
+    "--curtain-desktop": appearanceConfig.curtainImage ? `url(${appearanceConfig.curtainImage})` : "none",
+    "--curtain-mobile": appearanceConfig.curtainImageMobile ? `url(${appearanceConfig.curtainImageMobile})` : appearanceConfig.curtainImage ? `url(${appearanceConfig.curtainImage})` : "none",
   } as React.CSSProperties;
 
   if (closedMessage) {
@@ -542,7 +548,10 @@ export default function PlayerSurvey() {
       <section className="player-survey-card">
         {step === 0 ? (
           <div className="player-cover">
-            {appearanceConfig.headerImage && <img className="player-header-image" src={appearanceConfig.headerImage} alt="" />}
+            {appearanceConfig.headerImage && <picture className="player-header-picture">
+              {appearanceConfig.headerImageMobile && <source media="(max-width: 640px)" srcSet={appearanceConfig.headerImageMobile} />}
+              <img className="player-header-image" src={appearanceConfig.headerImage} alt="" />
+            </picture>}
             <span>RO3 · PLAYER RESEARCH</span><h1>{surveyTitle}</h1><p>{surveyDescription || copy.intro}</p>
             <ul><li><i>◷</i>3–5 min</li><li><i>▤</i>{visibleQuestions.length} questions</li><li><i>⌾</i>Global data region</li></ul>
             <label><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>{copy.consent}</span></label>

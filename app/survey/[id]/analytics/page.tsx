@@ -87,13 +87,51 @@ export default function AnalyticsPage() {
     window.setTimeout(() => setNotice(""), 2200);
   }
 
+  function statisticsReportHtml() {
+    const escape = (value: string) => value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character] || character));
+    const table = (headers: string[], rows: (string | number)[][]) => `<table><thead><tr>${headers.map((item) => `<th>${escape(String(item))}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((item) => `<td>${escape(String(item))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    const answerSections = [
+      `<h2>第 1 题　您对本次先锋测试的整体体验如何？</h2>${table(["选项", "回答人数", "占比"], satisfaction.map(([label, count]) => [label, count.toLocaleString(), `${(count / totalResponses * 100).toFixed(1)}%`]))}`,
+      `<h2>第 2 题　NPS</h2>${table(["分组", "回答人数", "占比"], npsGroups.map(([label, count]) => [label, count.toLocaleString(), `${(count / 8379 * 100).toFixed(1)}%`]))}`,
+      `<h2>第 3 题　还有哪些体验可以改进？</h2>${table(["高频主题", "提及次数", "占比"], textTopics.map(([label, count]) => [label, count.toLocaleString(), `${(count / 6924 * 100).toFixed(1)}%`]))}`,
+    ].join("");
+    const userSections = [
+      `<h2>关键指标</h2>${table(["识别用户", "平均答题时间", "覆盖国家/地区"], [["6,982", "3 分 42 秒", "42"]])}`,
+      `<h2>近 7 天收集趋势</h2>${table(["日期", "星期", "有效答卷"], collectionTrend.map((row) => [...row]))}`,
+      ...userDistributions.map((group) => `<h2>${group.title}</h2>${table([group.title, "答卷数", "占比"], group.rows.map(([label, count]) => [label, count.toLocaleString(), `${(count / totalResponses * 100).toFixed(1)}%`]))}`),
+    ].join("");
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${escape(surveyTitle)} - 统计报告</title><style>body{font:14px/1.6 Arial,"Microsoft YaHei",sans-serif;color:#17233d;max-width:980px;margin:40px auto;padding:0 24px}h1{margin-bottom:4px}p{color:#667085}h2{font-size:17px;margin:32px 0 10px}table{width:100%;border-collapse:collapse}th,td{padding:10px 12px;border:1px solid #dfe5ee;text-align:left}th{background:#f5f7fa}@media print{body{margin:0;max-width:none}}</style></head><body><h1>${escape(surveyTitle)} · ${tab === "answers" ? "答案统计" : "用户统计"}</h1><p>筛选：${escape(locale)} · ${escape(range)}　导出时间：${new Date().toLocaleString("zh-CN")}</p><p>答卷总数：${totalResponses.toLocaleString()} 份</p>${tab === "answers" ? answerSections : userSections}</body></html>`;
+  }
+
+  function exportHtml() {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([statisticsReportHtml()], { type: "text/html;charset=utf-8" }));
+    link.download = `${surveyTitle}-${tab === "answers" ? "答案统计" : "用户统计"}.html`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    flash("HTML 统计报告已导出");
+  }
+
+  function exportPdf() {
+    const report = window.open("", "_blank");
+    if (!report) {
+      flash("浏览器阻止了新窗口，请允许弹窗后重试");
+      return;
+    }
+    report.document.write(statisticsReportHtml());
+    report.document.close();
+    report.focus();
+    window.setTimeout(() => report.print(), 300);
+    flash("已打开打印窗口，可选择“另存为 PDF”");
+  }
+
   return (
     <main className="insights-page analytics-simple-page">
       <header className="editor-topbar">
         <button className="editor-back" onClick={() => router.push("/")}>‹</button>
         <div className="editor-title"><span className="survey-doc-icon">▤</span><div><strong>{surveyTitle}</strong><small><i className="live-dot" />统计数据更新于 2 分钟前</small></div></div>
         <SurveyNav surveyId={surveyId} active="analytics" onNotice={flash} />
-        <div className="editor-actions"><button className="secondary-button" onClick={() => router.push(`/survey/${surveyId}/responses`)}>查看答卷明细</button></div>
+        <div className="editor-actions"><button className="secondary-button" onClick={exportHtml}>导出 HTML</button><button className="secondary-button" onClick={exportPdf}>导出 PDF</button><button className="secondary-button" onClick={() => router.push(`/survey/${surveyId}/responses`)}>查看答卷明细</button></div>
       </header>
 
       <section className="analytics-simple-shell">

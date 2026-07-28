@@ -17,7 +17,9 @@ type Appearance = {
   contentWidth: "narrow" | "standard" | "wide";
   pageMode: "continuous" | "one-question";
   headerImage: string;
+  headerImageMobile: string;
   curtainImage: string;
+  curtainImageMobile: string;
   progress: boolean;
   languageSwitch: boolean;
   background: "plain" | "soft" | "dark";
@@ -33,7 +35,9 @@ const defaults: Appearance = {
   contentWidth: "standard",
   pageMode: "continuous",
   headerImage: "",
+  headerImageMobile: "",
   curtainImage: "",
+  curtainImageMobile: "",
   progress: true,
   languageSwitch: true,
   background: "soft",
@@ -81,7 +85,9 @@ export default function AppearancePage() {
   const [publication, setPublication] = useState<Publication | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const headerImageInputRef = useRef<HTMLInputElement>(null);
+  const headerMobileInputRef = useRef<HTMLInputElement>(null);
   const curtainImageInputRef = useRef<HTMLInputElement>(null);
+  const curtainMobileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`);
@@ -146,7 +152,7 @@ export default function AppearancePage() {
     window.setTimeout(() => setNotice(""), 2200);
   }
 
-  function uploadAppearanceImage(field: "headerImage" | "curtainImage", file?: File) {
+  function uploadAppearanceImage(field: "headerImage" | "headerImageMobile" | "curtainImage" | "curtainImageMobile", file?: File) {
     if (!file) return;
     if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
       flash("请选择不超过 5MB 的图片");
@@ -225,17 +231,18 @@ export default function AppearancePage() {
               <label><span><strong>主按钮样式</strong><small>用于下一页和提交问卷按钮</small></span><div><button className={config.buttonStyle === "filled" ? "active" : ""} onClick={() => update({ buttonStyle: "filled" })}>填充</button><button className={config.buttonStyle === "outline" ? "active" : ""} onClick={() => update({ buttonStyle: "outline" })}>描边</button></div></label>
             </div>
             <label className="range-setting"><span>圆角大小 <em>{config.radius}px</em></span><input type="range" min="0" max="20" value={config.radius} onChange={(event) => update({ radius: Number(event.target.value) })} /></label>
-            <div className="appearance-control-list appearance-page-mode">
-              <label><span><strong>答题分页方式</strong><small>连续滚动或每页只展示一道题</small></span><div><button className={config.pageMode === "continuous" ? "active" : ""} onClick={() => { update({ pageMode: "continuous" }); setPageIndex(0); }}>连续</button><button className={config.pageMode === "one-question" ? "active" : ""} onClick={() => { update({ pageMode: "one-question" }); setPageIndex(0); }}>一页一题</button></div></label>
-            </div>
           </section>
           <section>
             <h3>图片与幕布</h3>
             <div className="appearance-image-settings">
               <input ref={headerImageInputRef} type="file" accept="image/*" hidden onChange={(event) => uploadAppearanceImage("headerImage", event.target.files?.[0])} />
-              <article><div><strong>问卷头图</strong><small>展示在标题和开场说明上方</small></div><button onClick={() => headerImageInputRef.current?.click()}>{config.headerImage ? "更换" : "上传"}</button>{config.headerImage && <button className="remove" onClick={() => update({ headerImage: "" })}>移除</button>}</article>
+              <article><div><strong>问卷头图 · 桌面端</strong><small>默认图片，移动端未单独设置时也使用此图</small></div><button onClick={() => headerImageInputRef.current?.click()}>{config.headerImage ? "更换" : "上传"}</button>{config.headerImage && <button className="remove" onClick={() => update({ headerImage: "" })}>移除</button>}</article>
+              <input ref={headerMobileInputRef} type="file" accept="image/*" hidden onChange={(event) => uploadAppearanceImage("headerImageMobile", event.target.files?.[0])} />
+              <article><div><strong>问卷头图 · 移动端</strong><small>选填，建议使用竖版或较窄构图</small></div><button onClick={() => headerMobileInputRef.current?.click()}>{config.headerImageMobile ? "更换" : "上传"}</button>{config.headerImageMobile && <button className="remove" onClick={() => update({ headerImageMobile: "" })}>移除</button>}</article>
               <input ref={curtainImageInputRef} type="file" accept="image/*" hidden onChange={(event) => uploadAppearanceImage("curtainImage", event.target.files?.[0])} />
-              <article><div><strong>幕布背景</strong><small>问卷白色内容层会透出底层幕布</small></div><button onClick={() => curtainImageInputRef.current?.click()}>{config.curtainImage ? "更换" : "上传"}</button>{config.curtainImage && <button className="remove" onClick={() => update({ curtainImage: "" })}>移除</button>}</article>
+              <article><div><strong>幕布背景 · 桌面端</strong><small>默认背景，问卷白色内容层会透出幕布</small></div><button onClick={() => curtainImageInputRef.current?.click()}>{config.curtainImage ? "更换" : "上传"}</button>{config.curtainImage && <button className="remove" onClick={() => update({ curtainImage: "" })}>移除</button>}</article>
+              <input ref={curtainMobileInputRef} type="file" accept="image/*" hidden onChange={(event) => uploadAppearanceImage("curtainImageMobile", event.target.files?.[0])} />
+              <article><div><strong>幕布背景 · 移动端</strong><small>选填，未上传时自动沿用桌面端背景</small></div><button onClick={() => curtainMobileInputRef.current?.click()}>{config.curtainImageMobile ? "更换" : "上传"}</button>{config.curtainImageMobile && <button className="remove" onClick={() => update({ curtainImageMobile: "" })}>移除</button>}</article>
             </div>
           </section>
           <section>
@@ -251,10 +258,11 @@ export default function AppearancePage() {
           </section>
         </aside>
 
-        <section className={`appearance-preview ${config.background} ${config.curtainImage ? "has-curtain" : ""}`} style={{ "--theme": config.primary, "--radius": `${config.radius}px`, ...(config.curtainImage ? { backgroundImage: `url(${config.curtainImage})` } : {}) } as React.CSSProperties}>
+        <section className={`appearance-preview ${config.background} ${(device === "mobile" ? config.curtainImageMobile || config.curtainImage : config.curtainImage) ? "has-curtain" : ""}`} style={{ "--theme": config.primary, "--radius": `${config.radius}px`, ...((device === "mobile" ? config.curtainImageMobile || config.curtainImage : config.curtainImage) ? { backgroundImage: `url(${device === "mobile" ? config.curtainImageMobile || config.curtainImage : config.curtainImage})` } : {}) } as React.CSSProperties}>
           <div className="preview-device-toggle">
             <button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")}>▱ 桌面端</button>
             <button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")}>▯ 移动端</button>
+            <span className="appearance-mode-summary">分页：{config.pageMode === "one-question" ? "一页一题" : hasPagination ? "按分页组件" : "连续滚动"}</span>
             <div className="appearance-state-preview">
               <button className={previewState === "form" ? "active" : ""} onClick={() => setPreviewState("form")}>填写页</button>
               <button className={previewState === "complete" ? "active" : ""} onClick={() => setPreviewState("complete")}>提交完成页</button>
@@ -281,7 +289,7 @@ export default function AppearancePage() {
                   </select>
                 </label>
               )}
-              <header>{config.headerImage && <img className="appearance-header-image" src={config.headerImage} alt="" />}<h1>{translated("form:title", surveyTitle)}</h1><p>{translated("form:intro", "感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。")}</p></header>
+              <header>{(device === "mobile" ? config.headerImageMobile || config.headerImage : config.headerImage) && <img className="appearance-header-image" src={device === "mobile" ? config.headerImageMobile || config.headerImage : config.headerImage} alt="" />}<h1>{translated("form:title", surveyTitle)}</h1><p>{translated("form:intro", "感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。")}</p></header>
               <main className="appearance-form-content">
                 {visibleQuestions.map(renderQuestion)}
                 <footer className="appearance-form-footer">

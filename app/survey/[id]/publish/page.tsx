@@ -89,7 +89,7 @@ export default function PublishPage() {
       flash("该扩展值已经生成过链接");
       return;
     }
-    const url = `${publicationUrl(selected)}?ext_value=${encodeURIComponent(value)}`;
+    const url = `${publicationUrl(selected).replace(/\/$/, "")}/?ext_value=${encodeURIComponent(value)}`;
     setGeneratedLinks((current) => [{
       id: `${Date.now()}`,
       value,
@@ -164,7 +164,8 @@ export default function PublishPage() {
                 <div className="parameter-link-builder">
                   <p><strong>添加链接扩展</strong><small>给主链接添加扩展属性值，可生成多个链接并投放到不同位置，用于区分答卷数据。</small></p>
                   <div className="extension-link-form">
-                    <span>{publicationUrl(selected)}</span>
+                    <span>{publicationUrl(selected).replace(/\/$/, "")}/</span>
+                    <em>?ext_value=</em>
                     <input value={extensionValue} onChange={(event) => setExtensionValue(event.target.value)} placeholder="扩展值" />
                     <button onClick={generateParameterizedLink}>生成链接</button>
                   </div>
