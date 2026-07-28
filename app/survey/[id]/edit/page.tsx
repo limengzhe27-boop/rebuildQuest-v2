@@ -598,7 +598,6 @@ export default function SurveyEditorPage() {
                     </div>
                   </article>
                 ))}
-                <button className="canvas-add" onClick={() => addQuestion("single")}>＋ 添加一道题</button>
               </div>
               <footer className="survey-canvas-footer">已完成 0 / {questions.length} 题 · 内容自动保存</footer>
             </div>
@@ -693,7 +692,7 @@ export default function SurveyEditorPage() {
               <label>
                 <span>模板分类 <b>*</b><small>可选择多个分类</small></span>
                 <details className="template-category-multiselect">
-                  <summary>{templateCategories.length ? `已选择 ${templateCategories.length} 个分类` : "请选择模板分类"}<i>⌄</i></summary>
+                  <summary><span>{templateCategories.length ? templateCategories.join("、") : "请选择模板分类"}</span><i>⌄</i></summary>
                   <div className="template-category-checks">
                   {availableTemplateCategories.map((category) => (
                     <button
@@ -724,8 +723,8 @@ export default function SurveyEditorPage() {
             <div>
               <label>
                 <span>所属分类 <b>*</b><small>下拉多选</small></span>
-                <details className="template-category-multiselect" open>
-                  <summary>{editorTemplateCategories.length ? `已选择 ${editorTemplateCategories.length} 个分类` : "请选择模板分类"}<i>⌄</i></summary>
+                <details className="template-category-multiselect">
+                  <summary><span>{editorTemplateCategories.length ? editorTemplateCategories.join("、") : "请选择模板分类"}</span><i>⌄</i></summary>
                   <div className="template-category-checks">
                     {availableTemplateCategories.map((category) => <button key={category} className={editorTemplateCategories.includes(category) ? "selected" : ""} onClick={() => setEditorTemplateCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category])}><i>{editorTemplateCategories.includes(category) ? "✓" : ""}</i>{category}</button>)}
                   </div>

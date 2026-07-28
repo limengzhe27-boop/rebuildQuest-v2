@@ -145,6 +145,21 @@ input:focus-visible {
   margin-left: 68px;
 }
 
+.embedded-app-shell .global-nav,
+.embedded-app-shell .topbar {
+  display: none;
+}
+
+.embedded-app-shell .workspace {
+  width: 100%;
+  margin-left: 0;
+}
+
+.embedded-app-shell .content-layout {
+  min-height: 100vh;
+  padding-top: 0;
+}
+
 .topbar {
   position: fixed;
   inset: 0 0 auto 68px;
@@ -7472,8 +7487,10 @@ input:focus-visible {
 }
 
 .player-mini-page.player-scroll-page {
-  min-height: 620px;
-  overflow: visible;
+  height: 680px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .appearance-form-content {
@@ -8513,7 +8530,7 @@ input:focus-visible {
 
 .template-category-checks {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
 }
 
@@ -8528,6 +8545,9 @@ input:focus-visible {
   background: #fff;
   padding: 0 11px;
   color: #526077;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .template-category-checks button i {
@@ -8674,6 +8694,12 @@ input:focus-visible {
 
 .template-category-multiselect > summary i {
   font-style: normal;
+}
+
+.template-category-multiselect > summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .template-category-multiselect[open] > summary {

@@ -283,7 +283,7 @@ function NewSurveyWizard() {
                   <span>01</span>
                   <div>
                     <h2>填写基础信息</h2>
-                    <p>名称与描述用于问卷展示；项目、分组和内部备注用于后台管理。</p>
+                    <p>名称和填写页说明会展示给玩家；项目、分组和协作备注用于后台管理。</p>
                   </div>
                 </div>
                 <div className="wizard-fields">
@@ -301,13 +301,13 @@ function NewSurveyWizard() {
                     <small>建议包含游戏、场景和时间，便于后续查找。</small>
                   </label>
                   <label className="wizard-field full">
-                    <span>问卷描述</span>
+                    <span>填写页说明</span>
                     <textarea
                       value={description}
                       onChange={(event) => setDescription(event.target.value)}
                       placeholder="选填：向玩家说明本次问卷的目的、预计耗时或填写须知。"
                     />
-                    <small>会展示在问卷封面，可在“设置 → 基本信息”中继续修改。</small>
+                    <small>展示在问卷标题下方，用于说明调研目的、耗时和填写须知。</small>
                   </label>
                   <label className="wizard-field">
                     <span>所属项目 <b>*</b></span>
@@ -336,13 +336,13 @@ function NewSurveyWizard() {
                     <small>可选择该项目下的已有分组；输入新名称并创建问卷，即会在当前项目下新建分组。</small>
                   </label>
                   <label className="wizard-field full">
-                    <span>内部备注</span>
+                    <span>内部协作备注</span>
                     <textarea
                       value={internalNote}
                       onChange={(event) => setInternalNote(event.target.value)}
                       placeholder="选填：记录调研背景、目标玩家或负责人信息。"
                     />
-                    <small>创建后可在“设置 → 基本信息”中查看和修改，仅后台成员可见。</small>
+                    <small>用于记录调研背景、目标用户和负责人，仅后台协作者可见。</small>
                   </label>
                 </div>
               </div>

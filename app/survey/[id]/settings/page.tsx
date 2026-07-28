@@ -260,12 +260,12 @@ export default function SurveySettingsPage() {
           {section === "basic" ? (
             <div className="publish-config-stack">
               <section className="config-card">
-                <header><div><strong>问卷基本信息</strong><small>问卷描述会展示给玩家；项目、分组和内部备注仅后台可见</small></div></header>
+                <header><div><strong>问卷基本信息</strong><small>填写页说明展示给玩家；项目、分组和协作备注仅后台可见</small></div></header>
                 <div className="basic-info-grid">
                   <label><span>所属项目</span><select value={draftInfo.game} onChange={(event) => setDraftInfo((current) => ({ ...current, game: event.target.value, group: "" }))}><option>RO3</option><option>ROOC</option><option>HMT</option><option>RO国服</option><option>通用</option></select></label>
                   <label><span>项目分组</span><select value={draftInfo.group} onChange={(event) => setDraftInfo((current) => ({ ...current, group: event.target.value }))}><option value="">请选择项目分组</option>{projectGroupOptions.map((group) => <option key={group} value={group}>{group}</option>)}</select><small>如需新分组，请先在问卷工作台的“管理项目分组”中创建。</small></label>
-                  <label className="full"><span>问卷描述</span><textarea value={draftInfo.description} onChange={(event) => setDraftInfo((current) => ({ ...current, description: event.target.value }))} placeholder="向玩家说明本次问卷的目的、预计耗时或填写须知" /><small>展示在玩家填写页的问卷封面。</small></label>
-                  <label className="full"><span>内部备注</span><textarea value={draftInfo.note} onChange={(event) => setDraftInfo((current) => ({ ...current, note: event.target.value }))} placeholder="记录调研背景、目标玩家、负责人或其他内部说明" /><small>创建问卷时填写的备注会显示在这里，可随时修改。</small></label>
+                  <label className="full"><span>填写页说明</span><textarea value={draftInfo.description} onChange={(event) => setDraftInfo((current) => ({ ...current, description: event.target.value }))} placeholder="向玩家说明本次问卷的目的、预计耗时或填写须知" /><small>展示在玩家填写页的问卷标题下方。</small></label>
+                  <label className="full"><span>内部协作备注</span><textarea value={draftInfo.note} onChange={(event) => setDraftInfo((current) => ({ ...current, note: event.target.value }))} placeholder="记录调研背景、目标玩家、负责人或其他内部说明" /><small>仅后台协作者可见，可随时修改。</small></label>
                 </div>
               </section>
             </div>

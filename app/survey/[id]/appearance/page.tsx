@@ -15,10 +15,6 @@ type Appearance = {
   fontSize: "standard" | "large";
   buttonStyle: "filled" | "outline";
   progress: boolean;
-  questionNumber: boolean;
-  cover: boolean;
-  logo: boolean;
-  requiredMark: boolean;
   languageSwitch: boolean;
   background: "plain" | "soft" | "dark";
 };
@@ -31,10 +27,6 @@ const defaults: Appearance = {
   fontSize: "standard",
   buttonStyle: "filled",
   progress: true,
-  questionNumber: true,
-  cover: true,
-  logo: true,
-  requiredMark: true,
   languageSwitch: true,
   background: "soft",
 };
@@ -79,6 +71,7 @@ export default function AppearancePage() {
   const [verifiedLocales, setVerifiedLocales] = useState<Record<string, boolean>>({});
   const [notice, setNotice] = useState("");
   const [publication, setPublication] = useState<Publication | null>(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`);
@@ -141,14 +134,13 @@ export default function AppearancePage() {
   }
 
   function renderQuestion(question: Question, index: number) {
-    const overallIndex = questions.filter((item) => item.type !== "pageBreak").findIndex((item) => item.id === question.id);
     if (question.type === "divider") return <div className="appearance-divider" key={question.id} />;
     if (question.type === "description") return <div className="appearance-description" key={question.id}>{translated(`${question.id}:title`, question.title, question.id)}</div>;
     if (question.type === "imageDisplay" || question.type === "carousel") return <div className="appearance-image-block" key={question.id}>▧ {question.type === "carousel" ? "图片轮播" : "图片展示"}</div>;
     return (
       <article className="appearance-question-preview" key={question.id}>
-        <small>{config.questionNumber ? `${String(overallIndex + 1).padStart(2, "0")} · ` : ""}{question.type === "nps" ? "NPS" : "问题"}</small>
-        <h2>{translated(`${question.id}:title`, question.title, question.id)}{config.requiredMark && question.required && <b>*</b>}</h2>
+        <small>{question.type === "nps" ? "NPS" : "问题"}</small>
+        <h2>{translated(`${question.id}:title`, question.title, question.id)}{question.required && <b>*</b>}</h2>
         {question.description && <p>{translated(`${question.id}:description`, question.description)}</p>}
         {question.helpText && <div className="appearance-question-help">ⓘ {translated(`${question.id}:help`, question.helpText)}</div>}
         {question.referenceImage && <div className="appearance-reference-image">▧ 参考图片</div>}
@@ -180,19 +172,9 @@ export default function AppearancePage() {
             <label className="segmented-setting appearance-segment-gap"><span>主按钮</span><div><button className={config.buttonStyle === "filled" ? "active" : ""} onClick={() => update({ buttonStyle: "filled" })}>填充</button><button className={config.buttonStyle === "outline" ? "active" : ""} onClick={() => update({ buttonStyle: "outline" })}>描边</button></div></label>
             <label className="range-setting"><span>圆角大小 <em>{config.radius}px</em></span><input type="range" min="0" max="20" value={config.radius} onChange={(event) => update({ radius: Number(event.target.value) })} /></label>
           </section>
-          <section>
-            <h3>语言切换</h3>
-            <div className="appearance-language-setting">
-              <div><strong>允许用户切换语言</strong><small>开启后，玩家可在问卷右上角切换已添加并完成校验的语言。</small></div>
-              <button className={`mini-switch ${config.languageSwitch ? "on" : ""}`} onClick={() => update({ languageSwitch: !config.languageSwitch })}><i /></button>
-            </div>
-          </section>
-          <section><h3>填写页显示</h3>{[
-            ["显示封面", "cover"],
-            ["显示品牌标识", "logo"],
-            ["显示进度条", "progress"],
-            ["显示题号", "questionNumber"],
-            ["显示必填标记", "requiredMark"],
+          <section><h3>页面组件</h3>{[
+            ["语言切换入口", "languageSwitch"],
+            ["填写进度条", "progress"],
           ].map(([label, key]) => <div className="appearance-toggle" key={key}><span>{label}</span><button className={`mini-switch ${config[key as keyof Appearance] ? "on" : ""}`} onClick={() => update({ [key]: !config[key as keyof Appearance] })}><i /></button></div>)}</section>
         </aside>
 
@@ -208,7 +190,14 @@ export default function AppearancePage() {
             <label className="appearance-language-preview"><span>预览语言</span><select value={previewLocale} onChange={(event) => { setPreviewLocale(event.target.value); setPageIndex(0); }}>{availablePreviewLocales.map((locale) => <option key={locale} value={locale}>{previewLocaleNames[locale] || locale}</option>)}</select></label>
           </div>
           <div className={`survey-device ${device} ${config.density} font-${config.fontSize} button-${config.buttonStyle}`}>
-            {previewState === "form" ? <div className="player-mini-page player-scroll-page">
+            {previewState === "form" ? <div
+              className="player-mini-page player-scroll-page"
+              onScroll={(event) => {
+                const target = event.currentTarget;
+                const available = target.scrollHeight - target.clientHeight;
+                setScrollProgress(available > 0 ? Math.round(target.scrollTop / available * 100) : 100);
+              }}
+            >
               {config.languageSwitch && (
                 <label className="appearance-player-language">
                   <span>🌐</span>
@@ -217,8 +206,8 @@ export default function AppearancePage() {
                   </select>
                 </label>
               )}
-              {config.progress && <div className="mini-progress"><i style={{ width: hasPagination ? `${(pageIndex + 1) / pages.length * 100}%` : "100%" }} /></div>}
-              {config.cover && <header>{config.logo && <span>RO3 · PLAYER RESEARCH</span>}<h1>{translated("form:title", surveyTitle)}</h1><p>{translated("form:intro", "感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。")}</p></header>}
+              {config.progress && <div className="mini-progress"><i style={{ width: hasPagination ? `${(pageIndex + 1) / pages.length * 100}%` : `${Math.max(3, scrollProgress)}%` }} /></div>}
+              <header><h1>{translated("form:title", surveyTitle)}</h1><p>{translated("form:intro", "感谢您参与本次先锋测试。请向下滚动完成问卷，您的反馈将帮助我们持续优化游戏体验。")}</p></header>
               <main className="appearance-form-content">
                 {visibleQuestions.map(renderQuestion)}
                 <footer className="appearance-form-footer">

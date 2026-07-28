@@ -138,7 +138,7 @@ export default function TemplatesPage() {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell embedded-app-shell">
       <aside className="global-nav" aria-label="JoyData 主导航">
         <div className="brand-mark"><span>✦</span></div>
         <div className="global-nav-list">{navItems.map(([icon, label]) => <button className={`global-nav-item ${label === "用研" ? "active" : ""}`} key={label}><span className="global-nav-icon">{icon}</span><span>{label}</span></button>)}</div>

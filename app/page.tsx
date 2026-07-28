@@ -455,7 +455,7 @@ export default function Home() {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell embedded-app-shell">
       <aside className="global-nav" aria-label="JoyData 主导航">
         <div className="brand-mark" aria-label="欢乐互娱">
           <span>✦</span>
@@ -832,7 +832,7 @@ export default function Home() {
               <label>
                 <span>模板分类 <b>*</b><small>可选择多个分类</small></span>
                 <details className="template-category-multiselect">
-                  <summary>{templateCategories.length ? `已选择 ${templateCategories.length} 个分类` : "请选择模板分类"}<i>⌄</i></summary>
+                  <summary><span>{templateCategories.length ? templateCategories.join("、") : "请选择模板分类"}</span><i>⌄</i></summary>
                   <div className="template-category-checks">
                   {availableTemplateCategories.map((category) => (
                     <button
