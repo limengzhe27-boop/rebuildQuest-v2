@@ -56,6 +56,7 @@ export type Publication = {
   redirectRules: RedirectRule[];
   channels: PublicationChannel[];
   webhookEnabled: boolean;
+  webhookMethod: "POST" | "GET";
   webhookUrl: string;
   webhookSecret: string;
   slug: string;
@@ -106,6 +107,7 @@ export const defaultPublications: Publication[] = [
       { id: "facebook", name: "Facebook Ads", parameter: "source=fb_ads", locale: "en-US", enabled: true },
     ],
     webhookEnabled: false,
+    webhookMethod: "POST",
     webhookUrl: "",
     webhookSecret: "",
     slug: "ro3-global-beta",
@@ -148,6 +150,7 @@ export const defaultPublications: Publication[] = [
     redirectRules: [],
     channels: [],
     webhookEnabled: false,
+    webhookMethod: "POST",
     webhookUrl: "",
     webhookSecret: "",
     slug: "ro3-cn-beta",

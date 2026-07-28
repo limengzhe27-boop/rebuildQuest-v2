@@ -7164,6 +7164,89 @@ input:focus-visible {
   flex: 1;
 }
 
+.parameter-link-builder > .extension-link-form {
+  display: grid;
+  min-height: 40px;
+  grid-template-columns: minmax(320px, 1fr) 240px auto;
+  border: 0;
+  border-radius: 0;
+  gap: 10px;
+  overflow: visible;
+}
+
+.extension-link-form > span,
+.extension-link-form > input {
+  height: 38px;
+  border: 1px solid #d9e0e9;
+  border-radius: 7px;
+  background: #fff;
+  color: #6b788e;
+  font-size: 10px;
+}
+
+.extension-link-form > span {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.parameter-link-builder > .extension-link-form > input {
+  align-self: auto;
+  padding: 0 12px;
+}
+
+.parameter-link-builder > .extension-link-form > button {
+  border: 0;
+  border-radius: 7px;
+  background: #2f73f5;
+  padding: 0 18px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.parameter-link-builder > .extension-link-list {
+  display: grid;
+  min-height: 0;
+  gap: 7px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.extension-link-list > div {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 150px minmax(260px, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e1e6ed;
+  border-radius: 7px;
+  background: #fafbfc;
+  padding: 8px 10px;
+}
+
+.extension-link-list strong {
+  color: #45536a;
+  font-size: 9px;
+}
+
+.extension-link-list span {
+  overflow: hidden;
+  padding: 0;
+  color: #7a8698;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.extension-link-list button {
+  border: 0;
+  background: transparent;
+  color: #2f73f5;
+  font-size: 9px;
+}
+
 .parameter-link-builder > .source-link-form {
   display: grid;
   min-height: 0;
@@ -7402,6 +7485,58 @@ input:focus-visible {
 .webhook-form.expanded > div,
 .webhook-form.expanded > footer {
   grid-column: 1 / -1;
+}
+
+.webhook-enabled-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 16px 0;
+  color: #29374d;
+  font-size: 11px;
+}
+
+.webhook-enabled-row strong {
+  color: #2f73f5;
+  font-weight: 500;
+}
+
+.webhook-form.legacy {
+  display: grid;
+  grid-template-columns: 140px minmax(360px, 1fr);
+  gap: 14px 16px;
+}
+
+.webhook-form.legacy label {
+  display: grid;
+  gap: 7px;
+  color: #46536a;
+  font-size: 10px;
+}
+
+.webhook-form.legacy label span b {
+  color: #e25353;
+}
+
+.webhook-form.legacy input,
+.webhook-form.legacy select {
+  height: 38px;
+  border: 1px solid #d6deea;
+  border-radius: 7px;
+  background: #fff;
+  padding: 0 11px;
+  color: #445169;
+}
+
+.webhook-form.legacy footer {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.webhook-form.legacy footer button {
+  height: 38px;
 }
 
 .player-language em {

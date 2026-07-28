@@ -258,7 +258,7 @@ export default function PlayerSurvey() {
         title,
         type,
       })),
-      source: searchParams.get("source") || "Direct",
+      source: searchParams.get("ext_value") || searchParams.get("source") || "Direct",
       status: "valid",
     };
     const key = `joydata-survey-live-responses-${surveyId}`;

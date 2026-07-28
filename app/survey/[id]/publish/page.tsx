@@ -6,26 +6,10 @@ import { defaultPublications, loadPublications, Publication, publicationUrl } fr
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
-const localeLabels: Record<string, string> = {
-  "zh-CN": "简体中文",
-  "en-US": "English",
-  "zh-TW": "繁體中文",
-  "th-TH": "ไทย",
-};
-
-const languageCodeToLocale: Record<string, string> = {
-  简中: "zh-CN",
-  EN: "en-US",
-  繁中: "zh-TW",
-  ไทย: "th-TH",
-};
-
-type SourceLink = {
+type ExtensionLink = {
   id: string;
-  name: string;
-  key: string;
+  value: string;
   url: string;
-  createdAt: string;
 };
 
 export default function PublishPage() {
@@ -35,10 +19,8 @@ export default function PublishPage() {
   const surveyTitle = useSurveyTitle(surveyId);
   const [publications, setPublications] = useState<Publication[]>(defaultPublications);
   const [section, setSection] = useState<"release" | "webhook">("release");
-  const [languages, setLanguages] = useState(["en-US", "zh-TW", "th-TH"]);
-  const [sourceName, setSourceName] = useState("");
-  const [sourceKey, setSourceKey] = useState("");
-  const [generatedLinks, setGeneratedLinks] = useState<SourceLink[]>([]);
+  const [extensionValue, setExtensionValue] = useState("");
+  const [generatedLinks, setGeneratedLinks] = useState<ExtensionLink[]>([]);
   const [notice, setNotice] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
@@ -47,16 +29,10 @@ export default function PublishPage() {
   useEffect(() => {
     setPublications(loadPublications(surveyId));
     try {
-      const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
-      const draft = drafts.find((item: { id?: number | string }) => String(item.id) === surveyId);
-      if (draft?.languages?.length) {
-        const configured = draft.languages.map((item: string) => languageCodeToLocale[item]).filter(Boolean);
-        if (configured.length) setLanguages(configured);
-      }
-      const savedLinks = JSON.parse(window.localStorage.getItem(`joydata-survey-source-links-${surveyId}`) || "[]");
+      const savedLinks = JSON.parse(window.localStorage.getItem(`joydata-survey-extension-links-${surveyId}`) || "[]");
       if (Array.isArray(savedLinks)) {
-        setGeneratedLinks(savedLinks.filter((item): item is SourceLink =>
-          Boolean(item && typeof item === "object" && item.id && item.name && item.key && item.url),
+        setGeneratedLinks(savedLinks.filter((item): item is ExtensionLink =>
+          Boolean(item && typeof item === "object" && item.id && item.value && item.url),
         ));
       }
     } catch {}
@@ -70,7 +46,7 @@ export default function PublishPage() {
 
   useEffect(() => {
     if (!hydrated) return;
-    window.localStorage.setItem(`joydata-survey-source-links-${surveyId}`, JSON.stringify(generatedLinks));
+    window.localStorage.setItem(`joydata-survey-extension-links-${surveyId}`, JSON.stringify(generatedLinks));
   }, [generatedLinks, surveyId, hydrated]);
 
   const selected = publications[0];
@@ -104,31 +80,23 @@ export default function PublishPage() {
   }
 
   function generateParameterizedLink() {
-    const name = sourceName.trim();
-    const key = sourceKey.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
-    if (!name) {
-      flash("请输入来源名称");
+    const value = extensionValue.trim();
+    if (!value) {
+      flash("请输入扩展值");
       return;
     }
-    if (!key) {
-      flash("请输入仅含字母、数字、短横线或下划线的来源标识");
+    if (generatedLinks.some((item) => item.value === value)) {
+      flash("该扩展值已经生成过链接");
       return;
     }
-    if (generatedLinks.some((item) => item.key === key)) {
-      flash("该来源标识已存在");
-      return;
-    }
-    const url = `${publicationUrl(selected)}?source=${encodeURIComponent(key)}`;
+    const url = `${publicationUrl(selected)}?ext_value=${encodeURIComponent(value)}`;
     setGeneratedLinks((current) => [{
       id: `${Date.now()}`,
-      name,
-      key,
+      value,
       url,
-      createdAt: new Date().toLocaleDateString("zh-CN"),
     }, ...current]);
-    setSourceName("");
-    setSourceKey("");
-    flash("来源链接已生成");
+    setExtensionValue("");
+    flash("扩展链接已生成");
   }
 
   if (!selected) return null;
@@ -194,41 +162,20 @@ export default function PublishPage() {
                   <div className="qr-placeholder"><span>▦</span><small>问卷二维码</small><button onClick={() => flash("二维码已保存")}>保存二维码</button></div>
                 </div>
                 <div className="parameter-link-builder">
-                  <p><strong>来源链接</strong><small>为不同投放位置生成独立链接。用户通过链接提交后，答案会自动记录来源；主链接访问记为“直接访问”。</small></p>
-                  <div className="source-link-form">
-                    <label><span>来源名称</span><input value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="例如：Discord 社区" /></label>
-                    <label><span>来源标识</span><div><b>source=</b><input value={sourceKey} onChange={(event) => setSourceKey(event.target.value)} placeholder="discord" /></div></label>
-                    <button className="primary-button" onClick={generateParameterizedLink}>生成来源链接</button>
+                  <p><strong>添加链接扩展</strong><small>给主链接添加扩展属性值，可生成多个链接并投放到不同位置，用于区分答卷数据。</small></p>
+                  <div className="extension-link-form">
+                    <span>{publicationUrl(selected)}</span>
+                    <input value={extensionValue} onChange={(event) => setExtensionValue(event.target.value)} placeholder="扩展值" />
+                    <button onClick={generateParameterizedLink}>生成链接</button>
                   </div>
-                  <div className="source-link-preview">
-                    <span>链接预览</span>
-                    <code>{publicationUrl(selected)}?source={sourceKey.trim() || "来源标识"}</code>
-                  </div>
-                  {generatedLinks.length ? (
-                    <div className="source-link-table-wrap">
-                      <table className="source-link-table">
-                        <thead><tr><th>来源名称</th><th>来源标识</th><th>链接</th><th>创建时间</th><th>操作</th></tr></thead>
-                        <tbody>{generatedLinks.map((item) => <tr key={item.id}>
-                          <td>{item.name}</td>
-                          <td><code>{item.key}</code></td>
-                          <td><span title={item.url}>{item.url}</span></td>
-                          <td>{item.createdAt}</td>
-                          <td><button onClick={() => copyText(item.url, "来源链接已复制")}>复制</button><button className="danger-text" onClick={() => setGeneratedLinks((current) => current.filter((link) => link.id !== item.id))}>删除</button></td>
-                        </tr>)}</tbody>
-                      </table>
-                    </div>
-                  ) : <div className="source-link-empty">还没有来源链接。需要区分投放位置时再创建即可。</div>}
-                </div>
-              </section>
-
-              <section className="config-card">
-                <header><div><strong>填写页语言</strong><small>语言切换入口固定展示在玩家问卷页面右上角</small></div></header>
-                <div className="language-publish-setting">
-                  <div className="language-location-preview"><span>RO3 · PLAYER RESEARCH</span><button>🌐 {localeLabels[selected.defaultLocale] || selected.defaultLocale}⌄</button><p>问卷内容从这里开始</p></div>
-                  <div className="setting-switch-list">
-                    <div><p><strong>允许用户切换语言</strong><small>开启后，玩家可在页面右上角切换问卷已配置的语言</small></p><button className={`mini-switch ${selected.allowLanguageSwitch ? "on" : ""}`} onClick={() => updateSelected({ allowLanguageSwitch: !selected.allowLanguageSwitch })}><i /></button></div>
-                    <div className="setting-with-select"><p><strong>用户语言未匹配时展示</strong><small>仅可选择已添加到问卷的语言</small></p><select value={selected.defaultLocale} onChange={(event) => updateSelected({ defaultLocale: event.target.value })}>{languages.map((locale) => <option key={locale} value={locale}>{localeLabels[locale] || locale}</option>)}</select></div>
-                  </div>
+                  {generatedLinks.length > 0 && <div className="extension-link-list">
+                    {generatedLinks.map((item) => <div key={item.id}>
+                      <strong>{item.value}</strong>
+                      <span title={item.url}>{item.url}</span>
+                      <button onClick={() => copyText(item.url, "扩展链接已复制")}>复制</button>
+                      <button onClick={() => setGeneratedLinks((current) => current.filter((link) => link.id !== item.id))}>删除</button>
+                    </div>)}
+                  </div>}
                 </div>
               </section>
             </div>
@@ -236,15 +183,13 @@ export default function PublishPage() {
             <section className="config-card">
               <header>
                 <div><strong>数据推送 Webhook</strong><small>收到有效答卷后，将填写结果以 JSON 格式推送到第三方系统</small></div>
-                <button className={`mini-switch ${selected.webhookEnabled ? "on" : ""}`} onClick={() => updateSelected({ webhookEnabled: !selected.webhookEnabled })}><i /></button>
               </header>
-              <div className="webhook-notice"><strong>推送规则</strong><span>答卷提交成功后立即推送；接收方需返回 HTTP 200，否则最多自动重试 3 次。</span></div>
-              <div className="webhook-form expanded">
-                <label><span>请求类型</span><select disabled={!selected.webhookEnabled}><option>POST</option></select></label>
-                <label><span>推送地址</span><input disabled={!selected.webhookEnabled} placeholder="https://your-service.com/webhook" value={selected.webhookUrl} onChange={(event) => updateSelected({ webhookUrl: event.target.value })} /></label>
-                <label><span>签名密钥</span><input disabled={!selected.webhookEnabled} placeholder="选填，用于验证请求来源" value={selected.webhookSecret} onChange={(event) => updateSelected({ webhookSecret: event.target.value })} /></label>
-                <div><code>application/json</code><span>包含答卷编号、问卷编号、语言、来源、完成时间和答案内容</span><button disabled={!selected.webhookEnabled} onClick={() => flash("测试事件发送成功")}>发送测试</button></div>
-                <footer><button className="primary-button" disabled={!selected.webhookEnabled} onClick={() => flash("数据推送设置已保存")}>保存设置</button></footer>
+              <div className="webhook-notice"><strong>温馨提示</strong><span>数据提交后，将向填写的 Webhook 地址发送 JSON 格式的填写结果；接收方需返回 HTTP 200，否则平台认为出现异常，最多重试 3 次。</span></div>
+              <div className="webhook-enabled-row"><span>关闭</span><button className={`mini-switch ${selected.webhookEnabled ? "on" : ""}`} onClick={() => updateSelected({ webhookEnabled: !selected.webhookEnabled })}><i /></button><strong>开启</strong></div>
+              <div className="webhook-form legacy">
+                <label><span><b>*</b> 请求类型</span><select disabled={!selected.webhookEnabled} value={selected.webhookMethod} onChange={(event) => updateSelected({ webhookMethod: event.target.value as "POST" | "GET" })}><option>POST</option><option>GET</option></select></label>
+                <label><span><b>*</b> 推送地址</span><input disabled={!selected.webhookEnabled} placeholder="https://your-service.com/webhook" value={selected.webhookUrl} onChange={(event) => updateSelected({ webhookUrl: event.target.value })} /></label>
+                <footer><button className="primary-button" disabled={!selected.webhookEnabled} onClick={() => flash("数据推送设置已保存")}>保存设置</button><button className="secondary-button" disabled={!selected.webhookEnabled} onClick={() => flash("测试事件发送成功")}>发送测试</button></footer>
               </div>
             </section>
           )}
@@ -257,7 +202,7 @@ export default function PublishPage() {
             <span className={`confirm-region-icon ${selected.region}`}>{selected.region === "global" ? "海" : "内"}</span>
             <h2>{selected.status === "stopped" ? "重新开启问卷收集？" : "确认公开发布问卷？"}</h2>
             <p>发布后主链接立即生效，答卷会写入创建时选定的数据工作区。</p>
-            <div><span>发布方式</span><strong>公开链接</strong><span>未匹配语言</span><strong>{localeLabels[selected.defaultLocale] || selected.defaultLocale}</strong></div>
+            <div><span>发布方式</span><strong>公开链接</strong><span>数据工作区</span><strong>{selected.region === "global" ? "海外" : "国内"}</strong></div>
             <footer><button className="secondary-button" onClick={() => setShowConfirm(false)}>取消</button><button className="primary-button" onClick={confirmPublish}>确认发布</button></footer>
           </section>
         </div>
