@@ -807,7 +807,11 @@ export default function SurveyEditorPage() {
                             </header>
                           )}
                           <div className="matrix-preview" style={{ gridTemplateColumns: `minmax(150px, 1.5fr) repeat(${(question.matrixColumns?.length ? question.matrixColumns : ["列 1", "列 2", "列 3"]).length}, minmax(72px, 1fr))` }}>
-                            <span className="matrix-corner-label">题目 / {isNumericMatrix(question) ? "评分" : "选项"}</span>
+                            <span className="matrix-corner-label">
+                              {selectedId === question.id
+                                ? <input value={question.matrixCornerLabel || `题目 / ${isNumericMatrix(question) ? "评分" : "选项"}`} onChange={(event) => updateQuestion(question.id, { matrixCornerLabel: event.target.value })} aria-label="矩阵左上角标题" />
+                                : question.matrixCornerLabel || `题目 / ${isNumericMatrix(question) ? "评分" : "选项"}`}
+                            </span>
                             {(question.matrixColumns?.length ? question.matrixColumns : ["列 1", "列 2", "列 3"]).map((item, columnIndex) => (
                               <b key={`${item}-${columnIndex}`}>
                                 {selectedId === question.id ? <><input type={isNumericMatrix(question) ? "number" : "text"} value={item} onChange={(event) => updateQuestion(question.id, { matrixColumns: question.matrixColumns?.map((column, itemIndex) => itemIndex === columnIndex ? event.target.value : column) })} /><button disabled={(question.matrixColumns?.length || 0) <= 2} onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { matrixColumns: question.matrixColumns?.filter((_, itemIndex) => itemIndex !== columnIndex) }); }}>×</button></> : item}

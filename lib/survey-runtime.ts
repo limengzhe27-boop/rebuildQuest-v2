@@ -1,12 +1,15 @@
 import { Question } from "./survey-builder";
 
-export type RuntimeLocale = "zh-CN" | "en-US" | "zh-TW" | "th-TH";
+export type RuntimeLocale = "zh-CN" | "en-US" | "zh-TW" | "th-TH" | "ko-KR" | "ja-JP" | "id-ID";
 
 export const runtimeLocales: Record<RuntimeLocale, string> = {
   "zh-CN": "简体中文",
   "en-US": "English",
   "zh-TW": "繁體中文",
   "th-TH": "ไทย",
+  "ko-KR": "한국어",
+  "ja-JP": "日本語",
+  "id-ID": "Bahasa Indonesia",
 };
 
 export type MatrixAnswer = Record<string, string | string[] | number>;
@@ -35,11 +38,17 @@ export function matchRuntimeLocale(
   if (requested === "简中") return "zh-CN";
   if (requested === "繁中") return "zh-TW";
   if (requested === "ไทย") return "th-TH";
+  if (requested === "한국어") return "ko-KR";
+  if (requested === "日本語") return "ja-JP";
+  if (requested === "ID" || requested === "Bahasa Indonesia") return "id-ID";
   if (normalized === "en") return "en-US";
   if (normalized.startsWith("zh-tw") || normalized.startsWith("zh-hk")) return "zh-TW";
   if (normalized.startsWith("zh")) return "zh-CN";
   if (normalized.startsWith("th")) return "th-TH";
   if (normalized.startsWith("en")) return "en-US";
+  if (normalized.startsWith("ko")) return "ko-KR";
+  if (normalized.startsWith("ja")) return "ja-JP";
+  if (normalized.startsWith("id")) return "id-ID";
   return null;
 }
 
@@ -93,4 +102,7 @@ export const defaultQuestionTranslations: Record<
       description: "ความคิดเห็นของคุณจะช่วยให้เราปรับปรุงเกมได้ดียิ่งขึ้น",
     },
   },
+  "ko-KR": {},
+  "ja-JP": {},
+  "id-ID": {},
 };

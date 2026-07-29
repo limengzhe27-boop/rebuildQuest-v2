@@ -72,6 +72,48 @@ const uiCopy = {
     done: "ขอบคุณสำหรับความคิดเห็น!",
     doneText: "ส่งคำตอบของคุณเรียบร้อยแล้ว",
   },
+  "ko-KR": {
+    intro: "설문에 참여해 주셔서 감사합니다. 약 3–5분이 소요됩니다.",
+    start: "설문 시작",
+    next: "다음",
+    back: "이전",
+    submit: "제출",
+    consent: "개인정보 안내를 읽고 응답 데이터 사용에 동의합니다.",
+    optional: "선택",
+    required: "필수 문항입니다",
+    saved: "답변 저장됨",
+    placeholder: "답변을 입력하세요",
+    done: "의견을 보내주셔서 감사합니다!",
+    doneText: "응답이 제출되었습니다.",
+  },
+  "ja-JP": {
+    intro: "アンケートへのご協力ありがとうございます。所要時間は約3〜5分です。",
+    start: "回答を開始",
+    next: "次へ",
+    back: "戻る",
+    submit: "送信",
+    consent: "プライバシー通知を読み、回答データの利用に同意します。",
+    optional: "任意",
+    required: "必須項目です",
+    saved: "回答を保存しました",
+    placeholder: "回答を入力してください",
+    done: "ご回答ありがとうございます！",
+    doneText: "回答を送信しました。",
+  },
+  "id-ID": {
+    intro: "Terima kasih telah berpartisipasi. Survei ini memerlukan sekitar 3–5 menit.",
+    start: "Mulai survei",
+    next: "Berikutnya",
+    back: "Kembali",
+    submit: "Kirim",
+    consent: "Saya telah membaca dan menyetujui pemberitahuan privasi.",
+    optional: "Opsional",
+    required: "Pertanyaan ini wajib diisi",
+    saved: "Jawaban tersimpan",
+    placeholder: "Masukkan jawaban Anda",
+    done: "Terima kasih atas masukan Anda!",
+    doneText: "Jawaban Anda berhasil dikirim.",
+  },
 };
 
 type StoredRule = {
@@ -84,6 +126,16 @@ type StoredRule = {
   matrixScope?: "cell" | "row" | "any-row" | "sum" | "average" | "minimum";
   matrixRow?: string;
   matrixColumn?: string;
+};
+
+const translationLocaleKey: Record<RuntimeLocale, string> = {
+  "zh-CN": "简中",
+  "en-US": "EN",
+  "zh-TW": "繁中",
+  "th-TH": "ไทย",
+  "ko-KR": "한국어",
+  "ja-JP": "日本語",
+  "id-ID": "ID",
 };
 
 export default function PlayerSurvey() {
@@ -303,13 +355,18 @@ export default function PlayerSurvey() {
 
   function localizedQuestion(question: Question) {
     const defaultTranslation = defaultQuestionTranslations[locale][question.id];
-    const legacyKey = locale === "zh-TW" ? "繁中" : locale === "th-TH" ? "ไทย" : "";
-    const editedTitle = legacyKey ? translations[legacyKey]?.[question.id] : "";
+    const edited = translations[translationLocaleKey[locale]] || {};
     return {
       ...question,
-      title: editedTitle || defaultTranslation?.title || question.title,
-      description: defaultTranslation?.description || question.description,
-      options: defaultTranslation?.options || question.options,
+      title: edited[`${question.id}:title`] || edited[question.id] || defaultTranslation?.title || question.title,
+      description: edited[`${question.id}:description`] || defaultTranslation?.description || question.description,
+      helpText: edited[`${question.id}:help`] || question.helpText,
+      minLabel: edited[`${question.id}:minLabel`] || question.minLabel,
+      maxLabel: edited[`${question.id}:maxLabel`] || question.maxLabel,
+      options: question.options?.map((option, index) => edited[`${question.id}:option:${index}`] || defaultTranslation?.options?.[index] || option),
+      matrixCornerLabel: edited[`${question.id}:matrix:corner`] || question.matrixCornerLabel,
+      matrixRows: question.matrixRows?.map((row, index) => edited[`${question.id}:matrix:row:${index}`] || row),
+      matrixColumns: question.matrixColumns?.map((column, index) => edited[`${question.id}:matrix:column:${index}`] || column),
     };
   }
 
@@ -341,11 +398,18 @@ export default function PlayerSurvey() {
       const matrixAnswer = answer as MatrixAnswer;
       const scope = matrixScope || (["matrixScale", "matrixSlider"].includes(sourceQuestion.type) ? "row" : "cell");
       if (scope === "cell") {
-        const rowValue = matrixAnswer[matrixRow || ""];
+        const rowValue = sourceQuestion.type === "matrixFill"
+          ? matrixAnswer[`${matrixRow || ""}::${matrixColumn || ""}`]
+          : matrixAnswer[matrixRow || ""];
+        if (sourceQuestion.type === "matrixFill") return compareAnswer(String(rowValue ?? ""), operator, expected);
         const selected = Array.isArray(rowValue) ? rowValue.includes(matrixColumn || "") : String(rowValue ?? "") === String(matrixColumn || "");
         return operator === "未选中" ? !selected : selected;
       }
-      const rawValues = scope === "row" ? [matrixAnswer[matrixRow || ""]] : Object.values(matrixAnswer);
+      const rawValues = scope === "row"
+        ? sourceQuestion.type === "matrixFill"
+          ? Object.entries(matrixAnswer).filter(([key]) => key.startsWith(`${matrixRow || ""}::`)).map(([, value]) => value)
+          : [matrixAnswer[matrixRow || ""]]
+        : Object.values(matrixAnswer);
       const values = rawValues.flatMap((item) => Array.isArray(item) ? item : [item]).filter((item): item is string | number => item !== undefined);
       if (scope === "sum" || scope === "average" || scope === "minimum") {
         const numbers = values.map(Number).filter(Number.isFinite);
@@ -498,7 +562,7 @@ export default function PlayerSurvey() {
       body: closedMessage,
       links: [],
     };
-    const translationLocale = locale === "en-US" ? "EN" : locale === "zh-TW" ? "繁中" : locale === "th-TH" ? "ไทย" : "简中";
+    const translationLocale = translationLocaleKey[locale];
     const resultTranslations = translations[translationLocale] || {};
     const content: LimitPageContent = {
       ...baseContent,
@@ -537,7 +601,7 @@ export default function PlayerSurvey() {
       body: "Thank you for participating. The submission limit has been reached.",
       links: [],
     };
-    const translationLocale = locale === "en-US" ? "EN" : locale === "zh-TW" ? "繁中" : locale === "th-TH" ? "ไทย" : "简中";
+    const translationLocale = translationLocaleKey[locale];
     const resultTranslations = translations[translationLocale] || {};
     const content: LimitPageContent = {
       ...baseContent,
@@ -561,7 +625,7 @@ export default function PlayerSurvey() {
   }
 
   if (done) {
-    const translationLocale = locale === "en-US" ? "EN" : locale === "zh-TW" ? "繁中" : locale === "th-TH" ? "ไทย" : "简中";
+    const translationLocale = translationLocaleKey[locale];
     const baseContent = endPage.content[locale] || endPage.content["en-US"] || endPage.content["zh-CN"] || {
       title: copy.done,
       body: copy.doneText,
@@ -707,7 +771,7 @@ function QuestionInput({
         ? question.options
         : ["选项 1", "选项 2", "选项 3"];
     const matrixValue: MatrixAnswer = value && typeof value === "object" && !Array.isArray(value) ? value : {};
-    const updateMatrix = (key: string, nextValue: string | number) => onChange({ ...matrixValue, [key]: nextValue });
+    const updateMatrix = (key: string, nextValue: string | string[] | number) => onChange({ ...matrixValue, [key]: nextValue });
 
     if (question.type === "matrixSlider") {
       const numericColumns = columns.map(Number).filter((item) => Number.isFinite(item));
@@ -723,7 +787,7 @@ function QuestionInput({
     return (
       <div className="player-matrix-scroll">
         <div className={`player-matrix-table ${question.type}`} style={{ gridTemplateColumns: `minmax(120px, 1.3fr) repeat(${columns.length}, minmax(72px, 1fr))` }}>
-          <div className="matrix-corner">题目/选项</div>
+          <div className="matrix-corner">{question.matrixCornerLabel || "题目 / 选项"}</div>
           {columns.map((column) => <div className="matrix-column" key={column}>{column}</div>)}
           {rows.map((row) => (
             <div className="player-matrix-row" key={row}>
@@ -735,8 +799,15 @@ function QuestionInput({
                 }
                 const storedValue = matrixValue[row];
                 const normalizedValue = question.type === "matrixScale" ? Number(column) : column;
-                const selected = storedValue === normalizedValue;
-                return <button type="button" aria-label={`${row} ${column}`} key={column} className={selected ? "selected" : ""} onClick={() => updateMatrix(row, normalizedValue)}><i>{selected ? "●" : "○"}</i></button>;
+                const selected = question.type === "matrixSelect" && Array.isArray(storedValue)
+                  ? storedValue.includes(String(normalizedValue))
+                  : storedValue === normalizedValue;
+                return <button type="button" aria-label={`${row} ${column}`} key={column} className={selected ? "selected" : ""} onClick={() => {
+                  if (question.type === "matrixSelect") {
+                    const current = Array.isArray(storedValue) ? storedValue.map(String) : [];
+                    updateMatrix(row, selected ? current.filter((item) => item !== String(normalizedValue)) : [...current, String(normalizedValue)]);
+                  } else updateMatrix(row, normalizedValue);
+                }}><i>{question.type === "matrixSelect" ? (selected ? "■" : "□") : (selected ? "●" : "○")}</i></button>;
               })}
             </div>
           ))}
@@ -759,11 +830,29 @@ function QuestionInput({
       return <button key={option} disabled={reachedLimit} className={isSelected ? "selected" : ""} onClick={() => onChange(isSelected ? selected.filter((item) => item !== option) : [...selected, option])}><i>{isSelected ? "■" : "□"}</i>{option}</button>;
     })}</div></>;
   }
-  if (question.type === "dropdown" || question.type === "cascade") {
+  if (question.type === "dropdown") {
     return <select className="player-select-input" value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)}><option value="">请选择</option>{question.options?.map((option) => <option key={option}>{option}</option>)}</select>;
   }
+  if (question.type === "cascade") {
+    const [parent = "", child = ""] = typeof value === "string" ? value.split(" / ") : [];
+    const groups = (question.options || []).map((option) => {
+      const [group, item] = option.includes("/") ? option.split("/").map((part) => part.trim()) : ["默认分组", option];
+      return { group, item };
+    });
+    const parents = Array.from(new Set(groups.map((item) => item.group)));
+    const selectedParent = parent || parents[0] || "";
+    return <div className="player-region-fields"><select value={selectedParent} onChange={(event) => onChange(`${event.target.value} / `)}><option value="">请选择上级选项</option>{parents.map((item) => <option key={item}>{item}</option>)}</select><select value={child} onChange={(event) => onChange(`${selectedParent} / ${event.target.value}`)}><option value="">请选择下级选项</option>{groups.filter((item) => item.group === selectedParent).map((item) => <option key={item.item}>{item.item}</option>)}</select></div>;
+  }
   if (question.type === "sort") {
-    return <div className="player-sort-list">{question.options?.map((option, index) => <button type="button" key={option}><strong>{index + 1}</strong><span>{option}</span><i>⠿</i></button>)}</div>;
+    const ordered = Array.isArray(value) && value.length ? value : question.options || [];
+    const move = (index: number, direction: -1 | 1) => {
+      const target = index + direction;
+      if (target < 0 || target >= ordered.length) return;
+      const next = [...ordered];
+      [next[index], next[target]] = [next[target], next[index]];
+      onChange(next);
+    };
+    return <div className="player-sort-list">{ordered.map((option, index) => <div className="player-sort-item" key={option}><strong>{index + 1}</strong><span>{option}</span><button type="button" disabled={index === 0} onClick={() => move(index, -1)} aria-label={`${option}上移`}>↑</button><button type="button" disabled={index === ordered.length - 1} onClick={() => move(index, 1)} aria-label={`${option}下移`}>↓</button></div>)}</div>;
   }
   if (question.type === "nps" || question.type === "rating") {
     const min = question.min ?? 0;
@@ -780,12 +869,15 @@ function QuestionInput({
     return <select className="player-select-input" value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)}><option value="">请选择预约时段</option><option>10:00–11:00</option><option>14:00–15:00</option><option>19:00–20:00</option></select>;
   }
   if (["provinceCity", "globalProvinceCity", "city"].includes(question.type)) {
-    return <div className="player-region-fields"><select><option>{question.type === "globalProvinceCity" ? "请选择国家/地区" : "请选择省份"}</option></select><select><option>请选择城市</option></select></div>;
+    const [region = "", city = ""] = typeof value === "string" ? value.split(" / ") : [];
+    const regions = question.type === "globalProvinceCity" ? ["中国大陆", "中国台湾", "日本", "韩国", "泰国", "美国"] : ["北京", "上海", "广东", "浙江", "四川"];
+    return <div className="player-region-fields"><select value={region} onChange={(event) => onChange(`${event.target.value} / `)}><option value="">{question.type === "globalProvinceCity" ? "请选择国家/地区" : "请选择省份"}</option>{regions.map((item) => <option key={item}>{item}</option>)}</select><input value={city} onChange={(event) => onChange(`${region} / ${event.target.value}`)} placeholder="请输入城市" /></div>;
   }
   if (["file", "imageUpload", "ocr"].includes(question.type)) {
     return <label className="player-upload-field"><input type="file" accept={question.type === "file" ? undefined : "image/*"} onChange={(event) => onChange(event.target.files?.[0]?.name || "")} /><span>＋ {question.type === "file" ? "选择文件" : question.type === "ocr" ? "上传图片并识别" : "上传图片"}</span><small>{typeof value === "string" && value ? value : "尚未选择文件"}</small></label>;
   }
   if (question.type === "location") return <button type="button" className="player-action-field" onClick={() => onChange("已获取当前位置")}>⌖ 获取当前位置</button>;
+  if (question.type === "random") return <div className="player-product-field"><span>{typeof value === "string" && value ? value : "尚未生成随机编号"}</span><button type="button" onClick={() => onChange(`R-${Math.random().toString(36).slice(2, 10).toUpperCase()}`)}>生成编号</button></div>;
   if (question.type === "product") return <div className="player-product-field"><span>商品信息</span><strong>¥ 0.00</strong><button type="button" onClick={() => onChange("已选择")}>选择</button></div>;
   if (question.type === "description") return <div className="player-description-block">{question.title}</div>;
   if (question.type === "divider") return <hr className="player-divider-block" />;

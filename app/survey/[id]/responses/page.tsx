@@ -21,7 +21,14 @@ type ResponseColumn = {
 };
 
 type ValidityCondition = { questionId: string; operator: string; value: string; score: number };
-type ValidityRuleGroup = { id: string; name: string; relation: "all" | "any"; conditions: ValidityCondition[]; mode: "exclude" | "score" };
+type ValidityRuleGroup = {
+  id: string;
+  name: string;
+  relation: "all" | "any";
+  conditions: ValidityCondition[];
+  mode: "status" | "score";
+  outcome: "valid" | "invalid";
+};
 
 const baseColumns: ResponseColumn[] = [
   { key: "serialNumber", label: "序号", width: 72, getter: (item) => item.serialNumber },
@@ -67,12 +74,15 @@ export default function ResponsesPage() {
   const [showColumns, setShowColumns] = useState(false);
   const [showValidityRules, setShowValidityRules] = useState(false);
   const [deduplicate, setDeduplicate] = useState(true);
-  const [duplicateKey, setDuplicateKey] = useState("account");
-  const [emptyRule, setEmptyRule] = useState(true);
+  const [duplicateKeys, setDuplicateKeys] = useState(["playerId"]);
+  const [duplicateKeep, setDuplicateKeep] = useState<"earliest" | "latest">("earliest");
+  const [emptyQuestionIds, setEmptyQuestionIds] = useState<string[]>([]);
+  const [scoreComparator, setScoreComparator] = useState<"lt" | "gt">("lt");
+  const [scoreOutcome, setScoreOutcome] = useState<"valid" | "invalid">("invalid");
   const [minimumScore, setMinimumScore] = useState(60);
   const [validityGroups, setValidityGroups] = useState<ValidityRuleGroup[]>([
-    { id: "contradiction", name: "矛盾答案检查", relation: "all", mode: "exclude", conditions: [{ questionId: "welcome", operator: "等于", value: "非常满意", score: 0 }, { questionId: "feedback", operator: "包含", value: "无法游玩", score: 0 }] },
-    { id: "quality-score", name: "答案质量评分", relation: "any", mode: "score", conditions: [{ questionId: "nps", operator: "大于等于", value: "8", score: 30 }] },
+    { id: "contradiction", name: "矛盾答案检查", relation: "all", mode: "status", outcome: "invalid", conditions: [{ questionId: "welcome", operator: "等于", value: "非常满意", score: 0 }, { questionId: "feedback", operator: "包含", value: "无法游玩", score: 0 }] },
+    { id: "quality-score", name: "答案质量评分", relation: "any", mode: "score", outcome: "invalid", conditions: [{ questionId: "nps", operator: "大于等于", value: "8", score: 30 }] },
   ]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [visibleColumns, setVisibleColumns] = useState(defaultVisibleBaseColumns);
@@ -89,10 +99,19 @@ export default function ResponsesPage() {
       const storedRules = JSON.parse(window.localStorage.getItem(`joydata-survey-validity-rules-${surveyId}`) || "null");
       if (storedRules) {
         setDeduplicate(storedRules.deduplicate !== false);
-        setDuplicateKey(storedRules.duplicateKey || "account");
-        setEmptyRule(storedRules.emptyRule !== false);
+        setDuplicateKeys(storedRules.duplicateKeys || (storedRules.duplicateKey ? [storedRules.duplicateKey] : ["playerId"]));
+        setDuplicateKeep(storedRules.duplicateKeep || "earliest");
+        setEmptyQuestionIds(storedRules.emptyQuestionIds || []);
+        setScoreComparator(storedRules.scoreComparator || "lt");
+        setScoreOutcome(storedRules.scoreOutcome || "invalid");
         setMinimumScore(Number(storedRules.minimumScore) || 60);
-        if (Array.isArray(storedRules.groups)) setValidityGroups(storedRules.groups);
+        if (Array.isArray(storedRules.groups)) {
+          setValidityGroups(storedRules.groups.map((group: ValidityRuleGroup & { mode?: string }) => ({
+            ...group,
+            mode: group.mode === "score" ? "score" : "status",
+            outcome: group.outcome || "invalid",
+          })));
+        }
       }
     } catch {}
     setVisibleColumns((current) => Array.from(new Set([
@@ -238,7 +257,16 @@ export default function ResponsesPage() {
   }
 
   function saveValidityRules() {
-    window.localStorage.setItem(`joydata-survey-validity-rules-${surveyId}`, JSON.stringify({ deduplicate, duplicateKey, emptyRule, minimumScore, groups: validityGroups }));
+    window.localStorage.setItem(`joydata-survey-validity-rules-${surveyId}`, JSON.stringify({
+      deduplicate,
+      duplicateKeys,
+      duplicateKeep,
+      emptyQuestionIds,
+      scoreComparator,
+      scoreOutcome,
+      minimumScore,
+      groups: validityGroups,
+    }));
     setShowValidityRules(false);
     flash("答卷有效规则已保存，将用于后续提交的自动判定");
   }
@@ -316,21 +344,57 @@ export default function ResponsesPage() {
         <footer><button className="secondary-button" onClick={() => setShowFeishuExport(false)}>取消</button><button className="primary-button" onClick={saveFeishuExport}>新建并导出</button></footer>
       </section></div>}
       {showValidityRules && <div className="preview-backdrop" onMouseDown={() => setShowValidityRules(false)}><section className="validity-rules-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-        <header><div><strong>答卷有效规则</strong><small>系统按顺序执行基础校验、矛盾剔除与质量评分，命中原因会写入“判定原因”。</small></div><button onClick={() => setShowValidityRules(false)}>×</button></header>
+        <header><div><strong>答卷有效规则</strong><small>这些规则用于清洗已收集的数据，不限制玩家能否提交；每次判定都会记录命中规则与原因。</small></div><button onClick={() => setShowValidityRules(false)}>×</button></header>
         <div className="validity-rule-body">
           <section className="validity-basic-rules">
-            <article><div><strong>重复答卷去重</strong><small>同一识别值重复提交时，仅保留第一份为有效答卷。</small></div><select value={duplicateKey} onChange={(event) => setDuplicateKey(event.target.value)}><option value="account">登录账号优先，其次设备/IP</option><option value="device">设备标识</option><option value="ip">提交 IP</option></select><button className={`mini-switch ${deduplicate ? "on" : ""}`} onClick={() => setDeduplicate(!deduplicate)}><i /></button></article>
-            <article><div><strong>必答题空值检查</strong><small>必答题未填写，或仅包含空格时判定为无效。</small></div><button className={`mini-switch ${emptyRule ? "on" : ""}`} onClick={() => setEmptyRule(!emptyRule)}><i /></button></article>
+            <article className="validity-deduplicate-rule">
+              <div><strong>重复答卷去重</strong><small>与回收设置不同：这里不拦截提交，只在统计中按所选字段识别重复答卷。</small></div>
+              <details className="validity-multiselect">
+                <summary>{duplicateKeys.length ? `已选 ${duplicateKeys.length} 个识别字段` : "选择重复判断字段"}</summary>
+                <div>
+                  {[
+                    ["playerId", "玩家 / 登录账号"],
+                    ["joyaMakerId", "JoyaMaker ID"],
+                    ["lineId", "LINE 用户 ID"],
+                    ["device", "设备标识"],
+                    ["ip", "提交 IP"],
+                  ].map(([key, label]) => <label key={key}><input type="checkbox" checked={duplicateKeys.includes(key)} onChange={() => setDuplicateKeys((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} />{label}</label>)}
+                </div>
+              </details>
+              <select value={duplicateKeep} onChange={(event) => setDuplicateKeep(event.target.value as "earliest" | "latest")}><option value="earliest">重复时保留最早一份</option><option value="latest">重复时保留最新一份</option></select>
+              <button className={`mini-switch ${deduplicate ? "on" : ""}`} onClick={() => setDeduplicate(!deduplicate)}><i /></button>
+            </article>
+            <article className="validity-empty-rule">
+              <div><strong>指定题目空值</strong><small>仅检查你选择的题目，可多选；任一所选题为空时判定为无效。</small></div>
+              <details className="validity-multiselect">
+                <summary>{emptyQuestionIds.length ? `已选 ${emptyQuestionIds.length} 道题` : "请选择需要检查的题目"}</summary>
+                <div>
+                  {questions.map((question, index) => <label key={question.id}><input type="checkbox" checked={emptyQuestionIds.includes(question.id)} onChange={() => setEmptyQuestionIds((current) => current.includes(question.id) ? current.filter((id) => id !== question.id) : [...current, question.id])} />Q{index + 1} {question.title}</label>)}
+                </div>
+              </details>
+            </article>
           </section>
           <div className="validity-groups">
             {validityGroups.map((group) => <section key={group.id} className="validity-group-card">
-              <header><input value={group.name} onChange={(event) => updateValidityGroup(group.id, { name: event.target.value })} /><div><span>符合</span><select value={group.relation} onChange={(event) => updateValidityGroup(group.id, { relation: event.target.value as "all" | "any" })}><option value="all">全部条件（且）</option><option value="any">任一条件（或）</option></select></div><select value={group.mode} onChange={(event) => updateValidityGroup(group.id, { mode: event.target.value as "exclude" | "score" })}><option value="exclude">命中后判为无效</option><option value="score">命中后累计分值</option></select></header>
+              <header>
+                <input value={group.name} onChange={(event) => updateValidityGroup(group.id, { name: event.target.value })} />
+                <div><span>符合</span><select value={group.relation} onChange={(event) => updateValidityGroup(group.id, { relation: event.target.value as "all" | "any" })}><option value="all">全部条件（且）</option><option value="any">任一条件（或）</option></select></div>
+                <select value={group.mode} onChange={(event) => updateValidityGroup(group.id, { mode: event.target.value as "status" | "score" })}><option value="status">直接判定结果</option><option value="score">命中后累计分值</option></select>
+                {group.mode === "status" && <select value={group.outcome} onChange={(event) => updateValidityGroup(group.id, { outcome: event.target.value as "valid" | "invalid" })}><option value="invalid">命中时判为无效</option><option value="valid">命中时判为有效</option></select>}
+                <button className="delete-validity-group" disabled={validityGroups.length === 1} onClick={() => setValidityGroups((current) => current.filter((item) => item.id !== group.id))}>删除规则</button>
+              </header>
               <div>{group.conditions.map((condition, index) => <div className="validity-condition-row" key={`${group.id}-${index}`}><select value={condition.questionId} onChange={(event) => updateValidityCondition(group.id, index, { questionId: event.target.value })}>{questions.map((question, questionIndex) => <option key={question.id} value={question.id}>Q{questionIndex + 1} {question.title}</option>)}</select><select value={condition.operator} onChange={(event) => updateValidityCondition(group.id, index, { operator: event.target.value })}><option>等于</option><option>不等于</option><option>包含</option><option>不包含</option><option>大于</option><option>大于等于</option><option>小于</option><option>小于等于</option><option>为空</option><option>不为空</option></select>{!["为空", "不为空"].includes(condition.operator) && <input value={condition.value} onChange={(event) => updateValidityCondition(group.id, index, { value: event.target.value })} placeholder="答案或数值" />}{group.mode === "score" && <label><input type="number" value={condition.score} onChange={(event) => updateValidityCondition(group.id, index, { score: Number(event.target.value) })} /><span>分</span></label>}<button disabled={group.conditions.length === 1} onClick={() => updateValidityGroup(group.id, { conditions: group.conditions.filter((_, conditionIndex) => conditionIndex !== index) })}>×</button></div>)}</div>
               <button className="add-validity-condition" onClick={() => updateValidityGroup(group.id, { conditions: [...group.conditions, { questionId: questions[0]?.id || "", operator: "等于", value: "", score: 0 }] })}>＋ 添加条件</button>
             </section>)}
-            <button className="add-validity-group" onClick={() => setValidityGroups((current) => [...current, { id: `rule-${Date.now()}`, name: "新规则组", relation: "all", mode: "exclude", conditions: [{ questionId: questions[0]?.id || "", operator: "等于", value: "", score: 0 }] }])}>＋ 添加规则组</button>
+            <button className="add-validity-group" onClick={() => setValidityGroups((current) => [...current, { id: `rule-${Date.now()}`, name: "新规则组", relation: "all", mode: "status", outcome: "invalid", conditions: [{ questionId: questions[0]?.id || "", operator: "等于", value: "", score: 0 }] }])}>＋ 添加规则组</button>
           </div>
-          <label className="validity-score-threshold"><span><strong>质量分有效阈值</strong><small>仅统计“累计分值”规则，低于该分数的答卷判定为无效。</small></span><input type="number" min="0" value={minimumScore} onChange={(event) => setMinimumScore(Number(event.target.value))} /><em>分</em></label>
+          <div className="validity-score-threshold">
+            <span><strong>累计分数判定</strong><small>仅在使用“累计分值”的规则时生效，支持高分或低分任一方向。</small></span>
+            <select value={scoreComparator} onChange={(event) => setScoreComparator(event.target.value as "lt" | "gt")}><option value="lt">总分小于</option><option value="gt">总分大于</option></select>
+            <input type="number" value={minimumScore} onChange={(event) => setMinimumScore(Number(event.target.value))} />
+            <em>分时</em>
+            <select value={scoreOutcome} onChange={(event) => setScoreOutcome(event.target.value as "valid" | "invalid")}><option value="invalid">判为无效</option><option value="valid">判为有效</option></select>
+          </div>
         </div>
         <footer><button className="secondary-button" onClick={() => setShowValidityRules(false)}>取消</button><button className="primary-button" onClick={saveValidityRules}>保存规则</button></footer>
       </section></div>}

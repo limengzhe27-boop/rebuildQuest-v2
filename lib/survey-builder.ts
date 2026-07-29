@@ -52,6 +52,7 @@ export type Question = {
   referenceImage?: string;
   matrixRows?: string[];
   matrixColumns?: string[];
+  matrixCornerLabel?: string;
   displayLogic?: {
     match: "all" | "any";
     conditions: {
@@ -150,6 +151,7 @@ export function createQuestion(type: QuestionType): Question {
       ...common,
       options: ["选项 1", "选项 2", "选项 3"],
       matrixRows: ["行 1", "行 2", "行 3"],
+      matrixCornerLabel: "题目 / 选项",
       matrixColumns: type === "matrixScale" || type === "matrixSlider"
         ? ["1", "2", "3", "4", "5"]
         : ["列 1", "列 2", "列 3"],

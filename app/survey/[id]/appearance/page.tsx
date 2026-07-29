@@ -175,20 +175,20 @@ export default function AppearancePage() {
     if (question.type === "divider") return <div className="appearance-divider" key={question.id} />;
     if (question.type === "description") return <div className="appearance-description" key={question.id}>{translated(`${question.id}:title`, question.title, question.id)}</div>;
     if (question.type === "imageDisplay" || question.type === "carousel") return <div className="appearance-image-block" key={question.id}>▧ {question.type === "carousel" ? "图片轮播" : "图片展示"}</div>;
-    const options = question.options || [];
-    const rows = question.matrixRows?.length ? question.matrixRows : ["行 1", "行 2", "行 3"];
-    const columns = question.matrixColumns?.length ? question.matrixColumns : options.length ? options : ["选项 1", "选项 2", "选项 3"];
+    const options = (question.options || []).map((option, optionIndex) => translated(`${question.id}:option:${optionIndex}`, option));
+    const rows = (question.matrixRows?.length ? question.matrixRows : ["行 1", "行 2", "行 3"]).map((row, rowIndex) => translated(`${question.id}:matrix:row:${rowIndex}`, row));
+    const columns = (question.matrixColumns?.length ? question.matrixColumns : options.length ? options : ["选项 1", "选项 2", "选项 3"]).map((column, columnIndex) => translated(`${question.id}:matrix:column:${columnIndex}`, column));
     const isMatrix = ["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"].includes(question.type);
     const choicePreview = ["single", "multiple", "image", "tableSelect"].includes(question.type);
     let inputPreview: React.ReactNode = null;
 
     if (isMatrix) {
       inputPreview = <div className="appearance-matrix-preview">
-        <div className="appearance-matrix-head"><span>题目/选项</span>{columns.slice(0, 4).map((column) => <span key={column}>{column}</span>)}</div>
+        <div className="appearance-matrix-head"><span>{translated(`${question.id}:matrix:corner`, question.matrixCornerLabel || "题目 / 选项")}</span>{columns.slice(0, 4).map((column) => <span key={column}>{column}</span>)}</div>
         {rows.slice(0, 4).map((row) => <div className="appearance-matrix-row" key={row}><strong>{row}</strong>{columns.slice(0, 4).map((column) => <i key={column}>{question.type === "matrixFill" ? "—" : question.type === "matrixDropdown" ? "请选择⌄" : "○"}</i>)}</div>)}
       </div>;
     } else if (choicePreview) {
-      inputPreview = options.slice(0, 5).map((option, optionIndex) => <button key={`${question.id}-${optionIndex}`} className={optionIndex === 0 ? "selected" : ""}><i>{question.type === "multiple" ? "□" : "○"}</i>{translated(`${question.id}:option:${optionIndex}`, option)}</button>);
+      inputPreview = options.slice(0, 5).map((option, optionIndex) => <button key={`${question.id}-${optionIndex}`} className={optionIndex === 0 ? "selected" : ""}><i>{question.type === "multiple" ? "□" : "○"}</i>{option}</button>);
     } else if (question.type === "dropdown" || question.type === "cascade" || question.type === "appointmentSlot") {
       inputPreview = <div className="appearance-select-preview">请选择 <span>⌄</span></div>;
     } else if (question.type === "sort") {

@@ -10,6 +10,7 @@ import { useSurveyTitle } from "@/lib/use-survey-title";
 type TranslationField = {
   id: string;
   source: string;
+  location: string;
   legacyId?: string;
 };
 
@@ -53,6 +54,7 @@ export default function LanguagesPage() {
   const [hydrated, setHydrated] = useState(false);
   const sourceScrollRef = useRef<HTMLDivElement>(null);
   const targetScrollRef = useRef<HTMLDivElement>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
   const syncingScroll = useRef(false);
 
   useEffect(() => {
@@ -85,23 +87,30 @@ export default function LanguagesPage() {
 
   const fields = useMemo<TranslationField[]>(() => {
     const result: TranslationField[] = [
-      { id: "form:title", source: surveyTitle },
-      { id: "form:intro", source: "感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。" },
+      { id: "form:title", source: surveyTitle, location: "问卷 / 标题" },
+      { id: "form:intro", source: "感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。", location: "问卷 / 说明" },
     ];
-    questions.forEach((question) => {
-      result.push({ id: `${question.id}:title`, source: question.title, legacyId: question.id });
-      if (question.description.trim()) result.push({ id: `${question.id}:description`, source: question.description });
-      question.options?.forEach((option, index) => result.push({ id: `${question.id}:option:${index}`, source: option }));
+    questions.forEach((question, questionIndex) => {
+      const prefix = `Q${questionIndex + 1}`;
+      result.push({ id: `${question.id}:title`, source: question.title, location: `${prefix} / 题目`, legacyId: question.id });
+      if (question.description.trim()) result.push({ id: `${question.id}:description`, source: question.description, location: `${prefix} / 说明` });
+      if (question.helpText?.trim()) result.push({ id: `${question.id}:help`, source: question.helpText, location: `${prefix} / 填写提示` });
+      if (question.minLabel?.trim()) result.push({ id: `${question.id}:minLabel`, source: question.minLabel, location: `${prefix} / 最低分说明` });
+      if (question.maxLabel?.trim()) result.push({ id: `${question.id}:maxLabel`, source: question.maxLabel, location: `${prefix} / 最高分说明` });
+      question.options?.forEach((option, index) => result.push({ id: `${question.id}:option:${index}`, source: option, location: `${prefix} / 选项 ${index + 1}` }));
+      if (question.matrixCornerLabel?.trim()) result.push({ id: `${question.id}:matrix:corner`, source: question.matrixCornerLabel, location: `${prefix} / 矩阵左上角` });
+      question.matrixRows?.forEach((row, index) => result.push({ id: `${question.id}:matrix:row:${index}`, source: row, location: `${prefix} / 矩阵行 ${index + 1}` }));
+      question.matrixColumns?.forEach((column, index) => result.push({ id: `${question.id}:matrix:column:${index}`, source: column, location: `${prefix} / 矩阵列 ${index + 1}` }));
     });
     const sourceLocale = publication?.defaultLocale || "zh-CN";
     const closedContent = publication?.closedPageContent?.[sourceLocale];
-    if (closedContent?.title) result.push({ id: "closed:title", source: closedContent.title });
-    if (closedContent?.body) result.push({ id: "closed:body", source: closedContent.body, legacyId: "form:closed" });
-    closedContent?.links?.forEach((link) => result.push({ id: `closed:link:${link.id}`, source: link.text }));
+    if (closedContent?.title) result.push({ id: "closed:title", source: closedContent.title, location: "停止收集后页面 / 标题" });
+    if (closedContent?.body) result.push({ id: "closed:body", source: closedContent.body, location: "停止收集后页面 / 正文", legacyId: "form:closed" });
+    closedContent?.links?.forEach((link, index) => result.push({ id: `closed:link:${link.id}`, source: link.text, location: `停止收集后页面 / 链接 ${index + 1}` }));
     const limitContent = publication?.limitPageContent?.[sourceLocale];
-    if (limitContent?.title) result.push({ id: "limit:title", source: limitContent.title });
-    if (limitContent?.body) result.push({ id: "limit:body", source: limitContent.body });
-    limitContent?.links?.forEach((link) => result.push({ id: `limit:link:${link.id}`, source: link.text }));
+    if (limitContent?.title) result.push({ id: "limit:title", source: limitContent.title, location: "问卷结束页 / 标题" });
+    if (limitContent?.body) result.push({ id: "limit:body", source: limitContent.body, location: "问卷结束页 / 正文" });
+    limitContent?.links?.forEach((link, index) => result.push({ id: `limit:link:${link.id}`, source: link.text, location: `问卷结束页 / 链接 ${index + 1}` }));
     return result;
   }, [publication, questions, surveyTitle]);
 
@@ -129,6 +138,129 @@ export default function LanguagesPage() {
   function flash(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 2200);
+  }
+
+  const translationLocales = configuredLanguages.filter((language) => language !== "简中");
+  const localeColumnName = (code: string) => localeMeta.find((locale) => locale.code === code)?.name || code;
+
+  function translationRows() {
+    return fields.map((field) => [
+      field.id,
+      field.location,
+      field.source,
+      ...translationLocales.map((locale) => translations[locale]?.[field.id] || (field.legacyId ? translations[locale]?.[field.legacyId] : "") || ""),
+    ]);
+  }
+
+  function downloadTranslationFile(content: BlobPart, type: string, extension: string) {
+    const url = URL.createObjectURL(new Blob([content], { type }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${surveyTitle}-本地化翻译表-${new Date().toISOString().slice(0, 10)}.${extension}`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    flash(`已导出 ${extension === "csv" ? "CSV" : "Excel"} 翻译表`);
+  }
+
+  function exportTranslationCsv() {
+    const escape = (value: string) => `"${value.replaceAll("\"", "\"\"")}"`;
+    const headers = ["内容 ID（请勿修改）", "内容位置", "原文", ...translationLocales.map(localeColumnName)];
+    const csv = [headers, ...translationRows()].map((row) => row.map((value) => escape(String(value))).join(",")).join("\r\n");
+    downloadTranslationFile(`\uFEFF${csv}`, "text/csv;charset=utf-8", "csv");
+  }
+
+  function exportTranslationExcel() {
+    const escape = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;");
+    const headers = ["内容 ID（请勿修改）", "内容位置", "原文", ...translationLocales.map(localeColumnName)];
+    const table = `<table><thead><tr>${headers.map((header) => `<th>${escape(header)}</th>`).join("")}</tr></thead><tbody>${translationRows().map((row) => `<tr>${row.map((value) => `<td>${escape(String(value))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    const document = `<html><head><meta charset="UTF-8"><style>table{border-collapse:collapse;font-family:Arial,sans-serif}th{background:#edf3ff;color:#24446f}th,td{border:1px solid #cfd8e6;padding:8px;vertical-align:top;mso-number-format:"\\@"}td:first-child{color:#77849a}</style></head><body>${table}</body></html>`;
+    downloadTranslationFile(`\uFEFF${document}`, "application/vnd.ms-excel;charset=utf-8", "xls");
+  }
+
+  function exportTranslationFeishu() {
+    window.localStorage.setItem(`joydata-feishu-translation-export-${surveyId}`, JSON.stringify({
+      mode: "new",
+      tableName: `${surveyTitle}-本地化翻译表`,
+      headers: ["内容 ID（请勿修改）", "内容位置", "原文", ...translationLocales.map(localeColumnName)],
+      rows: translationRows(),
+      updatedAt: new Date().toISOString(),
+    }));
+    flash("已提交新建飞书多维表格任务");
+  }
+
+  function parseCsv(text: string) {
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let value = "";
+    let quoted = false;
+    for (let index = 0; index < text.length; index += 1) {
+      const character = text[index];
+      if (character === "\"") {
+        if (quoted && text[index + 1] === "\"") { value += "\""; index += 1; }
+        else quoted = !quoted;
+      } else if (character === "," && !quoted) {
+        row.push(value);
+        value = "";
+      } else if ((character === "\n" || character === "\r") && !quoted) {
+        if (character === "\r" && text[index + 1] === "\n") index += 1;
+        row.push(value);
+        if (row.some((cell) => cell.trim())) rows.push(row);
+        row = [];
+        value = "";
+      } else value += character;
+    }
+    row.push(value);
+    if (row.some((cell) => cell.trim())) rows.push(row);
+    return rows;
+  }
+
+  async function importTranslationFile(file?: File) {
+    if (!file) return;
+    const text = await file.text();
+    let rows: string[][] = [];
+    if (file.name.toLowerCase().endsWith(".csv")) {
+      rows = parseCsv(text.replace(/^\uFEFF/, ""));
+    } else {
+      const document = new DOMParser().parseFromString(text, "text/html");
+      rows = Array.from(document.querySelectorAll("tr")).map((row) =>
+        Array.from(row.querySelectorAll("th,td")).map((cell) => cell.textContent || ""),
+      );
+    }
+    if (rows.length < 2) {
+      flash("未识别到可导入的翻译内容");
+      return;
+    }
+    const headers = rows[0].map((header) => header.trim());
+    const idIndex = headers.findIndex((header) => header.startsWith("内容 ID"));
+    const sourceIndex = headers.indexOf("原文");
+    const localeIndexes = headers.map((header, index) => {
+      const locale = localeMeta.find((item) => item.code !== "简中" && [item.code, item.name, item.native].includes(header));
+      return locale ? { index, code: locale.code } : null;
+    }).filter(Boolean) as { index: number; code: string }[];
+    if ((!localeIndexes.length) || (idIndex < 0 && sourceIndex < 0)) {
+      flash("表格缺少“内容 ID / 原文”或目标语言列");
+      return;
+    }
+    const fieldById = new Map(fields.map((field) => [field.id, field]));
+    const fieldsBySource = new Map<string, TranslationField[]>();
+    fields.forEach((field) => fieldsBySource.set(field.source, [...(fieldsBySource.get(field.source) || []), field]));
+    let imported = 0;
+    const nextTranslations = structuredClone(translations);
+    rows.slice(1).forEach((row) => {
+      const byId = idIndex >= 0 ? fieldById.get((row[idIndex] || "").trim()) : undefined;
+      const bySource = sourceIndex >= 0 ? fieldsBySource.get((row[sourceIndex] || "").trim())?.[0] : undefined;
+      const field = byId || bySource;
+      if (!field) return;
+      localeIndexes.forEach(({ index, code }) => {
+        const value = (row[index] || "").trim();
+        if (!value) return;
+        nextTranslations[code] = { ...(nextTranslations[code] || {}), [field.id]: value };
+        imported += 1;
+      });
+    });
+    setTranslations(nextTranslations);
+    setVerifiedLocales((current) => ({ ...current, ...Object.fromEntries(localeIndexes.map(({ code }) => [code, false])) }));
+    flash(imported ? `已导入 ${imported} 项翻译，请人工校验后确认` : "没有发现可回填的新译文");
   }
 
   function updateTranslation(fieldId: string, value: string) {
@@ -182,6 +314,11 @@ export default function LanguagesPage() {
         <h2>{question.title}{question.required && <b>*</b>}</h2>
         {question.description && <p>{question.description}</p>}
         {question.options?.map((option, optionIndex) => <div className="translation-phone-option" key={`${question.id}-${optionIndex}`}><i>○</i>{option}</div>)}
+        {question.matrixRows?.length && <div className="translation-matrix-labels">
+          <strong>{question.matrixCornerLabel || "题目 / 选项"}</strong>
+          <p>行：{question.matrixRows.join("、")}</p>
+          <p>列：{question.matrixColumns?.join("、")}</p>
+        </div>}
         {!question.options && !["divider", "description"].includes(question.type) && <div className="translation-phone-input">请输入您的回答</div>}
       </article>
     );
@@ -200,6 +337,11 @@ export default function LanguagesPage() {
             <i>○</i>{editableField(`${question.id}:option:${optionIndex}`, option, `选项 ${optionIndex + 1}`)}
           </div>
         ))}
+        {question.matrixRows?.length && <div className="translation-matrix-editor">
+          {editableField(`${question.id}:matrix:corner`, question.matrixCornerLabel || "题目 / 选项", "矩阵左上角")}
+          {question.matrixRows.map((row, rowIndex) => editableField(`${question.id}:matrix:row:${rowIndex}`, row, `矩阵行 ${rowIndex + 1}`))}
+          {question.matrixColumns?.map((column, columnIndex) => editableField(`${question.id}:matrix:column:${columnIndex}`, column, `矩阵列 ${columnIndex + 1}`))}
+        </div>}
         {!question.options && !["divider", "description"].includes(question.type) && <div className="translation-phone-input">请输入您的回答</div>}
       </article>
     );
@@ -211,7 +353,18 @@ export default function LanguagesPage() {
         <button className="editor-back" onClick={() => router.push("/")}>‹</button>
         <div className="editor-title"><span className="survey-doc-icon">文</span><div><strong>{surveyTitle}</strong><small><i className="saved" />翻译内容自动保存</small></div></div>
         <SurveyNav surveyId={surveyId} active="languages" />
-        <div className="editor-actions"><span className="continuous-list-label">双端同步校验 · 连续滚动</span></div>
+        <div className="editor-actions language-file-actions">
+          <input ref={importFileRef} type="file" accept=".csv,.xls,application/vnd.ms-excel,text/csv" hidden onChange={(event) => { void importTranslationFile(event.target.files?.[0]); event.currentTarget.value = ""; }} />
+          <button className="secondary-button" onClick={() => importFileRef.current?.click()}>⇧ 导入翻译</button>
+          <details>
+            <summary className="primary-button">⇩ 导出翻译表</summary>
+            <div>
+              <button onClick={exportTranslationExcel}><strong>Excel</strong><small>适合本地化人员协作编辑</small></button>
+              <button onClick={exportTranslationCsv}><strong>CSV</strong><small>适合翻译平台和批量处理</small></button>
+              <button onClick={exportTranslationFeishu}><strong>飞书多维表格</strong><small>新建一张翻译协作表</small></button>
+            </div>
+          </details>
+        </div>
       </header>
 
       <section className="language-workspace language-compare-workspace">
