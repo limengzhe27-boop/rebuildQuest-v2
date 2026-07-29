@@ -249,7 +249,19 @@ export default function AppearancePage() {
               <article><div><strong>问卷头图 · 移动端</strong><small>建议 750 × 420 px（约 16:9），选填；未上传时沿用桌面端图片</small></div><button onClick={() => headerMobileInputRef.current?.click()}>{config.headerImageMobile ? "更换" : "上传"}</button>{config.headerImageMobile && <button className="remove" onClick={() => update({ headerImageMobile: "" })}>移除</button>}</article>
               <input ref={curtainImageInputRef} type="file" accept="image/*" hidden onChange={(event) => uploadAppearanceImage("curtainImage", event.target.files?.[0])} />
               <article><div><strong>幕布背景</strong><small>仅需上传一张桌面端图片，建议 1920 × 1080 px（16:9）；移动端自动使用同一张背景</small></div><button onClick={() => curtainImageInputRef.current?.click()}>{config.curtainImage ? "更换" : "上传"}</button>{config.curtainImage && <button className="remove" onClick={() => update({ curtainImage: "" })}>移除</button>}</article>
-              {config.curtainImage && <label className="range-setting"><span>桌面端问卷透明度 <em>{config.desktopOpacity}%</em></span><input type="range" min="55" max="100" value={config.desktopOpacity} onChange={(event) => update({ desktopOpacity: Number(event.target.value) })} /><small>仅影响 PC 端白色问卷内容层；移动端保持清晰白底。</small></label>}
+              <label className={`range-setting desktop-opacity-setting ${config.curtainImage ? "" : "disabled"}`}>
+                <span><strong>桌面端内容区域透明度</strong><em>{config.desktopOpacity}%</em></span>
+                <input
+                  type="range"
+                  min="55"
+                  max="100"
+                  step="1"
+                  disabled={!config.curtainImage}
+                  value={config.desktopOpacity}
+                  onChange={(event) => update({ desktopOpacity: Number(event.target.value) })}
+                />
+                <small>{config.curtainImage ? "数值越低，越能透出桌面端幕布；移动端始终保持清晰白底。" : "请先上传幕布背景，上传后即可调整透明度。"}</small>
+              </label>
             </div>
           </section>
           <section>

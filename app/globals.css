@@ -8510,6 +8510,43 @@ input:focus-visible {
   margin-top: 10px;
 }
 
+.appearance-image-settings .desktop-opacity-setting {
+  display: grid;
+  gap: 4px;
+  margin-top: 0;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 12px;
+}
+
+.desktop-opacity-setting > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.desktop-opacity-setting > span em {
+  border-radius: 5px;
+  background: #e8f0ff;
+  padding: 3px 7px;
+  color: #286cdd;
+  font-style: normal;
+}
+
+.desktop-opacity-setting small {
+  line-height: 1.5;
+}
+
+.desktop-opacity-setting.disabled {
+  background: #f6f7f9;
+}
+
+.desktop-opacity-setting.disabled input {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
 .appearance-preview.dark {
   background:
     radial-gradient(circle at 22% 12%, rgba(154, 126, 255, .32), transparent 30%),
