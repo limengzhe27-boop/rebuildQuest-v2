@@ -1357,10 +1357,21 @@ input:focus-visible {
 .validity-multiselect label:hover { background: #f1f6ff; }
 .validity-multiselect input { width: 14px; height: 14px; min-width: 14px; accent-color: #3474ed; }
 .validity-groups { display: grid; gap: 10px; }
+.validity-section { display: grid; gap: 10px; padding-top: 2px; }
+.validity-section > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.validity-section > header > div { display: grid; gap: 3px; }
+.validity-section > header strong { color: #203652; font-size: 12px; }
+.validity-section > header small { color: #8290a4; font-size: 9px; }
+.scoring-section { border-top: 1px solid #dfe6ef; padding-top: 16px; }
 .validity-group-card { display: grid; gap: 10px; padding: 14px; border: 1px solid #dbe4f0; border-radius: 9px; background: #fff; }
 .validity-group-card > header { display: grid; grid-template-columns: minmax(180px, 1fr) auto 150px 150px auto; gap: 8px; }
 .validity-group-card > header > div { display: flex; align-items: center; gap: 6px; color: #758297; font-size: 9px; }
+.validity-group-card > header > strong { align-self: center; color: #2b405f; font-size: 11px; }
+.logic-rule-card > header { grid-template-columns: minmax(130px, 1fr) auto 150px auto; }
+.score-rule-card > header { display: flex; align-items: center; justify-content: space-between; }
 .validity-condition-row { display: grid; grid-template-columns: minmax(220px, 1.4fr) 110px minmax(130px, 1fr) 80px 28px; gap: 7px; margin-top: 7px; }
+.validity-condition-row.matrix-validity-condition { grid-template-columns: minmax(180px, 1.1fr) minmax(250px, 1.4fr) 100px minmax(120px, 1fr) 78px 28px; }
+.validity-matrix-target { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
 .validity-condition-row > label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px; color: #6f7d92; font-size: 9px; }
 .validity-condition-row > button { border: 0; border-radius: 5px; background: #f3f5f8; color: #9ba5b4; }
 .add-validity-condition,.add-validity-group { justify-self: start; border: 0; background: transparent; color: #2f70e8; font-size: 10px; }
@@ -1376,6 +1387,7 @@ input:focus-visible {
 
 @media (max-width: 760px) {
   .validity-basic-rules article,.validity-group-card > header,.validity-condition-row { grid-template-columns: 1fr; }
+  .validity-condition-row.matrix-validity-condition,.validity-matrix-target { grid-template-columns: 1fr; }
   .validity-basic-rules article.validity-deduplicate-rule,.validity-basic-rules article.validity-empty-rule,.validity-score-threshold { grid-template-columns: 1fr; }
   .validity-basic-rules article > .mini-switch { justify-self: end; }
 }

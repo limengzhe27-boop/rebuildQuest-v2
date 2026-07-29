@@ -20,7 +20,15 @@ type ResponseColumn = {
   getter: (item: ResponseRow) => string | number;
 };
 
-type ValidityCondition = { questionId: string; operator: string; value: string; score: number };
+type ValidityCondition = {
+  questionId: string;
+  operator: string;
+  value: string;
+  score: number;
+  matrixScope?: "cell" | "row" | "any-row" | "sum" | "average" | "minimum";
+  matrixRow?: string;
+  matrixColumn?: string;
+};
 type ValidityRuleGroup = {
   id: string;
   name: string;
@@ -271,6 +279,84 @@ export default function ResponsesPage() {
     flash("答卷有效规则已保存，将用于后续提交的自动判定");
   }
 
+  const logicGroups = validityGroups.filter((group) => group.mode === "status");
+  const scoreGroups = validityGroups.filter((group) => group.mode === "score");
+
+  function defaultCondition(questionId = questions[0]?.id || ""): ValidityCondition {
+    const question = questions.find((item) => item.id === questionId);
+    const numeric = question && ["rating", "nps"].includes(question.type);
+    const matrix = question && ["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"].includes(question.type);
+    return {
+      questionId,
+      operator: numeric ? "小于" : "等于",
+      value: "",
+      score: 0,
+      matrixScope: matrix ? (["matrixScale", "matrixSlider"].includes(question.type) ? "row" : "cell") : undefined,
+      matrixRow: matrix ? question.matrixRows?.[0] || "行 1" : undefined,
+      matrixColumn: matrix ? question.matrixColumns?.[0] || question.options?.[0] || "列 1" : undefined,
+    };
+  }
+
+  function isMatrixQuestion(question?: Question) {
+    return Boolean(question && ["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"].includes(question.type));
+  }
+
+  function isNumericQuestion(question?: Question) {
+    return Boolean(question && ["rating", "nps"].includes(question.type));
+  }
+
+  function isChoiceQuestion(question?: Question) {
+    return Boolean(question && ["single", "multiple", "dropdown", "cascade", "image", "sort", "tableSelect", "product"].includes(question.type));
+  }
+
+  function operatorsFor(question?: Question, condition?: ValidityCondition) {
+    if (!question) return ["等于", "不等于", "包含", "不包含", "为空", "不为空"];
+    if (["file", "imageUpload", "location", "ocr"].includes(question.type)) return ["为空", "不为空"];
+    if (isNumericQuestion(question) || (isMatrixQuestion(question) && ["matrixScale", "matrixSlider"].includes(question.type))) return ["小于", "小于等于", "等于", "不等于", "大于等于", "大于", "为空", "不为空"];
+    if (isMatrixQuestion(question) && condition?.matrixScope === "cell" && question.type !== "matrixFill") return ["已选中", "未选中"];
+    if (["date", "appointmentDate", "appointmentSlot"].includes(question.type)) return ["早于", "等于", "晚于", "为空", "不为空"];
+    if (isChoiceQuestion(question)) return ["等于", "不等于", "包含", "不包含", "为空", "不为空"];
+    return ["等于", "不等于", "包含", "不包含", "为空", "不为空"];
+  }
+
+  function updateConditionQuestion(groupId: string, index: number, questionId: string) {
+    updateValidityCondition(groupId, index, defaultCondition(questionId));
+  }
+
+  function renderConditionEditor(group: ValidityRuleGroup, condition: ValidityCondition, index: number) {
+    const question = questions.find((item) => item.id === condition.questionId);
+    const rows = question?.matrixRows?.length ? question.matrixRows : ["行 1", "行 2", "行 3"];
+    const columns = question?.matrixColumns?.length ? question.matrixColumns : question?.options?.length ? question.options : ["列 1", "列 2", "列 3"];
+    const matrix = isMatrixQuestion(question);
+    const noValue = ["为空", "不为空", "已选中", "未选中"].includes(condition.operator);
+    return (
+      <div className={`validity-condition-row ${matrix ? "matrix-validity-condition" : ""}`} key={`${group.id}-${index}`}>
+        <select value={condition.questionId} onChange={(event) => updateConditionQuestion(group.id, index, event.target.value)}>
+          {questions.map((item, questionIndex) => <option key={item.id} value={item.id}>Q{questionIndex + 1} {item.title}</option>)}
+        </select>
+        {matrix && <div className="validity-matrix-target">
+          <select value={condition.matrixScope || "cell"} onChange={(event) => {
+            const matrixScope = event.target.value as ValidityCondition["matrixScope"];
+            updateValidityCondition(group.id, index, { matrixScope, operator: matrixScope === "cell" && question?.type !== "matrixFill" ? "已选中" : "小于", value: "" });
+          }}>
+            {question?.type !== "matrixScale" && question?.type !== "matrixSlider" && <option value="cell">指定单元格</option>}
+            <option value="row">指定行</option>
+            <option value="any-row">任意一行</option>
+            {["matrixScale", "matrixSlider"].includes(question?.type || "") && <><option value="sum">全部行总分</option><option value="average">全部行平均分</option><option value="minimum">全部行最低分</option></>}
+          </select>
+          {["cell", "row"].includes(condition.matrixScope || "cell") && <select value={condition.matrixRow || rows[0]} onChange={(event) => updateValidityCondition(group.id, index, { matrixRow: event.target.value })}>{rows.map((row) => <option key={row}>{row}</option>)}</select>}
+          {(condition.matrixScope || "cell") === "cell" && <select value={condition.matrixColumn || columns[0]} onChange={(event) => updateValidityCondition(group.id, index, { matrixColumn: event.target.value })}>{columns.map((column) => <option key={column}>{column}</option>)}</select>}
+        </div>}
+        <select value={condition.operator} onChange={(event) => updateValidityCondition(group.id, index, { operator: event.target.value })}>{operatorsFor(question, condition).map((operator) => <option key={operator}>{operator}</option>)}</select>
+        {!noValue && (isChoiceQuestion(question) && question?.options?.length
+          ? <select value={condition.value} onChange={(event) => updateValidityCondition(group.id, index, { value: event.target.value })}><option value="">请选择答案</option>{question.options.map((option) => <option key={option}>{option}</option>)}</select>
+          : <input type={isNumericQuestion(question) || (matrix && ["matrixScale", "matrixSlider"].includes(question?.type || "")) ? "number" : ["date", "appointmentDate"].includes(question?.type || "") ? "date" : "text"} value={condition.value} onChange={(event) => updateValidityCondition(group.id, index, { value: event.target.value })} placeholder={matrix ? "答案或评分" : "答案或数值"} />)}
+        {group.mode === "score" && <label className="validity-score-value"><input type="number" value={condition.score} onChange={(event) => updateValidityCondition(group.id, index, { score: Number(event.target.value) })} /><span>分</span></label>}
+        <button disabled={group.conditions.length === 1} onClick={() => updateValidityGroup(group.id, { conditions: group.conditions.filter((_, conditionIndex) => conditionIndex !== index) })}>×</button>
+      </div>
+    );
+  }
+
   return (
     <main className="insights-page response-table-page">
       <header className="editor-topbar">
@@ -374,27 +460,41 @@ export default function ResponsesPage() {
               </details>
             </article>
           </section>
-          <div className="validity-groups">
-            {validityGroups.map((group) => <section key={group.id} className="validity-group-card">
-              <header>
-                <input value={group.name} onChange={(event) => updateValidityGroup(group.id, { name: event.target.value })} />
-                <div><span>符合</span><select value={group.relation} onChange={(event) => updateValidityGroup(group.id, { relation: event.target.value as "all" | "any" })}><option value="all">全部条件（且）</option><option value="any">任一条件（或）</option></select></div>
-                <select value={group.mode} onChange={(event) => updateValidityGroup(group.id, { mode: event.target.value as "status" | "score" })}><option value="status">直接判定结果</option><option value="score">命中后累计分值</option></select>
-                {group.mode === "status" && <select value={group.outcome} onChange={(event) => updateValidityGroup(group.id, { outcome: event.target.value as "valid" | "invalid" })}><option value="invalid">命中时判为无效</option><option value="valid">命中时判为有效</option></select>}
-                <button className="delete-validity-group" disabled={validityGroups.length === 1} onClick={() => setValidityGroups((current) => current.filter((item) => item.id !== group.id))}>删除规则</button>
-              </header>
-              <div>{group.conditions.map((condition, index) => <div className="validity-condition-row" key={`${group.id}-${index}`}><select value={condition.questionId} onChange={(event) => updateValidityCondition(group.id, index, { questionId: event.target.value })}>{questions.map((question, questionIndex) => <option key={question.id} value={question.id}>Q{questionIndex + 1} {question.title}</option>)}</select><select value={condition.operator} onChange={(event) => updateValidityCondition(group.id, index, { operator: event.target.value })}><option>等于</option><option>不等于</option><option>包含</option><option>不包含</option><option>大于</option><option>大于等于</option><option>小于</option><option>小于等于</option><option>为空</option><option>不为空</option></select>{!["为空", "不为空"].includes(condition.operator) && <input value={condition.value} onChange={(event) => updateValidityCondition(group.id, index, { value: event.target.value })} placeholder="答案或数值" />}{group.mode === "score" && <label><input type="number" value={condition.score} onChange={(event) => updateValidityCondition(group.id, index, { score: Number(event.target.value) })} /><span>分</span></label>}<button disabled={group.conditions.length === 1} onClick={() => updateValidityGroup(group.id, { conditions: group.conditions.filter((_, conditionIndex) => conditionIndex !== index) })}>×</button></div>)}</div>
-              <button className="add-validity-condition" onClick={() => updateValidityGroup(group.id, { conditions: [...group.conditions, { questionId: questions[0]?.id || "", operator: "等于", value: "", score: 0 }] })}>＋ 添加条件</button>
-            </section>)}
-            <button className="add-validity-group" onClick={() => setValidityGroups((current) => [...current, { id: `rule-${Date.now()}`, name: "新规则组", relation: "all", mode: "status", outcome: "invalid", conditions: [{ questionId: questions[0]?.id || "", operator: "等于", value: "", score: 0 }] }])}>＋ 添加规则组</button>
-          </div>
-          <div className="validity-score-threshold">
-            <span><strong>累计分数判定</strong><small>仅在使用“累计分值”的规则时生效，支持高分或低分任一方向。</small></span>
-            <select value={scoreComparator} onChange={(event) => setScoreComparator(event.target.value as "lt" | "gt")}><option value="lt">总分小于</option><option value="gt">总分大于</option></select>
-            <input type="number" value={minimumScore} onChange={(event) => setMinimumScore(Number(event.target.value))} />
-            <em>分时</em>
-            <select value={scoreOutcome} onChange={(event) => setScoreOutcome(event.target.value as "valid" | "invalid")}><option value="invalid">判为无效</option><option value="valid">判为有效</option></select>
-          </div>
+          <section className="validity-section">
+            <header><div><strong>答案逻辑判定</strong><small>按题型组合多个答案条件；一组规则内可选择同时满足（且）或任意满足（或）。</small></div></header>
+            <div className="validity-groups">
+              {logicGroups.map((group, groupIndex) => <section key={group.id} className="validity-group-card logic-rule-card">
+                <header>
+                  <strong>逻辑规则 {groupIndex + 1}</strong>
+                  <div><span>符合</span><select value={group.relation} onChange={(event) => updateValidityGroup(group.id, { relation: event.target.value as "all" | "any" })}><option value="all">全部条件（且）</option><option value="any">任一条件（或）</option></select></div>
+                  <select value={group.outcome} onChange={(event) => updateValidityGroup(group.id, { outcome: event.target.value as "valid" | "invalid" })}><option value="invalid">命中时判为无效</option><option value="valid">命中时判为有效</option></select>
+                  <button className="delete-validity-group" disabled={logicGroups.length === 1} onClick={() => setValidityGroups((current) => current.filter((item) => item.id !== group.id))}>删除规则</button>
+                </header>
+                <div>{group.conditions.map((condition, index) => renderConditionEditor(group, condition, index))}</div>
+                <button className="add-validity-condition" onClick={() => updateValidityGroup(group.id, { conditions: [...group.conditions, defaultCondition()] })}>＋ 添加条件</button>
+              </section>)}
+              <button className="add-validity-group" onClick={() => setValidityGroups((current) => [...current, { id: `logic-${Date.now()}`, name: "答案逻辑", relation: "all", mode: "status", outcome: "invalid", conditions: [defaultCondition()] }])}>＋ 添加答案逻辑</button>
+            </div>
+          </section>
+
+          <section className="validity-section scoring-section">
+            <header><div><strong>答案评分</strong><small>为某个答案或数值条件设置分数；评分项彼此独立，不需要配置且/或关系。</small></div></header>
+            <div className="validity-groups">
+              {scoreGroups.map((group) => <section key={group.id} className="validity-group-card score-rule-card">
+                <header><strong>评分规则</strong><button className="delete-validity-group" disabled={scoreGroups.length === 1} onClick={() => setValidityGroups((current) => current.filter((item) => item.id !== group.id))}>删除评分组</button></header>
+                <div>{group.conditions.map((condition, index) => renderConditionEditor(group, condition, index))}</div>
+                <button className="add-validity-condition" onClick={() => updateValidityGroup(group.id, { conditions: [...group.conditions, defaultCondition()] })}>＋ 添加评分项</button>
+              </section>)}
+              {!scoreGroups.length && <button className="add-validity-group" onClick={() => setValidityGroups((current) => [...current, { id: `score-${Date.now()}`, name: "答案评分", relation: "any", mode: "score", outcome: "invalid", conditions: [defaultCondition()] }])}>＋ 启用答案评分</button>}
+            </div>
+            {scoreGroups.length > 0 && <div className="validity-score-threshold">
+              <span><strong>总分判定</strong><small>根据以上评分项累计得到总分，并统一判定答卷状态。</small></span>
+              <select value={scoreComparator} onChange={(event) => setScoreComparator(event.target.value as "lt" | "gt")}><option value="lt">总分小于</option><option value="gt">总分大于</option></select>
+              <input type="number" value={minimumScore} onChange={(event) => setMinimumScore(Number(event.target.value))} />
+              <em>分时</em>
+              <select value={scoreOutcome} onChange={(event) => setScoreOutcome(event.target.value as "valid" | "invalid")}><option value="invalid">判为无效</option><option value="valid">判为有效</option></select>
+            </div>}
+          </section>
         </div>
         <footer><button className="secondary-button" onClick={() => setShowValidityRules(false)}>取消</button><button className="primary-button" onClick={saveValidityRules}>保存规则</button></footer>
       </section></div>}
