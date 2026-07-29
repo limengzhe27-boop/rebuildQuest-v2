@@ -111,6 +111,7 @@ export default function PlayerSurvey() {
     headerImage: "",
     headerImageMobile: "",
     curtainImage: "",
+    desktopOpacity: 90,
   });
   const [surveyDescription, setSurveyDescription] = useState("");
   const [completionMode, setCompletionMode] = useState<"message" | "redirect">("message");
@@ -167,6 +168,7 @@ export default function PlayerSurvey() {
         headerImage: appearance.headerImage || "",
         headerImageMobile: appearance.headerImageMobile || "",
         curtainImage: appearance.curtainImage || "",
+        desktopOpacity: typeof appearance.desktopOpacity === "number" ? appearance.desktopOpacity : current.desktopOpacity,
       }));
       if (typeof appearance.languageSwitch === "boolean") setAllowLanguageSwitch(appearance.languageSwitch);
       if (typeof appearance.progress === "boolean") setShowProgress(appearance.progress);
@@ -487,6 +489,7 @@ export default function PlayerSurvey() {
     "--player-radius": `${appearanceConfig.radius}px`,
     "--curtain-desktop": appearanceConfig.curtainImage ? `url(${appearanceConfig.curtainImage})` : "none",
     "--curtain-mobile": appearanceConfig.curtainImage ? `url(${appearanceConfig.curtainImage})` : "none",
+    "--desktop-card-alpha": appearanceConfig.desktopOpacity / 100,
   } as React.CSSProperties;
 
   if (closedMessage) {

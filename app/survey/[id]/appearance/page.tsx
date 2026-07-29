@@ -19,6 +19,7 @@ type Appearance = {
   headerImage: string;
   headerImageMobile: string;
   curtainImage: string;
+  desktopOpacity: number;
   progress: boolean;
   languageSwitch: boolean;
   background: "plain" | "soft" | "dark";
@@ -36,6 +37,7 @@ const defaults: Appearance = {
   headerImage: "",
   headerImageMobile: "",
   curtainImage: "",
+  desktopOpacity: 90,
   progress: true,
   languageSwitch: true,
   background: "soft",
@@ -247,6 +249,7 @@ export default function AppearancePage() {
               <article><div><strong>问卷头图 · 移动端</strong><small>建议 750 × 420 px（约 16:9），选填；未上传时沿用桌面端图片</small></div><button onClick={() => headerMobileInputRef.current?.click()}>{config.headerImageMobile ? "更换" : "上传"}</button>{config.headerImageMobile && <button className="remove" onClick={() => update({ headerImageMobile: "" })}>移除</button>}</article>
               <input ref={curtainImageInputRef} type="file" accept="image/*" hidden onChange={(event) => uploadAppearanceImage("curtainImage", event.target.files?.[0])} />
               <article><div><strong>幕布背景</strong><small>仅需上传一张桌面端图片，建议 1920 × 1080 px（16:9）；移动端自动使用同一张背景</small></div><button onClick={() => curtainImageInputRef.current?.click()}>{config.curtainImage ? "更换" : "上传"}</button>{config.curtainImage && <button className="remove" onClick={() => update({ curtainImage: "" })}>移除</button>}</article>
+              {config.curtainImage && <label className="range-setting"><span>桌面端问卷透明度 <em>{config.desktopOpacity}%</em></span><input type="range" min="55" max="100" value={config.desktopOpacity} onChange={(event) => update({ desktopOpacity: Number(event.target.value) })} /><small>仅影响 PC 端白色问卷内容层；移动端保持清晰白底。</small></label>}
             </div>
           </section>
           <section>
@@ -262,7 +265,7 @@ export default function AppearancePage() {
           </section>
         </aside>
 
-        <section className={`appearance-preview ${config.background} ${config.curtainImage ? "has-curtain" : ""}`} style={{ "--theme": config.primary, "--radius": `${config.radius}px`, ...(config.curtainImage ? { backgroundImage: `url(${config.curtainImage})` } : {}) } as React.CSSProperties}>
+        <section className={`appearance-preview ${config.background} ${config.curtainImage ? "has-curtain" : ""}`} style={{ "--theme": config.primary, "--radius": `${config.radius}px`, "--desktop-card-alpha": config.desktopOpacity / 100, ...(config.curtainImage ? { backgroundImage: `url(${config.curtainImage})` } : {}) } as React.CSSProperties}>
           <div className="preview-device-toggle">
             <button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")}>▱ 桌面端</button>
             <button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")}>▯ 移动端</button>
