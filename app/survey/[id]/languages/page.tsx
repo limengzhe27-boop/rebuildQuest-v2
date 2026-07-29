@@ -38,6 +38,27 @@ const preset: Record<string, Record<string, string>> = {
   ไทย: {},
 };
 
+const aiWordMap: Record<string, Record<string, string>> = {
+  EN: {
+    您: "you", 请: "please", 选择: "select", 填写: "fill in", 感谢: "thank you", 问卷: "survey",
+    满意: "satisfied", 体验: "experience", 游戏: "game", 完成: "complete", 提交: "submit", 选项: "option",
+    非常: "very", 一般: "average", 推荐: "recommend", 朋友: "friend", 改进: "improve", 测试: "test",
+    标题: "title", 说明: "description", 谢谢: "thank you", 参与: "participation", 反馈: "feedback",
+  },
+  繁中: {
+    简体: "簡體", 体验: "體驗", 问卷: "問卷", 满意: "滿意", 选择: "選擇", 选项: "選項", 游戏: "遊戲",
+    内容: "內容", 确认: "確認", 输入: "輸入", 标题: "標題", 说明: "說明", 谢谢: "謝謝", 测试: "測試", 还有: "還有",
+  },
+};
+
+function simulateTranslate(source: string, locale: string, nativeName: string) {
+  const map = aiWordMap[locale];
+  if (!map) return source ? `[${nativeName}] ${source}` : source;
+  let result = source;
+  Object.entries(map).forEach(([zh, translated]) => { result = result.split(zh).join(translated); });
+  return result;
+}
+
 export default function LanguagesPage() {
   const params = useParams<{ id: string }>();
   const surveyId = params.id;
@@ -52,6 +73,7 @@ export default function LanguagesPage() {
   const [publication, setPublication] = useState<Publication | null>(null);
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [aiTranslating, setAiTranslating] = useState(false);
   const sourceScrollRef = useRef<HTMLDivElement>(null);
   const targetScrollRef = useRef<HTMLDivElement>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -280,6 +302,32 @@ export default function LanguagesPage() {
     flash(verified ? "已取消校验完成状态" : "已标记为翻译与校验完成");
   }
 
+  function runAiTranslate() {
+    if (activeLocale === "简中") {
+      flash("请先在左侧选择需要翻译的目标语言");
+      return;
+    }
+    const targets = fields.filter((field) => !rawTranslation(field.id, field.legacyId).trim());
+    if (!targets.length) {
+      flash("当前语言已全部翻译完成，无需再次生成");
+      return;
+    }
+    setAiTranslating(true);
+    window.setTimeout(() => {
+      const nativeName = localeMeta.find((locale) => locale.code === activeLocale)?.name || activeLocale;
+      setTranslations((current) => ({
+        ...current,
+        [activeLocale]: {
+          ...(current[activeLocale] || {}),
+          ...Object.fromEntries(targets.map((field) => [field.id, simulateTranslate(field.source, activeLocale, nativeName)])),
+        },
+      }));
+      setVerifiedLocales((current) => ({ ...current, [activeLocale]: false }));
+      setAiTranslating(false);
+      flash(`AI 已生成 ${targets.length} 项翻译建议，请人工校验后确认`);
+    }, 900);
+  }
+
   function synchronizeScroll(source: HTMLDivElement, target: HTMLDivElement) {
     if (syncingScroll.current) return;
     syncingScroll.current = true;
@@ -354,6 +402,7 @@ export default function LanguagesPage() {
         <div className="editor-title"><span className="survey-doc-icon">文</span><div><strong>{surveyTitle}</strong><small><i className="saved" />翻译内容自动保存</small></div></div>
         <SurveyNav surveyId={surveyId} active="languages" />
         <div className="editor-actions language-file-actions">
+          <button className="primary-button ai-translate-button" disabled={aiTranslating} onClick={runAiTranslate}>{aiTranslating ? "AI 翻译中…" : "✦ AI 翻译"}</button>
           <input ref={importFileRef} type="file" accept=".csv,.xls,application/vnd.ms-excel,text/csv" hidden onChange={(event) => { void importTranslationFile(event.target.files?.[0]); event.currentTarget.value = ""; }} />
           <button className="secondary-button" onClick={() => importFileRef.current?.click()}>⇧ 导入翻译</button>
           <details>

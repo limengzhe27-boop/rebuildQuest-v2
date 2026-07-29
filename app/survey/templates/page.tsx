@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { defaultQuestions } from "@/lib/survey-builder";
+import { ComponentTemplate, createQuestion, defaultQuestions, questionLabels } from "@/lib/survey-builder";
+import { EndPageTemplate, loadEndPageTemplates, saveEndPageTemplates } from "@/lib/survey-publication";
+import { ComponentTemplateEditor, ComponentTemplateDraft } from "@/components/ComponentTemplateEditor";
+import { PageTemplateEditor } from "@/components/PageTemplateEditor";
 
 type Region = "global" | "china";
 type TemplateMode = "blank" | "full";
@@ -40,6 +43,7 @@ const navItems = [["⌂", "看板"], ["⌁", "分析"], ["◎", "投放"], ["◇
 
 export default function TemplatesPage() {
   const router = useRouter();
+  const [centerTab, setCenterTab] = useState<"survey" | "component" | "page">("survey");
   const [region, setRegion] = useState<Region>("global");
   const [category, setCategory] = useState("全部分类");
   const [categories, setCategories] = useState(defaultCategories);
@@ -50,6 +54,11 @@ export default function TemplatesPage() {
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [notice, setNotice] = useState("");
+  const [componentTemplates, setComponentTemplates] = useState<ComponentTemplate[]>([]);
+  const [componentDraft, setComponentDraft] = useState<ComponentTemplateDraft | null>(null);
+  const [pageTemplates, setPageTemplates] = useState<EndPageTemplate[]>([]);
+  const [pageTemplateDraft, setPageTemplateDraft] = useState<EndPageTemplate | null>(null);
+  const [pageTemplatePreview, setPageTemplatePreview] = useState<EndPageTemplate | null>(null);
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("region");
@@ -78,6 +87,8 @@ export default function TemplatesPage() {
         appearance: item.appearance,
         custom: true,
       })));
+      setComponentTemplates(JSON.parse(window.localStorage.getItem("joydata-survey-component-templates") || "[]"));
+      setPageTemplates(loadEndPageTemplates());
     } catch {}
   }, []);
 
@@ -150,6 +161,39 @@ export default function TemplatesPage() {
     router.push(`/survey/template-${template.id}/edit?templateId=${encodeURIComponent(template.id)}`);
   }
 
+  function persistComponentTemplates(next: ComponentTemplate[]) {
+    setComponentTemplates(next);
+    window.localStorage.setItem("joydata-survey-component-templates", JSON.stringify(next));
+  }
+
+  function saveComponentTemplate(draft: ComponentTemplateDraft) {
+    const isNew = !draft.id;
+    const template: ComponentTemplate = { id: draft.id || `component-${Date.now()}`, name: draft.name, question: draft.question };
+    persistComponentTemplates(isNew ? [template, ...componentTemplates] : componentTemplates.map((item) => item.id === template.id ? template : item));
+    setComponentDraft(null);
+    flash(isNew ? "组件已创建" : "组件已更新");
+  }
+
+  function removeComponentTemplate(id: string) {
+    persistComponentTemplates(componentTemplates.filter((item) => item.id !== id));
+    flash("组件已删除");
+  }
+
+  function savePageTemplate(template: EndPageTemplate) {
+    const next = pageTemplates.map((item) => item.id === template.id ? template : item);
+    setPageTemplates(next);
+    saveEndPageTemplates(next);
+    setPageTemplateDraft(null);
+    flash("页面模板已更新");
+  }
+
+  function removePageTemplate(id: string) {
+    const next = pageTemplates.filter((item) => item.id !== id);
+    setPageTemplates(next);
+    saveEndPageTemplates(next);
+    flash("页面模板已删除");
+  }
+
   return (
     <main className="app-shell embedded-app-shell">
       <aside className="global-nav" aria-label="JoyData 主导航">
@@ -168,10 +212,17 @@ export default function TemplatesPage() {
         <div className="content-layout">
           <section className="main-content compact-list-content">
             <div className="page-heading compact-page-heading">
-              <div className="compact-heading-copy"><div className="breadcrumb">用研中心 <span>/</span> 模板中心</div><h1>模板中心</h1><span>{region === "global" ? "海外" : "国内"}工作区 · {visible.length} 个模板</span></div>
-              <div className="heading-actions"><button className="secondary-button" onClick={() => router.push("/")}>返回问卷工作台</button><button className="primary-button" onClick={() => router.push(`/survey/new?region=${region}`)}>＋ 创建问卷</button></div>
+              <div className="compact-heading-copy"><div className="breadcrumb">用研中心 <span>/</span> 模板中心</div><h1>模板中心</h1><span>{centerTab === "survey" ? `${region === "global" ? "海外" : "国内"}工作区 · ${visible.length} 个问卷模板` : centerTab === "component" ? `${componentTemplates.length} 个组件模板` : `${pageTemplates.length} 个页面模板`}</span></div>
+              <div className="heading-actions"><button className="secondary-button" onClick={() => router.push("/")}>返回问卷工作台</button>{centerTab === "survey" && <button className="primary-button" onClick={() => router.push(`/survey/new?region=${region}`)}>＋ 创建问卷</button>}</div>
             </div>
 
+            <div className="template-center-tabs">
+              <button className={centerTab === "survey" ? "active" : ""} onClick={() => setCenterTab("survey")}>问卷模板</button>
+              <button className={centerTab === "component" ? "active" : ""} onClick={() => setCenterTab("component")}>组件模板</button>
+              <button className={centerTab === "page" ? "active" : ""} onClick={() => setCenterTab("page")}>页面模板</button>
+            </div>
+
+            {centerTab === "survey" && (
             <section className="survey-panel template-list-panel">
               <div className="panel-toolbar template-toolbar">
                 <div className="region-switch compact-region-switch"><button className={region === "global" ? "active" : ""} onClick={() => setRegion("global")}>海外</button><button className={region === "china" ? "active" : ""} onClick={() => setRegion("china")}>国内</button></div>
@@ -196,13 +247,72 @@ export default function TemplatesPage() {
               </div>
               <footer className="panel-footer"><span>共 {visible.length} 个模板</span><div><button disabled>‹</button><button className="active">1</button><button disabled>›</button><select className="page-size-select" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}><option value={20}>20 条/页</option><option value={50}>50 条/页</option><option value={100}>100 条/页</option></select></div></footer>
             </section>
+            )}
+
+            {centerTab === "component" && (
+            <section className="survey-panel template-component-panel">
+              <div className="panel-toolbar template-toolbar">
+                <span className="template-panel-hint">组件模板可在问卷编辑器左侧「自定义组件」中直接添加，保留已配置的标题与选项。</span>
+                <button className="primary-button" onClick={() => setComponentDraft({ id: "", name: "", question: createQuestion("single") })}>＋ 新建组件</button>
+              </div>
+              {componentTemplates.length ? (
+                <div className="template-component-grid">
+                  {componentTemplates.map((template) => (
+                    <article className="template-component-card" key={template.id}>
+                      <header><span>◇</span><div><strong>{template.name}</strong><small>{questionLabels[template.question.type]}</small></div></header>
+                      {template.question.title && <p>{template.question.title}</p>}
+                      <footer><button onClick={() => setComponentDraft({ id: template.id, name: template.name, question: template.question })}>编辑</button><button className="text-danger" onClick={() => removeComponentTemplate(template.id)}>删除</button></footer>
+                    </article>
+                  ))}
+                </div>
+              ) : <div className="empty-state"><strong>暂无自定义组件</strong><p>在问卷编辑器中将题目保存为组件，或点击上方按钮新建。</p></div>}
+            </section>
+            )}
+
+            {centerTab === "page" && (
+            <section className="survey-panel template-component-panel">
+              <div className="panel-toolbar template-toolbar">
+                <span className="template-panel-hint">页面模板可在问卷「问卷结束页」「停止收集后页面」设置中直接选用。</span>
+              </div>
+              {pageTemplates.length ? (
+                <div className="template-component-grid">
+                  {pageTemplates.map((template) => (
+                    <article className="template-page-card" key={template.id}>
+                      {template.image ? <div className="template-page-card-cover" style={{ backgroundImage: `url(${template.image})` }} /> : <div className="template-page-card-cover empty">无背景图</div>}
+                      <div className="template-page-card-body">
+                        <strong>{template.name}</strong>
+                        {template.content?.title && <p>{template.content.title}</p>}
+                        <footer><button onClick={() => setPageTemplatePreview(template)}>查看</button><button onClick={() => setPageTemplateDraft(template)}>编辑</button><button className="text-danger" onClick={() => removePageTemplate(template.id)}>删除</button></footer>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : <div className="empty-state"><strong>暂无页面模板</strong><p>在问卷设置的结束页或停止收集页中，选择「自定义上传」并保存为模板后会显示在这里。</p></div>}
+            </section>
+            )}
           </section>
         </div>
       </section>
 
       {showAddCategory && <div className="preview-backdrop" onMouseDown={() => setShowAddCategory(false)}><section className="template-category-modal" onMouseDown={(event) => event.stopPropagation()}><header><strong>添加模板分类</strong><button onClick={() => setShowAddCategory(false)}>×</button></header><label><span>分类名称</span><input autoFocus maxLength={20} value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="例如：版本上线后回访" /></label><footer><button className="secondary-button" onClick={() => setShowAddCategory(false)}>取消</button><button className="primary-button" onClick={addCategory}>确认添加</button></footer></section></div>}
 
+      {componentDraft && <ComponentTemplateEditor draft={componentDraft} onCancel={() => setComponentDraft(null)} onSave={saveComponentTemplate} />}
+
+      {pageTemplateDraft && <PageTemplateEditor template={pageTemplateDraft} onCancel={() => setPageTemplateDraft(null)} onSave={savePageTemplate} />}
+
+      {pageTemplatePreview && (
+        <div className="preview-backdrop" onMouseDown={() => setPageTemplatePreview(null)}>
+          <section className="page-template-preview-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <header><strong>{pageTemplatePreview.name}</strong><button onClick={() => setPageTemplatePreview(null)}>×</button></header>
+            <div className={`limit-result-preview ${pageTemplatePreview.image ? "custom" : ""}`} style={pageTemplatePreview.image ? { backgroundImage: `url(${pageTemplatePreview.image})` } : undefined}>
+              <article>{pageTemplatePreview.content?.title && <h3>{pageTemplatePreview.content.title}</h3>}<p>{pageTemplatePreview.content?.body}</p></article>
+            </div>
+          </section>
+        </div>
+      )}
+
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
     </main>
   );
 }
+

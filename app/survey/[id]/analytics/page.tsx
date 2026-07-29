@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 import { loadQuestions, Question, questionLabels } from "@/lib/survey-builder";
-import { LiveSurveyResponse, MatrixAnswer } from "@/lib/survey-runtime";
+import { LiveSurveyResponse, MatrixAnswer, VipLevel, vipLevels } from "@/lib/survey-runtime";
 
 const totalResponses = 8421;
 const satisfaction = [
@@ -48,6 +48,114 @@ const collectionTrend = [
   ["07-24", "星期五", 1208],
 ] as const;
 
+const vipColors: Record<VipLevel, string> = {
+  无: "#c3cbd6",
+  铜牌: "#c98a53",
+  银牌: "#9aa7bd",
+  金牌: "#e0a83e",
+  钻石: "#57b6e0",
+};
+
+function hashToVipLevel(id: string): VipLevel {
+  let hash = 0;
+  for (let index = 0; index < id.length; index += 1) hash = (hash * 31 + id.charCodeAt(index)) >>> 0;
+  return vipLevels[hash % vipLevels.length];
+}
+
+function withDemoVipLevels(responses: LiveSurveyResponse[]) {
+  return responses.map((response) => response.vipLevel ? response : { ...response, vipLevel: hashToVipLevel(response.id) });
+}
+
+function seedWeight(seed: string, index: number) {
+  let hash = 0;
+  for (let position = 0; position < seed.length; position += 1) hash = (hash * 31 + seed.charCodeAt(position)) >>> 0;
+  return 1 + ((hash >> (index * 3)) & 7);
+}
+
+function syntheticVipSplit(seed: string, total: number): Record<VipLevel, number> {
+  const empty = Object.fromEntries(vipLevels.map((level) => [level, 0])) as Record<VipLevel, number>;
+  if (!total) return empty;
+  const weights = vipLevels.map((_, index) => seedWeight(seed, index));
+  const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
+  const raw = weights.map((weight) => (total * weight) / weightSum);
+  const counts = raw.map(Math.floor);
+  const allocated = counts.reduce((sum, count) => sum + count, 0);
+  const ranking = raw.map((value, index) => ({ index, fraction: value - Math.floor(value) })).sort((a, b) => b.fraction - a.fraction);
+  for (let remainder = total - allocated, cursor = 0; remainder > 0; remainder -= 1, cursor += 1) counts[ranking[cursor % ranking.length].index] += 1;
+  const result = { ...empty };
+  vipLevels.forEach((level, index) => { result[level] = counts[index]; });
+  return result;
+}
+
+type VipRow = { label: string; total: number; counts: Record<VipLevel, number> };
+
+function vipRowsFromLabelCounts(seedPrefix: string, entries: readonly (readonly [string, number])[]): VipRow[] {
+  return entries.map(([label, count]) => ({ label, total: count, counts: syntheticVipSplit(`${seedPrefix}:${label}`, count) }));
+}
+
+function vipRowsFromResponses(question: Question, liveResponses: LiveSurveyResponse[]): VipRow[] {
+  const counts = new Map<string, Record<VipLevel, number>>();
+  liveResponses.forEach((response) => {
+    const value = response.answers[question.id];
+    if (value === undefined || value === null || value === "") return;
+    const level = response.vipLevel || "无";
+    (Array.isArray(value) ? value : [value]).forEach((item) => {
+      const key = String(item);
+      if (!counts.has(key)) counts.set(key, Object.fromEntries(vipLevels.map((current) => [current, 0])) as Record<VipLevel, number>);
+      counts.get(key)![level] += 1;
+    });
+  });
+  const numeric = ["rating", "nps"].includes(question.type);
+  const labels = question.options?.length ? question.options : Array.from(counts.keys()).sort((a, b) => numeric ? Number(a) - Number(b) : 0);
+  return labels.map((label) => {
+    const levelCounts = counts.get(label) || (Object.fromEntries(vipLevels.map((level) => [level, 0])) as Record<VipLevel, number>);
+    return { label, total: vipLevels.reduce((sum, level) => sum + levelCounts[level], 0), counts: levelCounts };
+  });
+}
+
+function vipModeLabel(mode: "none" | "table" | "bar" | "stacked") {
+  return mode === "table" ? "表格" : mode === "bar" ? "条形图" : mode === "stacked" ? "堆叠条" : "不显示";
+}
+
+function VipModeToggle({ mode, onChange }: { mode: "none" | "table" | "bar" | "stacked"; onChange: (mode: "none" | "table" | "bar" | "stacked") => void }) {
+  const options: ("none" | "table" | "bar" | "stacked")[] = ["none", "table", "bar", "stacked"];
+  return (
+    <div className="vip-mode-toggle">
+      <span>VIP 占比展示</span>
+      <div className="vip-mode-toggle-buttons">
+        {options.map((option) => <button type="button" key={option} className={mode === option ? "active" : ""} onClick={() => onChange(option)}>{vipModeLabel(option)}</button>)}
+      </div>
+    </div>
+  );
+}
+
+function VipBreakdownPanel({ rows, mode }: { rows: VipRow[]; mode: "table" | "bar" | "stacked" }) {
+  if (mode === "table") {
+    return (
+      <div className="vip-breakdown vip-breakdown-table">
+        <table>
+          <thead><tr><th>选项</th>{vipLevels.map((level) => <th key={level}>{level}</th>)}</tr></thead>
+          <tbody>{rows.map((row) => <tr key={row.label}><td>{row.label}</td>{vipLevels.map((level) => <td key={level}>{row.counts[level]}<small>{row.total ? `${(row.counts[level] / row.total * 100).toFixed(0)}%` : "0%"}</small></td>)}</tr>)}</tbody>
+        </table>
+      </div>
+    );
+  }
+  const trackClass = mode === "bar" ? "vip-bar-track" : "vip-stacked-track";
+  const rowClass = mode === "bar" ? "vip-bar-row" : "vip-stacked-row";
+  return (
+    <div className={`vip-breakdown vip-breakdown-${mode}`}>
+      {rows.map((row) => (
+        <div className={rowClass} key={row.label}>
+          <span className="vip-row-label">{row.label}</span>
+          <div className={trackClass}>{row.total ? vipLevels.filter((level) => row.counts[level]).map((level) => <i key={level} style={{ width: `${row.counts[level] / row.total * 100}%`, background: vipColors[level] }} title={`${level} · ${row.counts[level]}`} />) : <i className="vip-track-empty" />}</div>
+          <span className="vip-row-total">{row.total}</span>
+        </div>
+      ))}
+      <div className="vip-legend">{vipLevels.map((level) => <span key={level}><i style={{ background: vipColors[level] }} />{level}</span>)}</div>
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -59,15 +167,30 @@ export default function AnalyticsPage() {
   const [notice, setNotice] = useState("");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [liveResponses, setLiveResponses] = useState<LiveSurveyResponse[]>([]);
+  const [vipViewMode, setVipViewMode] = useState<Record<string, "none" | "table" | "bar" | "stacked">>({});
 
   useEffect(() => {
     setQuestions(loadQuestions(surveyId).filter((question) => !["divider", "description", "imageDisplay", "carousel", "pageBreak", "button"].includes(question.type)));
     try {
-      setLiveResponses(JSON.parse(window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`) || "[]"));
+      const stored = JSON.parse(window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`) || "[]");
+      setLiveResponses(withDemoVipLevels(stored));
     } catch {
       setLiveResponses([]);
     }
+    try {
+      setVipViewMode(JSON.parse(window.localStorage.getItem(`joydata-survey-vip-view-${surveyId}`) || "{}"));
+    } catch {
+      setVipViewMode({});
+    }
   }, [surveyId]);
+
+  function updateVipViewMode(questionId: string, mode: "none" | "table" | "bar" | "stacked") {
+    setVipViewMode((current) => {
+      const next = { ...current, [questionId]: mode };
+      window.localStorage.setItem(`joydata-survey-vip-view-${surveyId}`, JSON.stringify(next));
+      return next;
+    });
+  }
 
   const matrixQuestions = useMemo(() => questions.filter((question) => ["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"].includes(question.type)), [questions]);
   const matrixReports = useMemo(() => matrixQuestions.map((question) => {
@@ -99,6 +222,7 @@ export default function AnalyticsPage() {
     const choiceTypes = ["single", "multiple", "dropdown", "image", "cascade", "tableSelect", "sort", "product"];
     const numericTypes = ["rating", "nps"];
     const textTypes = ["text", "textarea", "ocr"];
+    const supportsVip = choiceTypes.includes(question.type) || numericTypes.includes(question.type);
     let body: React.ReactNode;
     if (choiceTypes.includes(question.type)) {
       const counts = new Map<string, number>();
@@ -119,7 +243,18 @@ export default function AnalyticsPage() {
       values.forEach((value) => counts.set(String(value), (counts.get(String(value)) || 0) + 1));
       body = <table><thead><tr><th>回答值</th><th>回答人数</th><th>占本题回答</th></tr></thead><tbody>{Array.from(counts.entries()).map(([value, count]) => <tr key={value}><td>{value}</td><td>{count}</td><td>{values.length ? `${(count / values.length * 100).toFixed(1)}%` : "0%"}</td></tr>)}{!values.length && <tr><td colSpan={3}>暂无回答</td></tr>}</tbody></table>;
     }
-    return <article className="answer-report-section" key={question.id}><header><div><span>第 {index + 1} 题　{questionLabels[question.type]}</span><h2>{question.title}</h2></div><dl><div><dt>回答</dt><dd>{values.length}</dd></div><div><dt>未回答</dt><dd>{Math.max(0, liveResponses.length - values.length)}</dd></div></dl></header>{body}</article>;
+    const vipMode = vipViewMode[question.id] || "none";
+    return (
+      <article className="answer-report-section" key={question.id}>
+        <header>
+          <div><span>第 {index + 1} 题　{questionLabels[question.type]}</span><h2>{question.title}</h2></div>
+          <dl><div><dt>回答</dt><dd>{values.length}</dd></div><div><dt>未回答</dt><dd>{Math.max(0, liveResponses.length - values.length)}</dd></div></dl>
+        </header>
+        {body}
+        {supportsVip && <VipModeToggle mode={vipMode} onChange={(mode) => updateVipViewMode(question.id, mode)} />}
+        {supportsVip && vipMode !== "none" && <VipBreakdownPanel rows={vipRowsFromResponses(question, liveResponses)} mode={vipMode} />}
+      </article>
+    );
   }
   function flash(message: string) {
     setNotice(message);
@@ -200,6 +335,8 @@ export default function AnalyticsPage() {
                 return <tr key={label}><td>{label}</td><td>{count.toLocaleString()}</td><td><strong>{percent.toFixed(1)}%</strong></td></tr>;
               })}</tbody>
             </table>
+            <VipModeToggle mode={vipViewMode["demo-satisfaction"] || "none"} onChange={(mode) => updateVipViewMode("demo-satisfaction", mode)} />
+            {(vipViewMode["demo-satisfaction"] || "none") !== "none" && <VipBreakdownPanel rows={vipRowsFromLabelCounts("demo-satisfaction", satisfaction)} mode={vipViewMode["demo-satisfaction"] as "table" | "bar" | "stacked"} />}
           </article>
 
           <article className="answer-report-section">
@@ -208,6 +345,8 @@ export default function AnalyticsPage() {
               <thead><tr><th>分组</th><th>回答人数</th><th>占本题回答</th></tr></thead>
               <tbody>{npsGroups.map(([label, count]) => <tr key={label}><td>{label}</td><td>{count.toLocaleString()}</td><td>{(count / 8379 * 100).toFixed(1)}%</td></tr>)}</tbody>
             </table>
+            <VipModeToggle mode={vipViewMode["demo-nps"] || "none"} onChange={(mode) => updateVipViewMode("demo-nps", mode)} />
+            {(vipViewMode["demo-nps"] || "none") !== "none" && <VipBreakdownPanel rows={vipRowsFromLabelCounts("demo-nps", npsGroups)} mode={vipViewMode["demo-nps"] as "table" | "bar" | "stacked"} />}
           </article>
 
           <article className="answer-report-section">

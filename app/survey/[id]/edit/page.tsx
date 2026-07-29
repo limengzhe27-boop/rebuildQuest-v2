@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
+  ComponentTemplate,
   createQuestion,
   defaultQuestions,
   loadQuestions,
@@ -81,11 +82,6 @@ const defaultTemplateCategories = ["版本测试", "满意度", "用户洞察", 
 const defaultSurveyIntro = "感谢您参与本次调研。请根据实际体验完成以下问题，您的反馈将帮助我们持续优化产品体验。";
 
 type LogicCondition = NonNullable<Question["displayLogic"]>["conditions"][number];
-type ComponentTemplate = {
-  id: string;
-  name: string;
-  question: Question;
-};
 
 export default function SurveyEditorPage() {
   const router = useRouter();
@@ -112,7 +108,6 @@ export default function SurveyEditorPage() {
   const [moreQuestionId, setMoreQuestionId] = useState<string | null>(null);
   const [componentTemplates, setComponentTemplates] = useState<ComponentTemplate[]>([]);
   const [headerImage, setHeaderImage] = useState("");
-  const [pageMode, setPageMode] = useState<"continuous" | "one-question">("continuous");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -152,7 +147,6 @@ export default function SurveyEditorPage() {
       setComponentTemplates(JSON.parse(window.localStorage.getItem("joydata-survey-component-templates") || "[]"));
       const appearance = JSON.parse(window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`) || "{}");
       setHeaderImage(appearance.headerImage || "");
-      setPageMode(appearance.pageMode === "one-question" ? "one-question" : "continuous");
     } catch {}
     hydrated.current = true;
   }, [editingTemplateId, surveyId]);
@@ -330,14 +324,6 @@ export default function SurveyEditorPage() {
       flash("问卷头图已更新");
     };
     reader.readAsDataURL(file);
-  }
-
-  function updatePageMode(nextMode: "continuous" | "one-question") {
-    setPageMode(nextMode);
-    const key = `joydata-survey-appearance-${surveyId}`;
-    const current = JSON.parse(window.localStorage.getItem(key) || "{}");
-    window.localStorage.setItem(key, JSON.stringify({ ...current, pageMode: nextMode }));
-    flash(nextMode === "one-question" ? "已设置为一页一题" : "已设置为连续滚动");
   }
 
   function updateSelected(patch: Partial<Question>) {
@@ -647,7 +633,6 @@ export default function SurveyEditorPage() {
                 {headerImage && <img className="survey-cover-image" src={headerImage} alt="" />}
                 <input className="survey-cover-title-input" value={surveyName} onChange={(event) => setSurveyName(event.target.value)} aria-label="问卷标题" />
                 <textarea className="survey-cover-intro-input" value={surveyDescription} onChange={(event) => setSurveyDescription(event.target.value)} aria-label="问卷开场说明" />
-                <div><span className="editor-page-mode"><em>答题分页</em><button className={pageMode === "continuous" ? "active" : ""} onClick={() => updatePageMode("continuous")}>连续滚动</button><button className={pageMode === "one-question" ? "active" : ""} onClick={() => updatePageMode("one-question")}>一页一题</button></span></div>
               </header>
 
               <div className="question-list">

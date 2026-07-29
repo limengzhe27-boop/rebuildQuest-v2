@@ -2,12 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { defaultPublications, LimitPageContent, loadPublications, Publication } from "@/lib/survey-publication";
+import { defaultPublications, EndPageTemplate, LimitPageContent, loadPublications, Publication } from "@/lib/survey-publication";
 import { loadQuestions, Question } from "@/lib/survey-builder";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
-
-type EndPageTemplate = { id: string; name: string; image: string; content?: LimitPageContent };
 
 export default function SurveySettingsPage() {
   const router = useRouter();
@@ -328,12 +326,6 @@ export default function SurveySettingsPage() {
               </div>
             </div>
             {endBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择完整页面模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyBackgroundTemplate(event.target.value)}><option value="project-default">项目默认结束页</option>{backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>模板会同时应用页面文案、链接与背景，并自动适配移动端。</small></label> : <div className="limit-background-upload"><input ref={backgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadLimitBackground(event.target.files?.[0])} /><button type="button" onClick={() => backgroundInputRef.current?.click()}>▧ 上传桌面端幕布</button><div><strong>{backgroundFileName || (selected.limitPageBackground ? "已上传自定义幕布" : "暂未上传幕布")}</strong><small>桌面端建议 1920 × 1080 px（16:9）；移动端使用模板自适应布局，无需另传图片</small></div>{selected.limitPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ limitPageBackgroundMode: "common", limitPageBackgroundTemplateId: "project-default", limitPageBackground: "" }); setBackgroundFileName(""); setEndBackgroundSource("template"); }}>取消自定义</button>}</div>}
-            {endBackgroundSource === "upload" && (
-              <div className="save-background-template">
-                <input value={backgroundTemplateName} onChange={(event) => setBackgroundTemplateName(event.target.value)} placeholder="输入模板名称" />
-                <button type="button" onClick={saveBackgroundAsTemplate}>保存为模板</button>
-              </div>
-            )}
             <label><span>标题（选填）</span><input value={content.title} onChange={(event) => updateLimitContent({ title: event.target.value })} placeholder="例如：感谢您完成本次问卷" /></label>
             <label>
               <span>说明正文</span>
@@ -351,6 +343,12 @@ export default function SurveySettingsPage() {
                     <button type="button" onClick={() => removeLimitLink(link.id)} aria-label={`删除链接 ${index + 1}`}>×</button>
                   </div>
                 ))}
+              </div>
+            )}
+            {endBackgroundSource === "upload" && (
+              <div className="save-background-template">
+                <input value={backgroundTemplateName} onChange={(event) => setBackgroundTemplateName(event.target.value)} placeholder="输入模板名称" />
+                <button type="button" onClick={saveBackgroundAsTemplate}>保存为模板</button>
               </div>
             )}
           </div>
@@ -374,16 +372,16 @@ export default function SurveySettingsPage() {
           <div className="limit-result-fields">
             <div className="background-source-control"><span>背景</span><div className="background-source-choice"><button type="button" className={closedBackgroundSource === "template" ? "active" : ""} onClick={() => { setClosedBackgroundSource("template"); if (activeTemplate === "custom-upload") applyClosedBackgroundTemplate("project-default"); }}>使用模板</button><button type="button" className={closedBackgroundSource === "upload" ? "active" : ""} onClick={() => setClosedBackgroundSource("upload")}>自定义上传</button></div></div>
             {closedBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择完整页面模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyClosedBackgroundTemplate(event.target.value)}><option value="project-default">项目默认结束页</option>{backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>模板会同时应用页面文案、链接与背景，并自动适配移动端。</small></label> : <div className="limit-background-upload"><input ref={closedBackgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadClosedBackground(event.target.files?.[0])} /><button type="button" onClick={() => closedBackgroundInputRef.current?.click()}>▧ 上传桌面端幕布</button><div><strong>{selected.closedPageBackground ? "已上传自定义幕布" : "暂未上传幕布"}</strong><small>桌面端建议 1920 × 1080 px（16:9）；移动端使用模板自适应布局，无需另传图片</small></div>{selected.closedPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ closedPageBackgroundMode: "common", closedPageBackgroundTemplateId: "project-default", closedPageBackground: "" }); setClosedBackgroundSource("template"); }}>取消自定义</button>}</div>}
+            <label><span>标题（选填）</span><input value={content.title} onChange={(event) => updateClosedContent({ title: event.target.value })} placeholder="例如：本次问卷收集已结束" /></label>
+            <label><span>说明正文</span><textarea ref={closedBodyRef} value={content.body} onChange={(event) => updateClosedContent({ body: event.target.value })} /><small>将光标放在正文任意位置，可插入多个链接。</small></label>
+            <button className="insert-inline-link" type="button" onClick={insertClosedLink}>＋ 在正文光标处插入链接</button>
+            {content.links.length > 0 && <div className="limit-inline-links">{content.links.map((link, index) => <div key={link.id}><span>链接 {index + 1}</span><input value={link.text} onChange={(event) => updateClosedLink(link.id, { text: event.target.value })} placeholder="链接文字" /><input value={link.url} onChange={(event) => updateClosedLink(link.id, { url: event.target.value })} placeholder="https://" /><button type="button" onClick={() => removeClosedLink(link.id)} aria-label={`删除链接 ${index + 1}`}>×</button></div>)}</div>}
             {closedBackgroundSource === "upload" && (
               <div className="save-background-template">
                 <input value={closedBackgroundTemplateName} onChange={(event) => setClosedBackgroundTemplateName(event.target.value)} placeholder="输入模板名称" />
                 <button type="button" onClick={saveClosedBackgroundAsTemplate}>保存为模板</button>
               </div>
             )}
-            <label><span>标题（选填）</span><input value={content.title} onChange={(event) => updateClosedContent({ title: event.target.value })} placeholder="例如：本次问卷收集已结束" /></label>
-            <label><span>说明正文</span><textarea ref={closedBodyRef} value={content.body} onChange={(event) => updateClosedContent({ body: event.target.value })} /><small>将光标放在正文任意位置，可插入多个链接。</small></label>
-            <button className="insert-inline-link" type="button" onClick={insertClosedLink}>＋ 在正文光标处插入链接</button>
-            {content.links.length > 0 && <div className="limit-inline-links">{content.links.map((link, index) => <div key={link.id}><span>链接 {index + 1}</span><input value={link.text} onChange={(event) => updateClosedLink(link.id, { text: event.target.value })} placeholder="链接文字" /><input value={link.url} onChange={(event) => updateClosedLink(link.id, { url: event.target.value })} placeholder="https://" /><button type="button" onClick={() => removeClosedLink(link.id)} aria-label={`删除链接 ${index + 1}`}>×</button></div>)}</div>}
           </div>
           <div className={`limit-result-preview ${selected.closedPageBackgroundMode === "custom" && selected.closedPageBackground ? "custom" : ""}`} style={selected.closedPageBackgroundMode === "custom" && selected.closedPageBackground ? { backgroundImage: `url(${selected.closedPageBackground})` } : undefined}>
             <article>{content.title && <h3>{content.title}</h3>}<p>{renderInlineLimitText(content)}</p><small>停止收集／尚未开始／当前时段不可访问</small></article>

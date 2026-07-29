@@ -15,6 +15,10 @@ export const runtimeLocales: Record<RuntimeLocale, string> = {
 export type MatrixAnswer = Record<string, string | string[] | number>;
 export type SurveyAnswer = string | string[] | number | MatrixAnswer;
 
+export type VipLevel = "无" | "铜牌" | "银牌" | "金牌" | "钻石";
+
+export const vipLevels: VipLevel[] = ["无", "铜牌", "银牌", "金牌", "钻石"];
+
 export type LiveSurveyResponse = {
   id: string;
   surveyId: string;
@@ -27,6 +31,7 @@ export type LiveSurveyResponse = {
   joymakerId?: string;
   lineId?: string;
   clientIp?: string;
+  vipLevel?: VipLevel;
   status: "valid";
 };
 

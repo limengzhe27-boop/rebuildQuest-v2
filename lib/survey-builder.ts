@@ -66,6 +66,12 @@ export type Question = {
   };
 };
 
+export type ComponentTemplate = {
+  id: string;
+  name: string;
+  question: Question;
+};
+
 export const questionLabels: Record<QuestionType, string> = {
   single: "单选题",
   multiple: "多选题",

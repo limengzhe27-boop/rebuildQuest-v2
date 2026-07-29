@@ -267,6 +267,10 @@ export default function AppearancePage() {
           <section>
             <h3>填写页组件</h3>
             <div className="appearance-option-row">
+              <div><strong>答题分页</strong><small>控制玩家是连续滚动完成问卷，还是每页仅展示一题。</small></div>
+              <div className="page-mode-choice"><button className={config.pageMode === "continuous" ? "active" : ""} onClick={() => update({ pageMode: "continuous" })}>连续滚动</button><button className={config.pageMode === "one-question" ? "active" : ""} onClick={() => update({ pageMode: "one-question" })}>一页一题</button></div>
+            </div>
+            <div className="appearance-option-row">
               <div><strong>语言切换入口</strong><small>显示在问卷内容顶部，玩家下滑后会随页面离开视野。</small></div>
               <button className={`mini-switch ${config.languageSwitch ? "on" : ""}`} onClick={() => update({ languageSwitch: !config.languageSwitch })}><i /></button>
             </div>

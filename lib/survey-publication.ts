@@ -28,6 +28,21 @@ export type LimitPageContent = {
   linkUrl?: string;
 };
 
+export type EndPageTemplate = { id: string; name: string; image: string; content?: LimitPageContent };
+
+export function loadEndPageTemplates(): EndPageTemplate[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(window.localStorage.getItem("joydata-survey-end-background-templates") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+export function saveEndPageTemplates(templates: EndPageTemplate[]) {
+  window.localStorage.setItem("joydata-survey-end-background-templates", JSON.stringify(templates));
+}
+
 export type Publication = {
   id: string;
   name: string;
