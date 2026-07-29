@@ -27,6 +27,11 @@ const textTopics = [
   ["匹配机制", 742],
   ["性能与卡顿", 617],
 ] as const;
+const sampleTextAnswers = [
+  ["RSP-008421", "希望优化多人副本匹配速度，并减少加载时的卡顿。", "2026-07-24 14:31"],
+  ["RSP-008420", "职业之间的强度差距有点明显。", "2026-07-24 14:29"],
+  ["RSP-008419", "新手引导可以更清楚地说明装备强化。", "2026-07-24 14:28"],
+] as const;
 const userDistributions = [
   { title: "国家/地区", field: "submit_address", rows: [["美国", 2486], ["泰国", 1769], ["中国台湾", 1138], ["菲律宾", 842], ["德国", 598], ["其他", 1588]] },
   { title: "问卷语言", field: "locale", rows: [["English", 5226], ["繁體中文", 1632], ["ไทย", 1293], ["简体中文", 270]] },
@@ -52,11 +57,11 @@ export default function AnalyticsPage() {
   const [range, setRange] = useState("全部时间");
   const [tab, setTab] = useState<"answers" | "users">("answers");
   const [notice, setNotice] = useState("");
-  const [matrixQuestions, setMatrixQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [liveResponses, setLiveResponses] = useState<LiveSurveyResponse[]>([]);
 
   useEffect(() => {
-    setMatrixQuestions(loadQuestions(surveyId).filter((question) => ["matrix", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"].includes(question.type)));
+    setQuestions(loadQuestions(surveyId).filter((question) => !["divider", "description", "imageDisplay", "carousel", "pageBreak", "button"].includes(question.type)));
     try {
       setLiveResponses(JSON.parse(window.localStorage.getItem(`joydata-survey-live-responses-${surveyId}`) || "[]"));
     } catch {
@@ -64,6 +69,7 @@ export default function AnalyticsPage() {
     }
   }, [surveyId]);
 
+  const matrixQuestions = useMemo(() => questions.filter((question) => ["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"].includes(question.type)), [questions]);
   const matrixReports = useMemo(() => matrixQuestions.map((question) => {
     const rows = question.matrixRows?.length ? question.matrixRows : ["行 1", "行 2", "行 3"];
     const columns = question.matrixColumns?.length ? question.matrixColumns : question.options || ["选项 1", "选项 2", "选项 3"];
@@ -82,6 +88,39 @@ export default function AnalyticsPage() {
     const averageTotal = responseTotals.length ? responseTotals.reduce((sum, value) => sum + value, 0) / responseTotals.length : null;
     return { question, rows, columns, rowStats, answers: answers.length, numericColumns, averageTotal };
   }), [liveResponses, matrixQuestions]);
+  const additionalQuestions = useMemo(() => questions.filter((question) => !["welcome", "nps", "feedback"].includes(question.id) && !matrixQuestions.some((matrix) => matrix.id === question.id)), [matrixQuestions, questions]);
+
+  function answerValues(question: Question) {
+    return liveResponses.map((response) => response.answers[question.id]).filter((value) => value !== undefined && value !== null && value !== "");
+  }
+
+  function renderAdditionalQuestion(question: Question, index: number) {
+    const values = answerValues(question);
+    const choiceTypes = ["single", "multiple", "dropdown", "image", "cascade", "tableSelect", "sort", "product"];
+    const numericTypes = ["rating", "nps"];
+    const textTypes = ["text", "textarea", "ocr"];
+    let body: React.ReactNode;
+    if (choiceTypes.includes(question.type)) {
+      const counts = new Map<string, number>();
+      values.forEach((value) => (Array.isArray(value) ? value : [value]).forEach((item) => counts.set(String(item), (counts.get(String(item)) || 0) + 1)));
+      const options = question.options?.length ? question.options : Array.from(counts.keys());
+      body = <table><thead><tr><th>选项</th><th>回答人数</th><th>占本题回答</th></tr></thead><tbody>{options.map((option) => { const count = counts.get(option) || 0; return <tr key={option}><td>{option}</td><td>{count}</td><td>{values.length ? `${(count / values.length * 100).toFixed(1)}%` : "0%"}</td></tr>; })}</tbody></table>;
+    } else if (numericTypes.includes(question.type)) {
+      const numbers = values.map(Number).filter(Number.isFinite);
+      const counts = new Map<number, number>();
+      numbers.forEach((number) => counts.set(number, (counts.get(number) || 0) + 1));
+      body = <table><thead><tr><th>分值</th><th>回答人数</th><th>占本题回答</th></tr></thead><tbody>{Array.from(counts.entries()).sort((a, b) => a[0] - b[0]).map(([value, count]) => <tr key={value}><td>{value}</td><td>{count}</td><td>{numbers.length ? `${(count / numbers.length * 100).toFixed(1)}%` : "0%"}</td></tr>)}</tbody></table>;
+    } else if (textTypes.includes(question.type)) {
+      body = <table><thead><tr><th>答卷编号</th><th>文本回答</th><th>提交时间</th></tr></thead><tbody>{values.slice(0, 20).map((value, valueIndex) => <tr key={valueIndex}><td>{liveResponses[valueIndex]?.id || `RSP-${String(valueIndex + 1).padStart(6, "0")}`}</td><td>{String(value)}</td><td>{liveResponses[valueIndex] ? new Date(liveResponses[valueIndex].submittedAt).toLocaleString("zh-CN") : "—"}</td></tr>)}{!values.length && <tr><td colSpan={3}>暂无文本回答</td></tr>}</tbody></table>;
+    } else if (["file", "imageUpload"].includes(question.type)) {
+      body = <table><thead><tr><th>答卷编号</th><th>文件/图片</th><th>提交时间</th></tr></thead><tbody>{values.slice(0, 20).map((value, valueIndex) => <tr key={valueIndex}><td>{liveResponses[valueIndex]?.id || "—"}</td><td>{String(value)}</td><td>{liveResponses[valueIndex] ? new Date(liveResponses[valueIndex].submittedAt).toLocaleString("zh-CN") : "—"}</td></tr>)}{!values.length && <tr><td colSpan={3}>暂无上传记录</td></tr>}</tbody></table>;
+    } else {
+      const counts = new Map<string, number>();
+      values.forEach((value) => counts.set(String(value), (counts.get(String(value)) || 0) + 1));
+      body = <table><thead><tr><th>回答值</th><th>回答人数</th><th>占本题回答</th></tr></thead><tbody>{Array.from(counts.entries()).map(([value, count]) => <tr key={value}><td>{value}</td><td>{count}</td><td>{values.length ? `${(count / values.length * 100).toFixed(1)}%` : "0%"}</td></tr>)}{!values.length && <tr><td colSpan={3}>暂无回答</td></tr>}</tbody></table>;
+    }
+    return <article className="answer-report-section" key={question.id}><header><div><span>第 {index + 1} 题　{questionLabels[question.type]}</span><h2>{question.title}</h2></div><dl><div><dt>回答</dt><dd>{values.length}</dd></div><div><dt>未回答</dt><dd>{Math.max(0, liveResponses.length - values.length)}</dd></div></dl></header>{body}</article>;
+  }
   function flash(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 2200);
@@ -174,11 +213,13 @@ export default function AnalyticsPage() {
           <article className="answer-report-section">
             <header><div><span>第 3 题　文本题</span><h2>还有哪些体验可以改进？</h2></div><dl><div><dt>回答</dt><dd>6,924</dd></div><div><dt>未回答</dt><dd>1,497</dd></div></dl></header>
             <table>
-              <thead><tr><th>高频主题</th><th>提及次数</th><th>占本题回答</th></tr></thead>
-              <tbody>{textTopics.map(([label, count]) => <tr key={label}><td>{label}</td><td>{count.toLocaleString()}</td><td>{(count / 6924 * 100).toFixed(1)}%</td></tr>)}</tbody>
+              <thead><tr><th>答卷编号</th><th>文本回答</th><th>提交时间</th></tr></thead>
+              <tbody>{sampleTextAnswers.map(([id, answer, time]) => <tr key={id}><td>{id}</td><td>{answer}</td><td>{time}</td></tr>)}</tbody>
             </table>
-            <footer className="text-answer-link"><span>文本题只做主题计数，原始回答请在答卷明细中查看。</span><button onClick={() => router.push(`/survey/${surveyId}/responses`)}>查看全部文本答案 →</button></footer>
+            <footer className="text-answer-link"><span>当前展示部分回答，完整内容在答卷明细中查看。</span><button onClick={() => router.push(`/survey/${surveyId}/responses`)}>查看全部文本答案 →</button></footer>
           </article>
+
+          {additionalQuestions.map((question) => renderAdditionalQuestion(question, questions.findIndex((item) => item.id === question.id)))}
 
           {matrixReports.map((report) => (
             <article className="answer-report-section matrix-answer-report" key={report.question.id}>

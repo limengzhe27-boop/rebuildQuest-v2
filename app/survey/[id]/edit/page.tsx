@@ -538,8 +538,9 @@ export default function SurveyEditorPage() {
   }
 
   const logicQuestionIndex = questions.findIndex((item) => item.id === logicQuestionId);
-  const logicSources = logicQuestionIndex > 0 ? questions.slice(0, logicQuestionIndex) : [];
-  const matrixLogicTypes: QuestionType[] = ["matrix", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"];
+  const nonAnswerTypes: QuestionType[] = ["pageBreak", "divider", "button", "imageDisplay", "carousel", "description"];
+  const logicSources = logicQuestionIndex > 0 ? questions.slice(0, logicQuestionIndex).filter((item) => !nonAnswerTypes.includes(item.type)) : [];
+  const matrixLogicTypes: QuestionType[] = ["matrix", "matrixFill", "matrixSelect", "matrixScale", "matrixSlider", "matrixDropdown"];
 
   function isMatrixLogicSource(question?: Question) {
     return Boolean(question && matrixLogicTypes.includes(question.type));
@@ -561,6 +562,28 @@ export default function SurveyEditorPage() {
 
   function isNumericMatrix(question?: Question) {
     return question?.type === "matrixScale" || question?.type === "matrixSlider";
+  }
+
+  function isSelectionMatrix(question?: Question) {
+    return Boolean(question && ["matrix", "matrixSelect", "matrixDropdown"].includes(question.type));
+  }
+
+  function isNumericLogicSource(question?: Question) {
+    return Boolean(question && ["rating", "nps"].includes(question.type));
+  }
+
+  function isChoiceLogicSource(question?: Question) {
+    return Boolean(question && ["single", "multiple", "dropdown", "image", "sort", "tableSelect", "product"].includes(question.type));
+  }
+
+  function logicOperators(question?: Question, condition?: LogicCondition) {
+    if (!question) return ["等于", "不等于", "包含", "不包含", "为空", "不为空"];
+    if (["file", "imageUpload", "location"].includes(question.type)) return ["为空", "不为空"];
+    if (isNumericLogicSource(question) || (isMatrixLogicSource(question) && isNumericMatrix(question))) return ["小于", "小于等于", "等于", "不等于", "大于等于", "大于", "为空", "不为空"];
+    if (isMatrixLogicSource(question) && isSelectionMatrix(question) && (condition?.matrixScope || defaultMatrixScope(question)) === "cell") return ["已选中", "未选中"];
+    if (isChoiceLogicSource(question)) return ["等于", "不等于", "包含", "不包含", "为空", "不为空"];
+    if (["date", "appointmentDate", "appointmentSlot"].includes(question.type)) return ["等于", "不等于", "大于", "小于", "为空", "不为空"];
+    return ["等于", "不等于", "包含", "不包含", "为空", "不为空"];
   }
 
   return (
@@ -856,7 +879,7 @@ export default function SurveyEditorPage() {
                           matrixScope: isMatrixLogicSource(nextSource) ? defaultMatrixScope(nextSource) : undefined,
                           matrixRow: isMatrixLogicSource(nextSource) ? matrixRows(nextSource)[0] : undefined,
                           matrixColumn: isMatrixLogicSource(nextSource) ? matrixColumns(nextSource)[0] : undefined,
-                          operator: isMatrixLogicSource(nextSource) && !isNumericMatrix(nextSource) ? "已选中" : "等于",
+                          operator: isMatrixLogicSource(nextSource) && isSelectionMatrix(nextSource) ? "已选中" : "等于",
                           value: "",
                         });
                       }}
@@ -873,7 +896,7 @@ export default function SurveyEditorPage() {
                               const matrixScope = event.target.value as LogicCondition["matrixScope"];
                               updateLogicCondition(conditionIndex, {
                                 matrixScope,
-                                operator: matrixScope === "cell" ? "已选中" : isNumericMatrix(source) ? "小于" : "等于",
+                                operator: matrixScope === "cell" && isSelectionMatrix(source) ? "已选中" : isNumericMatrix(source) ? "小于" : "等于",
                                 value: "",
                               });
                             }}
@@ -890,19 +913,13 @@ export default function SurveyEditorPage() {
                         {(condition.matrixScope || defaultMatrixScope(source)) === "cell" && <label><span>列</span><select value={condition.matrixColumn || matrixColumns(source)[0]} onChange={(event) => updateLogicCondition(conditionIndex, { matrixColumn: event.target.value })}>{matrixColumns(source).map((column) => <option key={column}>{column}</option>)}</select></label>}
                       </div>
                     )}
-                    <select value={condition.operator} onChange={(event) => updateLogicCondition(conditionIndex, { operator: event.target.value as LogicCondition["operator"] })}>
-                      {isMatrix && (condition.matrixScope || defaultMatrixScope(source)) === "cell" ? (
-                        <><option>已选中</option><option>未选中</option></>
-                      ) : isMatrix && isNumericMatrix(source) ? (
-                        <><option>小于</option><option>小于等于</option><option>等于</option><option>不等于</option><option>大于等于</option><option>大于</option></>
-                      ) : (
-                        <><option>等于</option><option>不等于</option><option>包含</option><option>不包含</option><option>为空</option><option>不为空</option></>
-                      )}
-                    </select>
+                    <select value={condition.operator} onChange={(event) => updateLogicCondition(conditionIndex, { operator: event.target.value as LogicCondition["operator"] })}>{logicOperators(source, condition).map((operator) => <option key={operator}>{operator}</option>)}</select>
                     {["为空", "不为空", "已选中", "未选中"].includes(condition.operator) ? (
                       <span className="logic-no-value">无需填写条件值</span>
+                    ) : isChoiceLogicSource(source) && source?.options?.length ? (
+                      <select value={condition.value} onChange={(event) => updateLogicCondition(conditionIndex, { value: event.target.value })}><option value="">请选择选项</option>{source.options.map((option) => <option key={option}>{option}</option>)}</select>
                     ) : (
-                      <input type={isMatrix && isNumericMatrix(source) ? "number" : "text"} value={condition.value} onChange={(event) => updateLogicCondition(conditionIndex, { value: event.target.value })} placeholder={isMatrix && isNumericMatrix(source) ? "输入评分，例如 3" : isMatrix ? "输入选项" : "请输入答案或选项"} />
+                      <input type={isNumericLogicSource(source) || (isMatrix && isNumericMatrix(source)) ? "number" : ["date", "appointmentDate"].includes(source?.type || "") ? "date" : "text"} value={condition.value} onChange={(event) => updateLogicCondition(conditionIndex, { value: event.target.value })} placeholder={isMatrix && isNumericMatrix(source) ? "输入评分，例如 3" : isMatrix ? "输入答案" : "请输入答案或选项"} />
                     )}
                     <button
                       aria-label="删除条件"

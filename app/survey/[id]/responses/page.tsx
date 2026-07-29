@@ -20,6 +20,9 @@ type ResponseColumn = {
   getter: (item: ResponseRow) => string | number;
 };
 
+type ValidityCondition = { questionId: string; operator: string; value: string; score: number };
+type ValidityRuleGroup = { id: string; name: string; relation: "all" | "any"; conditions: ValidityCondition[]; mode: "exclude" | "score" };
+
 const baseColumns: ResponseColumn[] = [
   { key: "serialNumber", label: "序号", width: 72, getter: (item) => item.serialNumber },
   { key: "id", label: "答卷编号", width: 126, getter: (item) => item.id },
@@ -62,6 +65,15 @@ export default function ResponsesPage() {
   const [showExport, setShowExport] = useState(false);
   const [showFeishuExport, setShowFeishuExport] = useState(false);
   const [showColumns, setShowColumns] = useState(false);
+  const [showValidityRules, setShowValidityRules] = useState(false);
+  const [deduplicate, setDeduplicate] = useState(true);
+  const [duplicateKey, setDuplicateKey] = useState("account");
+  const [emptyRule, setEmptyRule] = useState(true);
+  const [minimumScore, setMinimumScore] = useState(60);
+  const [validityGroups, setValidityGroups] = useState<ValidityRuleGroup[]>([
+    { id: "contradiction", name: "矛盾答案检查", relation: "all", mode: "exclude", conditions: [{ questionId: "welcome", operator: "等于", value: "非常满意", score: 0 }, { questionId: "feedback", operator: "包含", value: "无法游玩", score: 0 }] },
+    { id: "quality-score", name: "答案质量评分", relation: "any", mode: "score", conditions: [{ questionId: "nps", operator: "大于等于", value: "8", score: 30 }] },
+  ]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [visibleColumns, setVisibleColumns] = useState(defaultVisibleBaseColumns);
   const [liveResponses, setLiveResponses] = useState<ResponseRow[]>([]);
@@ -73,6 +85,16 @@ export default function ResponsesPage() {
       !["divider", "description", "imageDisplay", "carousel", "pageBreak", "button"].includes(question.type),
     );
     setQuestions(surveyQuestions);
+    try {
+      const storedRules = JSON.parse(window.localStorage.getItem(`joydata-survey-validity-rules-${surveyId}`) || "null");
+      if (storedRules) {
+        setDeduplicate(storedRules.deduplicate !== false);
+        setDuplicateKey(storedRules.duplicateKey || "account");
+        setEmptyRule(storedRules.emptyRule !== false);
+        setMinimumScore(Number(storedRules.minimumScore) || 60);
+        if (Array.isArray(storedRules.groups)) setValidityGroups(storedRules.groups);
+      }
+    } catch {}
     setVisibleColumns((current) => Array.from(new Set([
       ...current,
       ...surveyQuestions.map((question) => `answer:${question.id}`),
@@ -207,6 +229,20 @@ export default function ResponsesPage() {
     flash("已提交新建飞书多维表格任务");
   }
 
+  function updateValidityGroup(groupId: string, patch: Partial<ValidityRuleGroup>) {
+    setValidityGroups((current) => current.map((group) => group.id === groupId ? { ...group, ...patch } : group));
+  }
+
+  function updateValidityCondition(groupId: string, index: number, patch: Partial<ValidityCondition>) {
+    setValidityGroups((current) => current.map((group) => group.id === groupId ? { ...group, conditions: group.conditions.map((condition, conditionIndex) => conditionIndex === index ? { ...condition, ...patch } : condition) } : group));
+  }
+
+  function saveValidityRules() {
+    window.localStorage.setItem(`joydata-survey-validity-rules-${surveyId}`, JSON.stringify({ deduplicate, duplicateKey, emptyRule, minimumScore, groups: validityGroups }));
+    setShowValidityRules(false);
+    flash("答卷有效规则已保存，将用于后续提交的自动判定");
+  }
+
   return (
     <main className="insights-page response-table-page">
       <header className="editor-topbar">
@@ -239,6 +275,7 @@ export default function ResponsesPage() {
               <footer><span>至少保留一个字段</span><button onClick={() => setShowColumns(false)}>完成</button></footer>
             </div>}
           </div>
+          <button className="validity-rules-button" onClick={() => setShowValidityRules(true)}>✓ 有效规则</button>
           <span>当前显示 {rows.length} 条</span>
         </div>
 
@@ -277,6 +314,25 @@ export default function ResponsesPage() {
           <p className="feishu-security-note">需要由 JoyData 服务端使用公司飞书企业应用完成授权和写入，浏览器不会保存 App Secret。</p>
         </div>
         <footer><button className="secondary-button" onClick={() => setShowFeishuExport(false)}>取消</button><button className="primary-button" onClick={saveFeishuExport}>新建并导出</button></footer>
+      </section></div>}
+      {showValidityRules && <div className="preview-backdrop" onMouseDown={() => setShowValidityRules(false)}><section className="validity-rules-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+        <header><div><strong>答卷有效规则</strong><small>系统按顺序执行基础校验、矛盾剔除与质量评分，命中原因会写入“判定原因”。</small></div><button onClick={() => setShowValidityRules(false)}>×</button></header>
+        <div className="validity-rule-body">
+          <section className="validity-basic-rules">
+            <article><div><strong>重复答卷去重</strong><small>同一识别值重复提交时，仅保留第一份为有效答卷。</small></div><select value={duplicateKey} onChange={(event) => setDuplicateKey(event.target.value)}><option value="account">登录账号优先，其次设备/IP</option><option value="device">设备标识</option><option value="ip">提交 IP</option></select><button className={`mini-switch ${deduplicate ? "on" : ""}`} onClick={() => setDeduplicate(!deduplicate)}><i /></button></article>
+            <article><div><strong>必答题空值检查</strong><small>必答题未填写，或仅包含空格时判定为无效。</small></div><button className={`mini-switch ${emptyRule ? "on" : ""}`} onClick={() => setEmptyRule(!emptyRule)}><i /></button></article>
+          </section>
+          <div className="validity-groups">
+            {validityGroups.map((group) => <section key={group.id} className="validity-group-card">
+              <header><input value={group.name} onChange={(event) => updateValidityGroup(group.id, { name: event.target.value })} /><div><span>符合</span><select value={group.relation} onChange={(event) => updateValidityGroup(group.id, { relation: event.target.value as "all" | "any" })}><option value="all">全部条件（且）</option><option value="any">任一条件（或）</option></select></div><select value={group.mode} onChange={(event) => updateValidityGroup(group.id, { mode: event.target.value as "exclude" | "score" })}><option value="exclude">命中后判为无效</option><option value="score">命中后累计分值</option></select></header>
+              <div>{group.conditions.map((condition, index) => <div className="validity-condition-row" key={`${group.id}-${index}`}><select value={condition.questionId} onChange={(event) => updateValidityCondition(group.id, index, { questionId: event.target.value })}>{questions.map((question, questionIndex) => <option key={question.id} value={question.id}>Q{questionIndex + 1} {question.title}</option>)}</select><select value={condition.operator} onChange={(event) => updateValidityCondition(group.id, index, { operator: event.target.value })}><option>等于</option><option>不等于</option><option>包含</option><option>不包含</option><option>大于</option><option>大于等于</option><option>小于</option><option>小于等于</option><option>为空</option><option>不为空</option></select>{!["为空", "不为空"].includes(condition.operator) && <input value={condition.value} onChange={(event) => updateValidityCondition(group.id, index, { value: event.target.value })} placeholder="答案或数值" />}{group.mode === "score" && <label><input type="number" value={condition.score} onChange={(event) => updateValidityCondition(group.id, index, { score: Number(event.target.value) })} /><span>分</span></label>}<button disabled={group.conditions.length === 1} onClick={() => updateValidityGroup(group.id, { conditions: group.conditions.filter((_, conditionIndex) => conditionIndex !== index) })}>×</button></div>)}</div>
+              <button className="add-validity-condition" onClick={() => updateValidityGroup(group.id, { conditions: [...group.conditions, { questionId: questions[0]?.id || "", operator: "等于", value: "", score: 0 }] })}>＋ 添加条件</button>
+            </section>)}
+            <button className="add-validity-group" onClick={() => setValidityGroups((current) => [...current, { id: `rule-${Date.now()}`, name: "新规则组", relation: "all", mode: "exclude", conditions: [{ questionId: questions[0]?.id || "", operator: "等于", value: "", score: 0 }] }])}>＋ 添加规则组</button>
+          </div>
+          <label className="validity-score-threshold"><span><strong>质量分有效阈值</strong><small>仅统计“累计分值”规则，低于该分数的答卷判定为无效。</small></span><input type="number" min="0" value={minimumScore} onChange={(event) => setMinimumScore(Number(event.target.value))} /><em>分</em></label>
+        </div>
+        <footer><button className="secondary-button" onClick={() => setShowValidityRules(false)}>取消</button><button className="primary-button" onClick={saveValidityRules}>保存规则</button></footer>
       </section></div>}
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
     </main>
