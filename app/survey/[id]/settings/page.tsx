@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultPublications, LimitPageContent, loadPublications, Publication } from "@/lib/survey-publication";
 import { loadQuestions, Question } from "@/lib/survey-builder";
@@ -15,19 +15,10 @@ export default function SurveySettingsPage() {
   const surveyId = params.id;
   const surveyTitle = useSurveyTitle(surveyId);
   const [publications, setPublications] = useState<Publication[]>(defaultPublications);
-  const [section, setSection] = useState<"basic" | "submission" | "collection">("basic");
+  const [section, setSection] = useState<"submission" | "collection">("submission");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [autoSave, setAutoSave] = useState(true);
-  const [draftInfo, setDraftInfo] = useState({ game: "RO3", group: "", description: "", note: "" });
   const [sourceLanguage, setSourceLanguage] = useState("zh-CN");
-  const [allProjectGroups, setAllProjectGroups] = useState<Array<{ project: string; name: string }>>([
-    { project: "RO3", name: "3.6版本先锋测试" },
-    { project: "RO3", name: "3.7版本回归调研" },
-    { project: "ROOC", name: "1.8职业平衡调研" },
-    { project: "HMT", name: "2026 Q3 VIP满意度" },
-    { project: "RO国服", name: "2026暑期回归研究" },
-    { project: "通用", name: "公司通用调研" },
-  ]);
   const [backgroundFileName, setBackgroundFileName] = useState("");
   const [endBackgroundSource, setEndBackgroundSource] = useState<"template" | "upload">("template");
   const [closedBackgroundSource, setClosedBackgroundSource] = useState<"template" | "upload">("template");
@@ -54,7 +45,6 @@ export default function SurveySettingsPage() {
       const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
       const draft = drafts.find((item: { id?: number | string }) => String(item.id) === String(surveyId));
       if (draft) {
-        setDraftInfo({ game: draft.game || "通用", group: draft.group || "", description: draft.description || "", note: draft.note || "" });
         const draftSource = draft.defaultLanguage || draft.languages?.[0] || "简中";
         setSourceLanguage(
           ["EN", "English", "en-US"].includes(draftSource)
@@ -66,12 +56,6 @@ export default function SurveySettingsPage() {
                 : "zh-CN",
         );
       }
-      const customGroups = JSON.parse(window.localStorage.getItem("joydata-survey-projects") || "[]");
-      const groups = [
-        ...drafts.map((item: { game?: string; group?: string }) => ({ project: item.game || "通用", name: item.group || "" })),
-        ...customGroups.map((item: { project?: string; name?: string }) => ({ project: item.project || "通用", name: item.name || "" })),
-      ].filter((item) => item.name);
-      setAllProjectGroups((current) => [...current, ...groups]);
       setBackgroundTemplates(JSON.parse(window.localStorage.getItem("joydata-survey-end-background-templates") || "[]"));
     } catch {}
     setHydrated(true);
@@ -87,23 +71,6 @@ export default function SurveySettingsPage() {
     }, 500);
     return () => window.clearTimeout(timer);
   }, [publications, autoSave, surveyId, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    setSaveState("saving");
-    const timer = window.setTimeout(() => {
-      try {
-        const drafts = JSON.parse(window.localStorage.getItem("joydata-survey-drafts") || "[]");
-        const next = drafts.map((item: { id?: number | string }) =>
-          String(item.id) === String(surveyId) ? { ...item, ...draftInfo, updated: "刚刚" } : item,
-        );
-        window.localStorage.setItem("joydata-survey-drafts", JSON.stringify(next));
-      } finally {
-        setSaveState("saved");
-      }
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [draftInfo, hydrated, surveyId]);
 
   const selected = publications[0];
   const sourceLocale = sourceLanguage;
@@ -338,11 +305,6 @@ export default function SurveySettingsPage() {
     });
   }
 
-  const projectGroupOptions = useMemo(
-    () => Array.from(new Set(allProjectGroups.filter((item) => item.project === draftInfo.game).map((item) => item.name).concat(draftInfo.group ? [draftInfo.group] : []))),
-    [allProjectGroups, draftInfo.game, draftInfo.group],
-  );
-
   if (!selected) return null;
 
   function renderEndPageEditor() {
@@ -465,23 +427,11 @@ export default function SurveySettingsPage() {
           </header>
 
           <div className="publish-section-tabs settings-tabs">
-            <button className={section === "basic" ? "active" : ""} onClick={() => setSection("basic")}>基本信息</button>
             <button className={section === "submission" ? "active" : ""} onClick={() => setSection("submission")}>提交设置</button>
             <button className={section === "collection" ? "active" : ""} onClick={() => setSection("collection")}>回收设置</button>
           </div>
 
-          {section === "basic" ? (
-            <div className="publish-config-stack">
-              <section className="config-card">
-                <header><div><strong>问卷归档信息</strong><small>用于后台筛选与管理；标题和开场说明请直接在编辑器封面修改</small></div></header>
-                <div className="basic-info-grid">
-                  <label><span>所属项目</span><select value={draftInfo.game} onChange={(event) => setDraftInfo((current) => ({ ...current, game: event.target.value, group: "" }))}><option>RO3</option><option>ROOC</option><option>HMT</option><option>RO国服</option><option>通用</option></select></label>
-                  <label><span>项目分组</span><select value={draftInfo.group} onChange={(event) => setDraftInfo((current) => ({ ...current, group: event.target.value }))}><option value="">请选择项目分组</option>{projectGroupOptions.map((group) => <option key={group} value={group}>{group}</option>)}</select><small>如需新分组，请先在问卷工作台的“管理项目分组”中创建。</small></label>
-                  <label className="basic-info-note"><span>内部备注</span><textarea value={draftInfo.note} onChange={(event) => setDraftInfo((current) => ({ ...current, note: event.target.value }))} placeholder="记录调研背景、目标玩家、负责人或其他内部信息" /><small>仅后台成员可见，不会展示给填写问卷的玩家。</small></label>
-                </div>
-              </section>
-            </div>
-          ) : section === "submission" ? (
+          {section === "submission" ? (
             <div className="publish-config-stack">
               <section className="config-card">
                 <header><div><strong>提交成功后</strong><small>选择进入统一的问卷结束页，或直接跳转到指定网页</small></div></header>
