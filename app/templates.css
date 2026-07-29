@@ -14,6 +14,11 @@
 .template-component-card>footer{display:flex;gap:6px;margin-top:auto;padding-top:8px;border-top:1px solid #edf0f3}
 .template-component-card>footer button{height:27px;padding:0 10px;border:1px solid #d3dbe6;border-radius:5px;background:#fff;color:#536079;font-size:8px}
 .template-page-card{overflow:hidden;border:1px solid #e0e5ec;border-radius:9px;background:#fff}
+.template-page-group{padding:0 16px 8px}
+.template-page-group>h3{margin:12px 0 10px;color:#425169;font-size:11px;font-weight:700}
+.template-page-group .template-component-grid{padding:0}
+.empty-state.small{height:auto;min-height:80px;padding:14px}
+.empty-state.small p{margin:0;color:#8b95a6;font-size:9px}
 .template-page-card-cover{height:100px;background-size:cover;background-position:center;background-color:#f1f4f9}
 .template-page-card-cover.empty{display:grid;place-items:center;color:#a4adba;font-size:9px}
 .template-page-card-body{display:flex;flex-direction:column;gap:6px;padding:12px 14px}
@@ -32,12 +37,17 @@
 .component-editor-body textarea{height:64px;padding:8px 10px;resize:vertical}
 .component-editor-required{display:flex;align-items:center;justify-content:space-between}
 .component-editor-required>span{color:#5b687e;font-size:9px;font-weight:600}
+.page-type-choice{display:flex;gap:2px;border-radius:6px;background:#f1f4f8;padding:2px}
+.page-type-choice button{flex:1;height:30px;border:0;border-radius:4px;background:transparent;padding:0 8px;color:#7c8798;font-size:9px}
+.page-type-choice button.active{background:#fff;color:#246bfd;box-shadow:0 1px 4px rgba(38,58,92,.15)}
 .component-editor-options{display:flex;flex-direction:column;gap:8px}
 .component-editor-options>span{color:#5b687e;font-size:9px;font-weight:600}
 .component-editor-options>div{display:flex;gap:6px;align-items:center}
 .component-editor-options>div input{flex:1}
 .component-editor-options>div button{width:26px;height:26px;border:1px solid #e3c7c7;border-radius:5px;background:#fff5f5;color:#c94b4b}
 .component-editor-note{margin:0;padding:10px;border-radius:6px;background:#fdf6ea;color:#a5772a;font-size:8px;line-height:1.6}
+.component-editor-range{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.component-editor-matrix{display:flex;flex-direction:column;gap:14px;padding-top:4px;border-top:1px solid #edf0f4}
 .component-editor-modal>footer{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid #e7ebf0}
 .page-template-editor-preview img{width:100%;max-height:160px;border-radius:8px;object-fit:cover}
 .page-template-preview-modal{width:520px;overflow:hidden;border-radius:11px;background:#fff;box-shadow:0 22px 70px rgba(28,38,56,.24)}

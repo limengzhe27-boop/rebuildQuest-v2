@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { defaultPublications, EndPageTemplate, LimitPageContent, loadPublications, Publication } from "@/lib/survey-publication";
+import { defaultPublications, EndPageTemplate, LimitPageContent, loadEndPageTemplates, loadPublications, Publication } from "@/lib/survey-publication";
 import { loadQuestions, Question } from "@/lib/survey-builder";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
@@ -54,7 +54,7 @@ export default function SurveySettingsPage() {
                 : "zh-CN",
         );
       }
-      setBackgroundTemplates(JSON.parse(window.localStorage.getItem("joydata-survey-end-background-templates") || "[]"));
+      setBackgroundTemplates(loadEndPageTemplates());
     } catch {}
     setHydrated(true);
   }, [surveyId]);
@@ -245,7 +245,7 @@ export default function SurveySettingsPage() {
       flash("请填写模板名称");
       return;
     }
-    const template: EndPageTemplate = { id: `end-page-${Date.now()}`, name, image: selected.limitPageBackground, content: currentLimitContent() };
+    const template: EndPageTemplate = { id: `end-page-${Date.now()}`, name, image: selected.limitPageBackground, content: currentLimitContent(), pageType: "limit" };
     const next = [...backgroundTemplates, template];
     setBackgroundTemplates(next);
     window.localStorage.setItem("joydata-survey-end-background-templates", JSON.stringify(next));
@@ -269,7 +269,7 @@ export default function SurveySettingsPage() {
       flash("请填写模板名称");
       return;
     }
-    const template: EndPageTemplate = { id: `closed-page-${Date.now()}`, name, image: selected.closedPageBackground, content: currentClosedContent() };
+    const template: EndPageTemplate = { id: `closed-page-${Date.now()}`, name, image: selected.closedPageBackground, content: currentClosedContent(), pageType: "closed" };
     const next = [...backgroundTemplates, template];
     setBackgroundTemplates(next);
     window.localStorage.setItem("joydata-survey-end-background-templates", JSON.stringify(next));
@@ -325,7 +325,7 @@ export default function SurveySettingsPage() {
                 <button type="button" className={endBackgroundSource === "upload" ? "active" : ""} onClick={() => setEndBackgroundSource("upload")}>自定义上传</button>
               </div>
             </div>
-            {endBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择完整页面模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyBackgroundTemplate(event.target.value)}><option value="project-default">项目默认结束页</option>{backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>模板会同时应用页面文案、链接与背景，并自动适配移动端。</small></label> : <div className="limit-background-upload"><input ref={backgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadLimitBackground(event.target.files?.[0])} /><button type="button" onClick={() => backgroundInputRef.current?.click()}>▧ 上传桌面端幕布</button><div><strong>{backgroundFileName || (selected.limitPageBackground ? "已上传自定义幕布" : "暂未上传幕布")}</strong><small>桌面端建议 1920 × 1080 px（16:9）；移动端使用模板自适应布局，无需另传图片</small></div>{selected.limitPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ limitPageBackgroundMode: "common", limitPageBackgroundTemplateId: "project-default", limitPageBackground: "" }); setBackgroundFileName(""); setEndBackgroundSource("template"); }}>取消自定义</button>}</div>}
+            {endBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择完整页面模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyBackgroundTemplate(event.target.value)}><option value="project-default">项目默认结束页</option>{backgroundTemplates.filter((template) => (template.pageType || "limit") === "limit").map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>模板会同时应用页面文案、链接与背景，并自动适配移动端。</small></label> : <div className="limit-background-upload"><input ref={backgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadLimitBackground(event.target.files?.[0])} /><button type="button" onClick={() => backgroundInputRef.current?.click()}>▧ 上传桌面端幕布</button><div><strong>{backgroundFileName || (selected.limitPageBackground ? "已上传自定义幕布" : "暂未上传幕布")}</strong><small>桌面端建议 1920 × 1080 px（16:9）；移动端使用模板自适应布局，无需另传图片</small></div>{selected.limitPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ limitPageBackgroundMode: "common", limitPageBackgroundTemplateId: "project-default", limitPageBackground: "" }); setBackgroundFileName(""); setEndBackgroundSource("template"); }}>取消自定义</button>}</div>}
             <label><span>标题（选填）</span><input value={content.title} onChange={(event) => updateLimitContent({ title: event.target.value })} placeholder="例如：感谢您完成本次问卷" /></label>
             <label>
               <span>说明正文</span>
@@ -371,7 +371,7 @@ export default function SurveySettingsPage() {
         <div className="limit-result-layout">
           <div className="limit-result-fields">
             <div className="background-source-control"><span>背景</span><div className="background-source-choice"><button type="button" className={closedBackgroundSource === "template" ? "active" : ""} onClick={() => { setClosedBackgroundSource("template"); if (activeTemplate === "custom-upload") applyClosedBackgroundTemplate("project-default"); }}>使用模板</button><button type="button" className={closedBackgroundSource === "upload" ? "active" : ""} onClick={() => setClosedBackgroundSource("upload")}>自定义上传</button></div></div>
-            {closedBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择完整页面模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyClosedBackgroundTemplate(event.target.value)}><option value="project-default">项目默认结束页</option>{backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>模板会同时应用页面文案、链接与背景，并自动适配移动端。</small></label> : <div className="limit-background-upload"><input ref={closedBackgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadClosedBackground(event.target.files?.[0])} /><button type="button" onClick={() => closedBackgroundInputRef.current?.click()}>▧ 上传桌面端幕布</button><div><strong>{selected.closedPageBackground ? "已上传自定义幕布" : "暂未上传幕布"}</strong><small>桌面端建议 1920 × 1080 px（16:9）；移动端使用模板自适应布局，无需另传图片</small></div>{selected.closedPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ closedPageBackgroundMode: "common", closedPageBackgroundTemplateId: "project-default", closedPageBackground: "" }); setClosedBackgroundSource("template"); }}>取消自定义</button>}</div>}
+            {closedBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择完整页面模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyClosedBackgroundTemplate(event.target.value)}><option value="project-default">项目默认结束页</option>{backgroundTemplates.filter((template) => template.pageType === "closed").map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>模板会同时应用页面文案、链接与背景，并自动适配移动端。</small></label> : <div className="limit-background-upload"><input ref={closedBackgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadClosedBackground(event.target.files?.[0])} /><button type="button" onClick={() => closedBackgroundInputRef.current?.click()}>▧ 上传桌面端幕布</button><div><strong>{selected.closedPageBackground ? "已上传自定义幕布" : "暂未上传幕布"}</strong><small>桌面端建议 1920 × 1080 px（16:9）；移动端使用模板自适应布局，无需另传图片</small></div>{selected.closedPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ closedPageBackgroundMode: "common", closedPageBackgroundTemplateId: "project-default", closedPageBackground: "" }); setClosedBackgroundSource("template"); }}>取消自定义</button>}</div>}
             <label><span>标题（选填）</span><input value={content.title} onChange={(event) => updateClosedContent({ title: event.target.value })} placeholder="例如：本次问卷收集已结束" /></label>
             <label><span>说明正文</span><textarea ref={closedBodyRef} value={content.body} onChange={(event) => updateClosedContent({ body: event.target.value })} /><small>将光标放在正文任意位置，可插入多个链接。</small></label>
             <button className="insert-inline-link" type="button" onClick={insertClosedLink}>＋ 在正文光标处插入链接</button>

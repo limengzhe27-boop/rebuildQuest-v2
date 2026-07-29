@@ -180,11 +180,12 @@ export default function TemplatesPage() {
   }
 
   function savePageTemplate(template: EndPageTemplate) {
-    const next = pageTemplates.map((item) => item.id === template.id ? template : item);
+    const isNew = !pageTemplates.some((item) => item.id === template.id);
+    const next = isNew ? [template, ...pageTemplates] : pageTemplates.map((item) => item.id === template.id ? template : item);
     setPageTemplates(next);
     saveEndPageTemplates(next);
     setPageTemplateDraft(null);
-    flash("页面模板已更新");
+    flash(isNew ? "页面模板已创建" : "页面模板已更新");
   }
 
   function removePageTemplate(id: string) {
@@ -273,21 +274,44 @@ export default function TemplatesPage() {
             <section className="survey-panel template-component-panel">
               <div className="panel-toolbar template-toolbar">
                 <span className="template-panel-hint">页面模板可在问卷「问卷结束页」「停止收集后页面」设置中直接选用。</span>
+                <button className="primary-button" onClick={() => setPageTemplateDraft({ id: `end-page-${Date.now()}`, name: "新建页面模板", image: "", pageType: "limit", content: { title: "", body: "", links: [] } })}>＋ 新建页面模板</button>
               </div>
               {pageTemplates.length ? (
-                <div className="template-component-grid">
-                  {pageTemplates.map((template) => (
-                    <article className="template-page-card" key={template.id}>
-                      {template.image ? <div className="template-page-card-cover" style={{ backgroundImage: `url(${template.image})` }} /> : <div className="template-page-card-cover empty">无背景图</div>}
-                      <div className="template-page-card-body">
-                        <strong>{template.name}</strong>
-                        {template.content?.title && <p>{template.content.title}</p>}
-                        <footer><button onClick={() => setPageTemplatePreview(template)}>查看</button><button onClick={() => setPageTemplateDraft(template)}>编辑</button><button className="text-danger" onClick={() => removePageTemplate(template.id)}>删除</button></footer>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : <div className="empty-state"><strong>暂无页面模板</strong><p>在问卷设置的结束页或停止收集页中，选择「自定义上传」并保存为模板后会显示在这里。</p></div>}
+                <>
+                  <div className="template-page-group">
+                    <h3>提交页（问卷结束页）</h3>
+                    <div className="template-component-grid">
+                      {pageTemplates.filter((template) => (template.pageType || "limit") === "limit").map((template) => (
+                        <article className="template-page-card" key={template.id}>
+                          {template.image ? <div className="template-page-card-cover" style={{ backgroundImage: `url(${template.image})` }} /> : <div className="template-page-card-cover empty">无背景图</div>}
+                          <div className="template-page-card-body">
+                            <strong>{template.name}</strong>
+                            {template.content?.title && <p>{template.content.title}</p>}
+                            <footer><button onClick={() => setPageTemplatePreview(template)}>查看</button><button onClick={() => setPageTemplateDraft(template)}>编辑</button><button className="text-danger" onClick={() => removePageTemplate(template.id)}>删除</button></footer>
+                          </div>
+                        </article>
+                      ))}
+                      {!pageTemplates.some((template) => (template.pageType || "limit") === "limit") && <div className="empty-state small"><p>暂无提交页模板</p></div>}
+                    </div>
+                  </div>
+                  <div className="template-page-group">
+                    <h3>结束页（停止收集页）</h3>
+                    <div className="template-component-grid">
+                      {pageTemplates.filter((template) => template.pageType === "closed").map((template) => (
+                        <article className="template-page-card" key={template.id}>
+                          {template.image ? <div className="template-page-card-cover" style={{ backgroundImage: `url(${template.image})` }} /> : <div className="template-page-card-cover empty">无背景图</div>}
+                          <div className="template-page-card-body">
+                            <strong>{template.name}</strong>
+                            {template.content?.title && <p>{template.content.title}</p>}
+                            <footer><button onClick={() => setPageTemplatePreview(template)}>查看</button><button onClick={() => setPageTemplateDraft(template)}>编辑</button><button className="text-danger" onClick={() => removePageTemplate(template.id)}>删除</button></footer>
+                          </div>
+                        </article>
+                      ))}
+                      {!pageTemplates.some((template) => template.pageType === "closed") && <div className="empty-state small"><p>暂无结束页模板</p></div>}
+                    </div>
+                  </div>
+                </>
+              ) : <div className="empty-state"><strong>暂无页面模板</strong><p>在问卷设置的结束页或停止收集页中，选择「自定义上传」并保存为模板，或点击上方按钮新建。</p></div>}
             </section>
             )}
           </section>
@@ -303,7 +327,7 @@ export default function TemplatesPage() {
       {pageTemplatePreview && (
         <div className="preview-backdrop" onMouseDown={() => setPageTemplatePreview(null)}>
           <section className="page-template-preview-modal" onMouseDown={(event) => event.stopPropagation()}>
-            <header><strong>{pageTemplatePreview.name}</strong><button onClick={() => setPageTemplatePreview(null)}>×</button></header>
+            <header><strong>{pageTemplatePreview.name}</strong><span className="template-type-badge full">{(pageTemplatePreview.pageType || "limit") === "closed" ? "结束页" : "提交页"}</span><button onClick={() => setPageTemplatePreview(null)}>×</button></header>
             <div className={`limit-result-preview ${pageTemplatePreview.image ? "custom" : ""}`} style={pageTemplatePreview.image ? { backgroundImage: `url(${pageTemplatePreview.image})` } : undefined}>
               <article>{pageTemplatePreview.content?.title && <h3>{pageTemplatePreview.content.title}</h3>}<p>{pageTemplatePreview.content?.body}</p></article>
             </div>

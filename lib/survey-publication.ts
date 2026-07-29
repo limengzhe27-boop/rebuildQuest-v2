@@ -28,14 +28,52 @@ export type LimitPageContent = {
   linkUrl?: string;
 };
 
-export type EndPageTemplate = { id: string; name: string; image: string; content?: LimitPageContent };
+export type PageTemplateType = "limit" | "closed";
+
+export type EndPageTemplate = { id: string; name: string; image: string; content?: LimitPageContent; pageType?: PageTemplateType };
+
+const demoPageTemplates: EndPageTemplate[] = [
+  {
+    id: "demo-limit-thankyou",
+    name: "感谢参与 · 简约款",
+    pageType: "limit",
+    image: "",
+    content: { title: "感谢您完成本次问卷", body: "您的反馈已收到，我们会认真参考每一条建议持续优化游戏体验。", links: [] },
+  },
+  {
+    id: "demo-limit-festival",
+    name: "节日活动 · 庆典款",
+    pageType: "limit",
+    image: "",
+    content: { title: "提交成功！活动好礼已登记", body: "感谢参与本次节日活动问卷，抽奖资格已自动登记，请留意游戏内邮件通知。", links: [] },
+  },
+  {
+    id: "demo-closed-default",
+    name: "默认结束页",
+    pageType: "closed",
+    image: "",
+    content: { title: "本次问卷收集已结束", body: "感谢您的关注，本次问卷暂不再接收新的答卷，欢迎关注后续调研活动。", links: [] },
+  },
+  {
+    id: "demo-closed-maintenance",
+    name: "维护公告款",
+    pageType: "closed",
+    image: "",
+    content: { title: "问卷暂停收集", body: "当前问卷因系统维护暂停收集，恢复时间将在官方公告中同步，敬请留意。", links: [] },
+  },
+];
 
 export function loadEndPageTemplates(): EndPageTemplate[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return demoPageTemplates;
   try {
-    return JSON.parse(window.localStorage.getItem("joydata-survey-end-background-templates") || "[]");
+    const saved = JSON.parse(window.localStorage.getItem("joydata-survey-end-background-templates") || "null");
+    if (!Array.isArray(saved)) {
+      saveEndPageTemplates(demoPageTemplates);
+      return demoPageTemplates;
+    }
+    return saved;
   } catch {
-    return [];
+    return demoPageTemplates;
   }
 }
 
