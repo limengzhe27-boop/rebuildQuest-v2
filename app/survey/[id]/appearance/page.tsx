@@ -19,7 +19,6 @@ type Appearance = {
   headerImage: string;
   headerImageMobile: string;
   curtainImage: string;
-  curtainImageMobile: string;
   progress: boolean;
   languageSwitch: boolean;
   background: "plain" | "soft" | "dark";
@@ -37,7 +36,6 @@ const defaults: Appearance = {
   headerImage: "",
   headerImageMobile: "",
   curtainImage: "",
-  curtainImageMobile: "",
   progress: true,
   languageSwitch: true,
   background: "soft",
@@ -87,7 +85,6 @@ export default function AppearancePage() {
   const headerImageInputRef = useRef<HTMLInputElement>(null);
   const headerMobileInputRef = useRef<HTMLInputElement>(null);
   const curtainImageInputRef = useRef<HTMLInputElement>(null);
-  const curtainMobileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(`joydata-survey-appearance-${surveyId}`);
@@ -161,7 +158,7 @@ export default function AppearancePage() {
     window.setTimeout(() => setNotice(""), 2200);
   }
 
-  function uploadAppearanceImage(field: "headerImage" | "headerImageMobile" | "curtainImage" | "curtainImageMobile", file?: File) {
+  function uploadAppearanceImage(field: "headerImage" | "headerImageMobile" | "curtainImage", file?: File) {
     if (!file) return;
     if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) {
       flash("请选择不超过 5MB 的图片");
@@ -249,9 +246,7 @@ export default function AppearancePage() {
               <input ref={headerMobileInputRef} type="file" accept="image/*" hidden onChange={(event) => uploadAppearanceImage("headerImageMobile", event.target.files?.[0])} />
               <article><div><strong>问卷头图 · 移动端</strong><small>建议 750 × 420 px（约 16:9），选填；未上传时沿用桌面端图片</small></div><button onClick={() => headerMobileInputRef.current?.click()}>{config.headerImageMobile ? "更换" : "上传"}</button>{config.headerImageMobile && <button className="remove" onClick={() => update({ headerImageMobile: "" })}>移除</button>}</article>
               <input ref={curtainImageInputRef} type="file" accept="image/*" hidden onChange={(event) => uploadAppearanceImage("curtainImage", event.target.files?.[0])} />
-              <article><div><strong>幕布背景 · 桌面端</strong><small>默认背景，问卷白色内容层会透出幕布</small></div><button onClick={() => curtainImageInputRef.current?.click()}>{config.curtainImage ? "更换" : "上传"}</button>{config.curtainImage && <button className="remove" onClick={() => update({ curtainImage: "" })}>移除</button>}</article>
-              <input ref={curtainMobileInputRef} type="file" accept="image/*" hidden onChange={(event) => uploadAppearanceImage("curtainImageMobile", event.target.files?.[0])} />
-              <article><div><strong>幕布背景 · 移动端</strong><small>选填，未上传时自动沿用桌面端背景</small></div><button onClick={() => curtainMobileInputRef.current?.click()}>{config.curtainImageMobile ? "更换" : "上传"}</button>{config.curtainImageMobile && <button className="remove" onClick={() => update({ curtainImageMobile: "" })}>移除</button>}</article>
+              <article><div><strong>幕布背景</strong><small>仅需上传一张桌面端图片，建议 1920 × 1080 px（16:9）；移动端自动使用同一张背景</small></div><button onClick={() => curtainImageInputRef.current?.click()}>{config.curtainImage ? "更换" : "上传"}</button>{config.curtainImage && <button className="remove" onClick={() => update({ curtainImage: "" })}>移除</button>}</article>
             </div>
           </section>
           <section>
@@ -267,7 +262,7 @@ export default function AppearancePage() {
           </section>
         </aside>
 
-        <section className={`appearance-preview ${config.background} ${(device === "mobile" ? config.curtainImageMobile || config.curtainImage : config.curtainImage) ? "has-curtain" : ""}`} style={{ "--theme": config.primary, "--radius": `${config.radius}px`, ...((device === "mobile" ? config.curtainImageMobile || config.curtainImage : config.curtainImage) ? { backgroundImage: `url(${device === "mobile" ? config.curtainImageMobile || config.curtainImage : config.curtainImage})` } : {}) } as React.CSSProperties}>
+        <section className={`appearance-preview ${config.background} ${config.curtainImage ? "has-curtain" : ""}`} style={{ "--theme": config.primary, "--radius": `${config.radius}px`, ...(config.curtainImage ? { backgroundImage: `url(${config.curtainImage})` } : {}) } as React.CSSProperties}>
           <div className="preview-device-toggle">
             <button className={device === "desktop" ? "active" : ""} onClick={() => setDevice("desktop")}>▱ 桌面端</button>
             <button className={device === "mobile" ? "active" : ""} onClick={() => setDevice("mobile")}>▯ 移动端</button>

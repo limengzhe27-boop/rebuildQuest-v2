@@ -111,7 +111,6 @@ export default function PlayerSurvey() {
     headerImage: "",
     headerImageMobile: "",
     curtainImage: "",
-    curtainImageMobile: "",
   });
   const [surveyDescription, setSurveyDescription] = useState("");
   const [completionMode, setCompletionMode] = useState<"message" | "redirect">("message");
@@ -168,7 +167,6 @@ export default function PlayerSurvey() {
         headerImage: appearance.headerImage || "",
         headerImageMobile: appearance.headerImageMobile || "",
         curtainImage: appearance.curtainImage || "",
-        curtainImageMobile: appearance.curtainImageMobile || "",
       }));
       if (typeof appearance.languageSwitch === "boolean") setAllowLanguageSwitch(appearance.languageSwitch);
       if (typeof appearance.progress === "boolean") setShowProgress(appearance.progress);
@@ -482,13 +480,13 @@ export default function PlayerSurvey() {
     submitResponse();
   }
 
-  const hasCurtain = Boolean(appearanceConfig.curtainImage || appearanceConfig.curtainImageMobile);
+  const hasCurtain = Boolean(appearanceConfig.curtainImage);
   const surveyShellClass = `player-survey-shell ${hasCurtain ? "has-curtain" : ""} appearance-${appearanceConfig.background} density-${appearanceConfig.density} font-${appearanceConfig.fontSize} button-${appearanceConfig.buttonStyle} width-${appearanceConfig.contentWidth}`;
   const surveyShellStyle = {
     "--player": primary,
     "--player-radius": `${appearanceConfig.radius}px`,
     "--curtain-desktop": appearanceConfig.curtainImage ? `url(${appearanceConfig.curtainImage})` : "none",
-    "--curtain-mobile": appearanceConfig.curtainImageMobile ? `url(${appearanceConfig.curtainImageMobile})` : appearanceConfig.curtainImage ? `url(${appearanceConfig.curtainImage})` : "none",
+    "--curtain-mobile": appearanceConfig.curtainImage ? `url(${appearanceConfig.curtainImage})` : "none",
   } as React.CSSProperties;
 
   if (closedMessage) {

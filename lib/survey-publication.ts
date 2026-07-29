@@ -63,6 +63,7 @@ export type Publication = {
   accessPassword: string;
   joymakerLogin: boolean;
   identityValidationEnabled: boolean;
+  identityMismatchAction: "login" | "official";
   identityMismatchRedirects: Record<string, string>;
   identityMismatchFallbackLocale: string;
   lineLogin: boolean;
@@ -132,6 +133,7 @@ export const defaultPublications: Publication[] = [
     accessPassword: "",
     joymakerLogin: true,
     identityValidationEnabled: true,
+    identityMismatchAction: "login",
     identityMismatchRedirects: {
       "zh-CN": "",
       "en-US": "",
@@ -212,6 +214,7 @@ export const defaultPublications: Publication[] = [
     accessPassword: "",
     joymakerLogin: true,
     identityValidationEnabled: true,
+    identityMismatchAction: "login",
     identityMismatchRedirects: {
       "zh-CN": "",
       "en-US": "",
@@ -280,6 +283,7 @@ function normalizePublication(item: Publication): Publication {
   const merged = { ...preset, ...item } as Publication;
   return {
     ...merged,
+    identityMismatchAction: merged.identityMismatchAction || "login",
     limitPageContent: normalizeLimitContent(merged.limitPageContent),
     closedPageContent: normalizeLimitContent(merged.closedPageContent || {
       [merged.defaultLocale || "zh-CN"]: {

@@ -7,6 +7,8 @@ import { loadQuestions, Question } from "@/lib/survey-builder";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
+type EndPageTemplate = { id: string; name: string; image: string; content?: LimitPageContent };
+
 export default function SurveySettingsPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -31,7 +33,7 @@ export default function SurveySettingsPage() {
   const [closedBackgroundSource, setClosedBackgroundSource] = useState<"template" | "upload">("template");
   const [backgroundTemplateName, setBackgroundTemplateName] = useState("");
   const [closedBackgroundTemplateName, setClosedBackgroundTemplateName] = useState("");
-  const [backgroundTemplates, setBackgroundTemplates] = useState<Array<{ id: string; name: string; image: string }>>([]);
+  const [backgroundTemplates, setBackgroundTemplates] = useState<EndPageTemplate[]>([]);
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
@@ -267,24 +269,24 @@ export default function SurveySettingsPage() {
     }
     const template = backgroundTemplates.find((item) => item.id === templateId);
     if (template) {
-      updateSelected({ limitPageBackgroundMode: "custom", limitPageBackgroundTemplateId: template.id, limitPageBackground: template.image });
+      updateSelected({ limitPageBackgroundMode: "custom", limitPageBackgroundTemplateId: template.id, limitPageBackground: template.image, ...(template.content ? { limitPageContent: { ...selected.limitPageContent, [sourceLocale]: template.content } } : {}) });
       setBackgroundFileName(template.name);
     }
   }
 
   function saveBackgroundAsTemplate() {
     const name = backgroundTemplateName.trim();
-    if (!selected.limitPageBackground || !name) {
-      flash("请先上传背景并填写模板名称");
+    if (!name) {
+      flash("请填写模板名称");
       return;
     }
-    const template = { id: `end-bg-${Date.now()}`, name, image: selected.limitPageBackground };
+    const template: EndPageTemplate = { id: `end-page-${Date.now()}`, name, image: selected.limitPageBackground, content: currentLimitContent() };
     const next = [...backgroundTemplates, template];
     setBackgroundTemplates(next);
     window.localStorage.setItem("joydata-survey-end-background-templates", JSON.stringify(next));
     updateSelected({ limitPageBackgroundMode: "custom", limitPageBackgroundTemplateId: template.id });
     setBackgroundTemplateName("");
-    flash("结束页背景已保存为模板");
+    flash("问卷结束页已保存为模板");
   }
 
   function applyClosedBackgroundTemplate(templateId: string) {
@@ -293,22 +295,22 @@ export default function SurveySettingsPage() {
       return;
     }
     const template = backgroundTemplates.find((item) => item.id === templateId);
-    if (template) updateSelected({ closedPageBackgroundMode: "custom", closedPageBackgroundTemplateId: template.id, closedPageBackground: template.image });
+    if (template) updateSelected({ closedPageBackgroundMode: "custom", closedPageBackgroundTemplateId: template.id, closedPageBackground: template.image, ...(template.content ? { closedPageContent: { ...selected.closedPageContent, [sourceLocale]: template.content } } : {}) });
   }
 
   function saveClosedBackgroundAsTemplate() {
     const name = closedBackgroundTemplateName.trim();
-    if (!selected.closedPageBackground || !name) {
-      flash("请先上传背景并填写模板名称");
+    if (!name) {
+      flash("请填写模板名称");
       return;
     }
-    const template = { id: `closed-bg-${Date.now()}`, name, image: selected.closedPageBackground };
+    const template: EndPageTemplate = { id: `closed-page-${Date.now()}`, name, image: selected.closedPageBackground, content: currentClosedContent() };
     const next = [...backgroundTemplates, template];
     setBackgroundTemplates(next);
     window.localStorage.setItem("joydata-survey-end-background-templates", JSON.stringify(next));
     updateSelected({ closedPageBackgroundMode: "custom", closedPageBackgroundTemplateId: template.id });
     setClosedBackgroundTemplateName("");
-    flash("停止收集页背景已保存为模板");
+    flash("停止收集页已保存为模板");
   }
 
   function addRedirectRule() {
@@ -363,8 +365,8 @@ export default function SurveySettingsPage() {
                 <button type="button" className={endBackgroundSource === "upload" ? "active" : ""} onClick={() => setEndBackgroundSource("upload")}>自定义上传</button>
               </div>
             </div>
-            {endBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyBackgroundTemplate(event.target.value)}><option value="project-default">项目默认模板</option>{backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>使用项目默认背景，或选择已保存的自定义背景模板。</small></label> : <div className="limit-background-upload"><input ref={backgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadLimitBackground(event.target.files?.[0])} /><button type="button" onClick={() => backgroundInputRef.current?.click()}>▧ 上传背景图片</button><div><strong>{backgroundFileName || (selected.limitPageBackground ? "已上传自定义背景" : "暂未上传背景")}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>{selected.limitPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ limitPageBackgroundMode: "common", limitPageBackgroundTemplateId: "project-default", limitPageBackground: "" }); setBackgroundFileName(""); setEndBackgroundSource("template"); }}>取消自定义</button>}</div>}
-            {endBackgroundSource === "upload" && selected.limitPageBackgroundMode === "custom" && selected.limitPageBackground && (
+            {endBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择完整页面模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyBackgroundTemplate(event.target.value)}><option value="project-default">项目默认结束页</option>{backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>模板会同时应用页面文案、链接与背景。</small></label> : <div className="limit-background-upload"><input ref={backgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadLimitBackground(event.target.files?.[0])} /><button type="button" onClick={() => backgroundInputRef.current?.click()}>▧ 上传页面背景</button><div><strong>{backgroundFileName || (selected.limitPageBackground ? "已上传自定义背景" : "暂未上传背景")}</strong><small>上传后可连同当前文案、链接一起保存为完整页面模板</small></div>{selected.limitPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ limitPageBackgroundMode: "common", limitPageBackgroundTemplateId: "project-default", limitPageBackground: "" }); setBackgroundFileName(""); setEndBackgroundSource("template"); }}>取消自定义</button>}</div>}
+            {endBackgroundSource === "upload" && (
               <div className="save-background-template">
                 <input value={backgroundTemplateName} onChange={(event) => setBackgroundTemplateName(event.target.value)} placeholder="输入模板名称" />
                 <button type="button" onClick={saveBackgroundAsTemplate}>保存为模板</button>
@@ -409,8 +411,8 @@ export default function SurveySettingsPage() {
         <div className="limit-result-layout">
           <div className="limit-result-fields">
             <div className="background-source-control"><span>背景</span><div className="background-source-choice"><button type="button" className={closedBackgroundSource === "template" ? "active" : ""} onClick={() => { setClosedBackgroundSource("template"); if (activeTemplate === "custom-upload") applyClosedBackgroundTemplate("project-default"); }}>使用模板</button><button type="button" className={closedBackgroundSource === "upload" ? "active" : ""} onClick={() => setClosedBackgroundSource("upload")}>自定义上传</button></div></div>
-            {closedBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyClosedBackgroundTemplate(event.target.value)}><option value="project-default">项目默认模板</option>{backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>使用项目默认背景，或选择已保存的自定义背景模板。</small></label> : <div className="limit-background-upload"><input ref={closedBackgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadClosedBackground(event.target.files?.[0])} /><button type="button" onClick={() => closedBackgroundInputRef.current?.click()}>▧ 上传背景图片</button><div><strong>{selected.closedPageBackground ? "已上传自定义背景" : "暂未上传背景"}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>{selected.closedPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ closedPageBackgroundMode: "common", closedPageBackgroundTemplateId: "project-default", closedPageBackground: "" }); setClosedBackgroundSource("template"); }}>取消自定义</button>}</div>}
-            {closedBackgroundSource === "upload" && selected.closedPageBackgroundMode === "custom" && selected.closedPageBackground && (
+            {closedBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择完整页面模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyClosedBackgroundTemplate(event.target.value)}><option value="project-default">项目默认结束页</option>{backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>模板会同时应用页面文案、链接与背景。</small></label> : <div className="limit-background-upload"><input ref={closedBackgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadClosedBackground(event.target.files?.[0])} /><button type="button" onClick={() => closedBackgroundInputRef.current?.click()}>▧ 上传页面背景</button><div><strong>{selected.closedPageBackground ? "已上传自定义背景" : "暂未上传背景"}</strong><small>上传后可连同当前文案、链接一起保存为完整页面模板</small></div>{selected.closedPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ closedPageBackgroundMode: "common", closedPageBackgroundTemplateId: "project-default", closedPageBackground: "" }); setClosedBackgroundSource("template"); }}>取消自定义</button>}</div>}
+            {closedBackgroundSource === "upload" && (
               <div className="save-background-template">
                 <input value={closedBackgroundTemplateName} onChange={(event) => setClosedBackgroundTemplateName(event.target.value)} placeholder="输入模板名称" />
                 <button type="button" onClick={saveClosedBackgroundAsTemplate}>保存为模板</button>
@@ -432,9 +434,8 @@ export default function SurveySettingsPage() {
   function renderIdentityValidation() {
     return (
       <section className="config-card identity-validation-card">
-        <header><div><strong>登录身份一致性校验</strong><small>防止玩家转发带登录态的链接后，由其他账号继续填写</small></div><button className={`mini-switch ${selected.identityValidationEnabled ? "on" : ""}`} onClick={() => updateSelected({ identityValidationEnabled: !selected.identityValidationEnabled, joymakerLogin: true })}><i /></button></header>
-        <div className="identity-validation-explanation"><span>校验规则</span><p>链接绑定的玩家身份与当前 JoyaMaker / JoyID 登录身份不一致时，由技术服务按玩家语言匹配官网；未匹配到时使用备用语言官网。</p></div>
-        {selected.identityValidationEnabled && <div className="identity-fallback-setting"><label><span>备用官网语言</span><select value={selected.identityMismatchFallbackLocale || selected.defaultLocale} onChange={(event) => updateSelected({ identityMismatchFallbackLocale: event.target.value })}><option value="zh-CN">简体中文</option><option value="en-US">English</option><option value="zh-TW">繁體中文</option><option value="th-TH">ไทย</option></select></label><p>这里只配置兜底语言，不维护官网地址。语言与官网映射由技术侧统一管理。</p></div>}
+        <header><div><strong>登录身份一致性校验</strong><small>校验不一致时，选择玩家下一步操作</small></div><button className={`mini-switch ${selected.identityValidationEnabled ? "on" : ""}`} onClick={() => updateSelected({ identityValidationEnabled: !selected.identityValidationEnabled, joymakerLogin: true })}><i /></button></header>
+        {selected.identityValidationEnabled && <div className="identity-fallback-setting"><label><span>校验不一致时</span><select value={selected.identityMismatchAction || "login"} onChange={(event) => updateSelected({ identityMismatchAction: event.target.value as "login" | "official" })}><option value="login">前往登录后答题</option><option value="official">跳转对应语言官网</option></select></label>{selected.identityMismatchAction === "official" && <label><span>备用官网语言</span><select value={selected.identityMismatchFallbackLocale || selected.defaultLocale} onChange={(event) => updateSelected({ identityMismatchFallbackLocale: event.target.value })}><option value="zh-CN">简体中文</option><option value="en-US">English</option><option value="zh-TW">繁體中文</option><option value="th-TH">ไทย</option></select></label>}</div>}
       </section>
     );
   }
