@@ -599,7 +599,7 @@ export default function PlayerSurvey() {
               {appearanceConfig.headerImageMobile && <source media="(max-width: 640px)" srcSet={appearanceConfig.headerImageMobile} />}
               <img className="player-header-image" src={appearanceConfig.headerImage} alt="" />
             </picture>}
-            <span>RO3 · PLAYER RESEARCH</span><h1>{surveyTitle}</h1><p>{surveyDescription || copy.intro}</p>
+            <h1>{surveyTitle}</h1><p>{surveyDescription || copy.intro}</p>
             <ul><li><i>◷</i>3–5 min</li><li><i>▤</i>{visibleQuestions.length} questions</li><li><i>⌾</i>Global data region</li></ul>
             <label><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>{copy.consent}</span></label>
             <button disabled={!consent} onClick={() => setStep(1)}>{copy.start} →</button>
@@ -678,7 +678,6 @@ function LanguageBar({
 }) {
   return (
     <div className="player-language">
-      <span>RO3 · PLAYER RESEARCH</span>
       {allowSwitch && availableLocales.length > 1 ? (
         <select value={locale} onChange={(event) => onChange(event.target.value as RuntimeLocale)}>
           {availableLocales.map((code) => <option key={code} value={code}>🌐 {runtimeLocales[code]}</option>)}

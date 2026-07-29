@@ -254,7 +254,7 @@ export default function LanguagesPage() {
               <header><div><span>原</span><p><strong>简体中文</strong><small>源语言 · 只读</small></p></div><em>原文</em></header>
               <div className="language-phone-frame">
                 <div className="language-phone-scroll" ref={sourceScrollRef} onScroll={(event) => targetScrollRef.current && synchronizeScroll(event.currentTarget, targetScrollRef.current)}>
-                   <div className="translation-phone-cover"><span>RO3 · PLAYER RESEARCH</span><h1>{surveyTitle}</h1><p>感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。</p></div>
+                   <div className="translation-phone-cover"><h1>{surveyTitle}</h1><p>感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。</p></div>
                    <div className="translation-phone-content">{questions.map(sourceQuestion)}</div>
                  </div>
               </div>
@@ -267,7 +267,6 @@ export default function LanguagesPage() {
               <div className="language-phone-frame">
                 <div className="language-phone-scroll" ref={targetScrollRef} onScroll={(event) => sourceScrollRef.current && synchronizeScroll(event.currentTarget, sourceScrollRef.current)}>
                   <div className="translation-phone-cover editable-cover">
-                    <span>RO3 · PLAYER RESEARCH</span>
                     {editableField("form:title", surveyTitle, "问卷标题")}
                     {editableField("form:intro", "感谢您参与本次调研。您的反馈将帮助我们持续优化游戏体验。", "问卷说明")}
                    </div>

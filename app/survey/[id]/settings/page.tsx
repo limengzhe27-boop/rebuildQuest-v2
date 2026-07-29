@@ -27,6 +27,8 @@ export default function SurveySettingsPage() {
     { project: "通用", name: "公司通用调研" },
   ]);
   const [backgroundFileName, setBackgroundFileName] = useState("");
+  const [endBackgroundSource, setEndBackgroundSource] = useState<"template" | "upload">("template");
+  const [closedBackgroundSource, setClosedBackgroundSource] = useState<"template" | "upload">("template");
   const [backgroundTemplateName, setBackgroundTemplateName] = useState("");
   const [closedBackgroundTemplateName, setClosedBackgroundTemplateName] = useState("");
   const [backgroundTemplates, setBackgroundTemplates] = useState<Array<{ id: string; name: string; image: string }>>([]);
@@ -39,7 +41,11 @@ export default function SurveySettingsPage() {
   const closedBackgroundInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setPublications(loadPublications(surveyId));
+    const loadedPublications = loadPublications(surveyId);
+    setPublications(loadedPublications);
+    const current = loadedPublications[0];
+    if (current?.limitPageBackgroundTemplateId === "custom-upload") setEndBackgroundSource("upload");
+    if (current?.closedPageBackgroundTemplateId === "custom-upload") setClosedBackgroundSource("upload");
     setQuestions(loadQuestions(surveyId));
     setAutoSave(window.localStorage.getItem(`joydata-survey-autosave-${surveyId}`) !== "false");
     try {
@@ -345,27 +351,20 @@ export default function SurveySettingsPage() {
     return (
       <section className="config-card limit-result-config end-page-config">
         <header>
-          <div><strong>问卷结束页</strong><small>提交完成和达到重复填写限制时共用；具体提示原因由系统自动补充</small></div>
+          <div><strong>问卷结束页</strong><small>提交完成和达到重复填写限制时共用</small></div>
           <span className="auto-stop-tag active">统一结果页</span>
         </header>
         <div className="limit-result-layout">
           <div className="limit-result-fields">
-            <label>
-              <span>背景模板</span>
-              <select value={activeTemplate} onChange={(event) => applyBackgroundTemplate(event.target.value)}>
-                <option value="project-default">项目默认模板</option>
-                {backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
-                {activeTemplate === "custom-upload" && <option value="custom-upload">当前自定义背景</option>}
-              </select>
-              <small>默认使用项目模板，也可以选择曾保存的自定义背景模板。</small>
-            </label>
-            <div className="limit-background-upload">
-              <input ref={backgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadLimitBackground(event.target.files?.[0])} />
-              <button type="button" onClick={() => backgroundInputRef.current?.click()}>▧ 上传自定义背景</button>
-              <div><strong>{backgroundFileName || (selected.limitPageBackground ? "已使用自定义背景" : "当前使用项目默认模板")}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>
-              {selected.limitPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ limitPageBackgroundMode: "common", limitPageBackgroundTemplateId: "project-default", limitPageBackground: "" }); setBackgroundFileName(""); }}>恢复默认</button>}
+            <div className="background-source-control">
+              <span>背景</span>
+              <div className="background-source-choice">
+                <button type="button" className={endBackgroundSource === "template" ? "active" : ""} onClick={() => { setEndBackgroundSource("template"); if (activeTemplate === "custom-upload") applyBackgroundTemplate("project-default"); }}>使用模板</button>
+                <button type="button" className={endBackgroundSource === "upload" ? "active" : ""} onClick={() => setEndBackgroundSource("upload")}>自定义上传</button>
+              </div>
             </div>
-            {selected.limitPageBackgroundMode === "custom" && selected.limitPageBackground && (
+            {endBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyBackgroundTemplate(event.target.value)}><option value="project-default">项目默认模板</option>{backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>使用项目默认背景，或选择已保存的自定义背景模板。</small></label> : <div className="limit-background-upload"><input ref={backgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadLimitBackground(event.target.files?.[0])} /><button type="button" onClick={() => backgroundInputRef.current?.click()}>▧ 上传背景图片</button><div><strong>{backgroundFileName || (selected.limitPageBackground ? "已上传自定义背景" : "暂未上传背景")}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>{selected.limitPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ limitPageBackgroundMode: "common", limitPageBackgroundTemplateId: "project-default", limitPageBackground: "" }); setBackgroundFileName(""); setEndBackgroundSource("template"); }}>取消自定义</button>}</div>}
+            {endBackgroundSource === "upload" && selected.limitPageBackgroundMode === "custom" && selected.limitPageBackground && (
               <div className="save-background-template">
                 <input value={backgroundTemplateName} onChange={(event) => setBackgroundTemplateName(event.target.value)} placeholder="输入模板名称" />
                 <button type="button" onClick={saveBackgroundAsTemplate}>保存为模板</button>
@@ -409,21 +408,9 @@ export default function SurveySettingsPage() {
         <header><div><strong>停止收集后页面</strong><small>手动结束、定时结束、达到数量上限或不在允许访问时段时展示</small></div><span className="auto-stop-tag active">独立页面</span></header>
         <div className="limit-result-layout">
           <div className="limit-result-fields">
-            <label>
-              <span>背景模板</span>
-              <select value={activeTemplate} onChange={(event) => applyClosedBackgroundTemplate(event.target.value)}>
-                <option value="project-default">项目默认模板</option>
-                {backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
-                {activeTemplate === "custom-upload" && <option value="custom-upload">当前自定义背景</option>}
-              </select>
-            </label>
-            <div className="limit-background-upload">
-              <input ref={closedBackgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadClosedBackground(event.target.files?.[0])} />
-              <button type="button" onClick={() => closedBackgroundInputRef.current?.click()}>▧ 上传自定义背景</button>
-              <div><strong>{selected.closedPageBackground ? "已使用自定义背景" : "当前使用项目默认模板"}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>
-              {selected.closedPageBackground && <button className="text-danger" type="button" onClick={() => updateSelected({ closedPageBackgroundMode: "common", closedPageBackgroundTemplateId: "project-default", closedPageBackground: "" })}>恢复默认</button>}
-            </div>
-            {selected.closedPageBackgroundMode === "custom" && selected.closedPageBackground && (
+            <div className="background-source-control"><span>背景</span><div className="background-source-choice"><button type="button" className={closedBackgroundSource === "template" ? "active" : ""} onClick={() => { setClosedBackgroundSource("template"); if (activeTemplate === "custom-upload") applyClosedBackgroundTemplate("project-default"); }}>使用模板</button><button type="button" className={closedBackgroundSource === "upload" ? "active" : ""} onClick={() => setClosedBackgroundSource("upload")}>自定义上传</button></div></div>
+            {closedBackgroundSource === "template" ? <label className="background-choice-panel"><span>选择模板</span><select value={activeTemplate === "custom-upload" ? "project-default" : activeTemplate} onChange={(event) => applyClosedBackgroundTemplate(event.target.value)}><option value="project-default">项目默认模板</option>{backgroundTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select><small>使用项目默认背景，或选择已保存的自定义背景模板。</small></label> : <div className="limit-background-upload"><input ref={closedBackgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadClosedBackground(event.target.files?.[0])} /><button type="button" onClick={() => closedBackgroundInputRef.current?.click()}>▧ 上传背景图片</button><div><strong>{selected.closedPageBackground ? "已上传自定义背景" : "暂未上传背景"}</strong><small>支持 JPG、PNG、WebP、GIF，单张不超过 5MB</small></div>{selected.closedPageBackground && <button className="text-danger" type="button" onClick={() => { updateSelected({ closedPageBackgroundMode: "common", closedPageBackgroundTemplateId: "project-default", closedPageBackground: "" }); setClosedBackgroundSource("template"); }}>取消自定义</button>}</div>}
+            {closedBackgroundSource === "upload" && selected.closedPageBackgroundMode === "custom" && selected.closedPageBackground && (
               <div className="save-background-template">
                 <input value={closedBackgroundTemplateName} onChange={(event) => setClosedBackgroundTemplateName(event.target.value)} placeholder="输入模板名称" />
                 <button type="button" onClick={saveClosedBackgroundAsTemplate}>保存为模板</button>

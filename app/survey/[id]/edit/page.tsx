@@ -623,7 +623,6 @@ export default function SurveyEditorPage() {
             <div className="survey-canvas">
               <header className="survey-cover">
                 {headerImage && <img className="survey-cover-image" src={headerImage} alt="" />}
-                <span>RO3 · PLAYER RESEARCH</span>
                 <input className="survey-cover-title-input" value={surveyName} onChange={(event) => setSurveyName(event.target.value)} aria-label="问卷标题" />
                 <textarea className="survey-cover-intro-input" value={surveyDescription} onChange={(event) => setSurveyDescription(event.target.value)} aria-label="问卷开场说明" />
                 <div><label className="survey-cover-image-upload">▧ {headerImage ? "更换头图" : "添加头图"}<input type="file" accept="image/*" onChange={(event) => { uploadHeaderImage(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label>{headerImage && <button onClick={() => { setHeaderImage(""); const key = `joydata-survey-appearance-${surveyId}`; const current = JSON.parse(window.localStorage.getItem(key) || "{}"); window.localStorage.setItem(key, JSON.stringify({ ...current, headerImage: "" })); }}>移除头图</button>}<span className="editor-page-mode"><em>答题分页</em><button className={pageMode === "continuous" ? "active" : ""} onClick={() => updatePageMode("continuous")}>连续滚动</button><button className={pageMode === "one-question" ? "active" : ""} onClick={() => updatePageMode("one-question")}>一页一题</button></span></div>
