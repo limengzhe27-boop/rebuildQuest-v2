@@ -46,13 +46,16 @@ export default function TemplatesPage() {
   const [centerTab, setCenterTab] = useState<"survey" | "component" | "page">("survey");
   const [region, setRegion] = useState<Region>("global");
   const [category, setCategory] = useState("全部分类");
-  const [categories, setCategories] = useState(defaultCategories);
+  const [extraCategories, setExtraCategories] = useState<string[]>([]);
+  const [removedCategories, setRemovedCategories] = useState<string[]>([]);
+  const [categoryRenames, setCategoryRenames] = useState<Record<string, string>>({});
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"使用最多" | "最近更新">("使用最多");
   const [pageSize, setPageSize] = useState(50);
   const [customTemplates, setCustomTemplates] = useState<Template[]>([]);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategory, setNewCategory] = useState("");
+  const [showManageCategories, setShowManageCategories] = useState(false);
   const [notice, setNotice] = useState("");
   const [componentTemplates, setComponentTemplates] = useState<ComponentTemplate[]>([]);
   const [componentDraft, setComponentDraft] = useState<ComponentTemplateDraft | null>(null);
@@ -65,8 +68,16 @@ export default function TemplatesPage() {
     const requested = new URLSearchParams(window.location.search).get("region");
     if (requested === "china" || requested === "global") setRegion(requested);
     try {
-      const savedCategories = JSON.parse(window.localStorage.getItem("joydata-template-categories") || "[]");
-      if (savedCategories.length) setCategories(Array.from(new Set([...defaultCategories, ...savedCategories])));
+      const meta = JSON.parse(window.localStorage.getItem("joydata-template-categories") || "null");
+      if (meta) {
+        if (Array.isArray(meta)) {
+          setExtraCategories(meta);
+        } else {
+          setExtraCategories(meta.extra || []);
+          setRemovedCategories(meta.removed || []);
+          setCategoryRenames(meta.renames || {});
+        }
+      }
       const saved = JSON.parse(window.localStorage.getItem("joydata-survey-templates") || "[]");
       setCustomTemplates(saved.map((item: {
         id: string; label?: string; name?: string; category?: string; categories?: string[]; description?: string;
@@ -94,32 +105,66 @@ export default function TemplatesPage() {
   }, []);
 
   const allTemplates = useMemo(() => [...customTemplates, ...builtinTemplates], [customTemplates]);
+  const canonicalCategories = useMemo(() => Array.from(new Set([...defaultCategories, ...extraCategories])), [extraCategories]);
+  const categories = useMemo(() => canonicalCategories.filter((item) => !removedCategories.includes(item)), [canonicalCategories, removedCategories]);
+  const categoryLabel = (canonical: string) => categoryRenames[canonical] || canonical;
   const visible = useMemo(() => allTemplates
     .filter((item) =>
       (item.region === region || item.region === "both")
       && (category === "全部分类" || item.categories.includes(category))
-      && `${item.name}${item.categories.join("")}`.toLowerCase().includes(query.trim().toLowerCase()),
+      && `${item.name}${item.categories.map((canonical) => categoryRenames[canonical] || canonical).join("")}`.toLowerCase().includes(query.trim().toLowerCase()),
     )
     .sort((a, b) => sort === "使用最多"
       ? b.useCount - a.useCount
       : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
-  [allTemplates, category, query, region, sort]);
+  [allTemplates, category, categoryRenames, query, region, sort]);
 
   function flash(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 2200);
   }
 
+  function persistCategoryMeta(patch: Partial<{ extra: string[]; removed: string[]; renames: Record<string, string> }>) {
+    const next = {
+      extra: patch.extra ?? extraCategories,
+      removed: patch.removed ?? removedCategories,
+      renames: patch.renames ?? categoryRenames,
+    };
+    window.localStorage.setItem("joydata-template-categories", JSON.stringify(next));
+  }
+
   function addCategory() {
     const value = newCategory.trim();
-    if (!value || categories.includes(value)) return;
-    const next = [...categories, value];
-    setCategories(next);
-    window.localStorage.setItem("joydata-template-categories", JSON.stringify(next.filter((item) => !defaultCategories.includes(item))));
+    if (!value || canonicalCategories.includes(value)) return;
+    const next = [...extraCategories, value];
+    setExtraCategories(next);
+    persistCategoryMeta({ extra: next });
     setNewCategory("");
     setShowAddCategory(false);
     setCategory(value);
     flash("模板分类已创建");
+  }
+
+  function renameCategory(canonical: string, label: string) {
+    const trimmed = label.trim();
+    const next = { ...categoryRenames };
+    if (!trimmed || trimmed === canonical) delete next[canonical];
+    else next[canonical] = trimmed;
+    setCategoryRenames(next);
+    persistCategoryMeta({ renames: next });
+  }
+
+  function removeCategory(canonical: string) {
+    const usedCount = allTemplates.filter((item) => item.categories.includes(canonical)).length;
+    if (usedCount > 0) {
+      flash(`还有 ${usedCount} 个模板使用「${categoryLabel(canonical)}」，请先调整这些模板的分类`);
+      return;
+    }
+    const next = [...removedCategories, canonical];
+    setRemovedCategories(next);
+    persistCategoryMeta({ removed: next });
+    if (category === canonical) setCategory("全部分类");
+    flash("模板分类已删除");
   }
 
   function previewTemplate(template: Template) {
@@ -229,8 +274,9 @@ export default function TemplatesPage() {
               <div className="panel-toolbar template-toolbar">
                 <div className="region-switch compact-region-switch"><button className={region === "global" ? "active" : ""} onClick={() => setRegion("global")}>海外</button><button className={region === "china" ? "active" : ""} onClick={() => setRegion("china")}>国内</button></div>
                 <div className="search-box"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索模板名称或分类" /></div>
-                <select className="owner-filter" value={category} onChange={(event) => setCategory(event.target.value)}><option>全部分类</option>{categories.map((item) => <option key={item}>{item}</option>)}</select>
+                <select className="owner-filter" value={category} onChange={(event) => setCategory(event.target.value)}><option>全部分类</option>{categories.map((item) => <option key={item} value={item}>{categoryLabel(item)}</option>)}</select>
                 <button className="secondary-button compact-button" onClick={() => setShowAddCategory(true)}>＋ 添加分类</button>
+                <button className="secondary-button compact-button" onClick={() => setShowManageCategories(true)}>管理分类</button>
                 <select className="owner-filter template-sort" value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option>使用最多</option><option>最近更新</option></select>
               </div>
 
@@ -238,7 +284,7 @@ export default function TemplatesPage() {
                 <div className="template-list-head" role="row"><div>模板名称</div><div>模板类型</div><div>题目</div><div>使用情况</div><div>最后修改</div><div /></div>
                 {visible.length ? visible.slice(0, pageSize).map((template) => (
                   <div className="template-list-row" role="row" key={template.id}>
-                    <div className="template-name-cell"><span>▦</span><p><strong>{template.name}</strong><small>{template.categories.join(" · ")}</small></p></div>
+                    <div className="template-name-cell"><span>▦</span><p><strong>{template.name}</strong><small>{template.categories.map(categoryLabel).join(" · ")}</small></p></div>
                     <div><span className={`template-type-badge ${template.mode}`}>{template.mode === "blank" ? "空白模板" : "完整模板"}</span></div>
                     <div><strong>{template.questions}</strong><small> 题</small></div>
                     <div><strong>{template.useCount}</strong><small> 次使用</small></div>
@@ -301,6 +347,28 @@ export default function TemplatesPage() {
       </section>
 
       {showAddCategory && <div className="preview-backdrop" onMouseDown={() => setShowAddCategory(false)}><section className="template-category-modal" onMouseDown={(event) => event.stopPropagation()}><header><strong>添加模板分类</strong><button onClick={() => setShowAddCategory(false)}>×</button></header><label><span>分类名称</span><input autoFocus maxLength={20} value={newCategory} onChange={(event) => setNewCategory(event.target.value)} placeholder="例如：版本上线后回访" /></label><footer><button className="secondary-button" onClick={() => setShowAddCategory(false)}>取消</button><button className="primary-button" onClick={addCategory}>确认添加</button></footer></section></div>}
+
+      {showManageCategories && (
+        <div className="preview-backdrop" onMouseDown={() => setShowManageCategories(false)}>
+          <section className="template-category-modal template-category-manage-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <header><strong>管理模板分类</strong><button onClick={() => setShowManageCategories(false)}>×</button></header>
+            <div className="template-category-manage-list">
+              {categories.map((canonical) => {
+                const usedCount = allTemplates.filter((item) => item.categories.includes(canonical)).length;
+                return (
+                  <div className="template-category-manage-row" key={canonical}>
+                    <input maxLength={20} value={categoryLabel(canonical)} onChange={(event) => renameCategory(canonical, event.target.value)} />
+                    <small>{usedCount} 个模板</small>
+                    <button className="text-danger" disabled={usedCount > 0} onClick={() => removeCategory(canonical)} aria-label={`删除分类 ${categoryLabel(canonical)}`}>删除</button>
+                  </div>
+                );
+              })}
+              {!categories.length && <p>暂无可管理的分类</p>}
+            </div>
+            <footer><button className="primary-button" onClick={() => setShowManageCategories(false)}>完成</button></footer>
+          </section>
+        </div>
+      )}
 
       {componentDraft && <ComponentTemplateEditor draft={componentDraft} onCancel={() => setComponentDraft(null)} onSave={saveComponentTemplate} />}
 
