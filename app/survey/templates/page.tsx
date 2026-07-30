@@ -214,13 +214,13 @@ export default function TemplatesPage() {
         <div className="content-layout">
           <section className="main-content compact-list-content">
             <div className="page-heading compact-page-heading">
-              <div className="compact-heading-copy"><div className="breadcrumb">用研中心 <span>/</span> 模板中心</div><h1>模板中心</h1><span>{centerTab === "survey" ? `${region === "global" ? "海外" : "国内"}工作区 · ${visible.length} 个问卷模板` : centerTab === "component" ? `${componentTemplates.length} 个组件模板` : `${pageTemplates.length} 个页面模板`}</span></div>
+              <div className="compact-heading-copy"><div className="breadcrumb">用研中心 <span>/</span> 模板中心</div><h1>模板中心</h1><span>{centerTab === "survey" ? `${region === "global" ? "海外" : "国内"}工作区 · ${visible.length} 个问卷模板` : centerTab === "component" ? `${componentTemplates.length} 个自定义组件` : `${pageTemplates.length} 个页面模板`}</span></div>
               <div className="heading-actions"><button className="secondary-button" onClick={() => router.push("/")}>返回问卷工作台</button>{centerTab === "survey" && <button className="primary-button" onClick={() => router.push(`/survey/new?region=${region}`)}>＋ 创建问卷</button>}</div>
             </div>
 
             <div className="template-center-tabs">
               <button className={centerTab === "survey" ? "active" : ""} onClick={() => setCenterTab("survey")}>问卷模板</button>
-              <button className={centerTab === "component" ? "active" : ""} onClick={() => setCenterTab("component")}>组件模板</button>
+              <button className={centerTab === "component" ? "active" : ""} onClick={() => setCenterTab("component")}>自定义组件</button>
               <button className={centerTab === "page" ? "active" : ""} onClick={() => setCenterTab("page")}>页面模板</button>
             </div>
 
@@ -254,7 +254,7 @@ export default function TemplatesPage() {
             {centerTab === "component" && (
             <section className="survey-panel template-component-panel">
               <div className="panel-toolbar template-toolbar">
-                <span className="template-panel-hint">组件模板可在问卷编辑器左侧「自定义组件」中直接添加，保留已配置的标题与选项。</span>
+                <span className="template-panel-hint">自定义组件可在问卷编辑器左侧「自定义组件」中直接添加，保留已配置的标题与选项。</span>
                 <button className="primary-button" onClick={() => setComponentDraft({ id: "", name: "", question: createQuestion("single") })}>＋ 新建组件</button>
               </div>
               {componentTemplates.length ? (

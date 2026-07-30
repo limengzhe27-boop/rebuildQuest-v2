@@ -53,6 +53,7 @@ export type Question = {
   referenceImage?: string;
   matrixRows?: string[];
   matrixColumns?: string[];
+  matrixColumnScores?: number[];
   matrixCornerLabel?: string;
   displayLogic?: {
     match: "all" | "any";

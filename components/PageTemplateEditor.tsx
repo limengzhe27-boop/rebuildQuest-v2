@@ -13,7 +13,7 @@ export function PageTemplateEditor({
   onSave: (template: EndPageTemplate) => void;
 }) {
   const [name, setName] = useState(template.name);
-  const [pageType, setPageType] = useState<PageTemplateType>(template.pageType || "limit");
+  const pageType: PageTemplateType = template.pageType || "limit";
   const [image, setImage] = useState(template.image);
   const [content, setContent] = useState<LimitPageContent>(template.content || { title: "", body: "", links: [] });
   const [notice, setNotice] = useState("");
@@ -70,17 +70,10 @@ export function PageTemplateEditor({
         </header>
         <div className="component-editor-body">
           <label><span>模板名称</span><input value={name} onChange={(event) => setName(event.target.value)} /></label>
-          <label>
-            <span>页面类型</span>
-            <div className="page-type-choice">
-              <button type="button" className={pageType === "limit" ? "active" : ""} onClick={() => setPageType("limit")}>提交页（问卷结束页）</button>
-              <button type="button" className={pageType === "closed" ? "active" : ""} onClick={() => setPageType("closed")}>结束页（停止收集页）</button>
-            </div>
-          </label>
 
           <div className="page-template-editor-preview">
             <input ref={imageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadImage(event.target.files?.[0])} />
-            {image ? <img src={image} alt="" /> : <div className="page-template-editor-preview-empty">暂无背景图</div>}
+            {image && <img src={image} alt="" />}
             <div className="page-template-editor-preview-actions">
               <button type="button" onClick={() => imageInputRef.current?.click()}>{image ? "更换背景" : "上传背景"}</button>
               {image && <button type="button" className="text-danger" onClick={() => setImage("")}>移除背景</button>}

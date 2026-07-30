@@ -56,7 +56,8 @@ const matrixTypes: QuestionType[] = ["matrix", "matrixFill", "matrixSelect", "ma
 const numericMatrixTypes: QuestionType[] = ["matrixScale", "matrixSlider"];
 const textPreviewTypes: QuestionType[] = ["text", "textarea", "date", "file", "imageUpload", "city", "provinceCity", "globalProvinceCity", "location", "phone", "ocr", "random", "product", "appointmentDate", "appointmentSlot"];
 const layoutTypes: QuestionType[] = ["pageBreak", "divider", "button", "imageDisplay", "carousel"];
-const scorableTypes: QuestionType[] = ["single", "multiple", "dropdown"];
+const scorableTypes: QuestionType[] = ["single", "multiple", "dropdown", "cascade"];
+const scorableMatrixTypes: QuestionType[] = ["matrix", "matrixSelect", "matrixDropdown"];
 
 export type ComponentTemplateDraft = { id: string; name: string; question: Question };
 
@@ -77,6 +78,7 @@ export function ComponentTemplateEditor({
   const isLayout = layoutTypes.includes(question.type);
   const isTextPreview = textPreviewTypes.includes(question.type);
   const isScorable = scorableTypes.includes(question.type);
+  const isScorableMatrix = scorableMatrixTypes.includes(question.type);
 
   function pickType(type: QuestionType) {
     const next = createQuestion(type);
@@ -135,21 +137,33 @@ export function ComponentTemplateEditor({
     updateQuestion({ matrixColumns: columns });
   }
 
+  function updateMatrixColumnScore(index: number, raw: string) {
+    const scores = [...(question.matrixColumnScores || [])];
+    scores[index] = raw === "" ? Number.NaN : Number(raw);
+    updateQuestion({ matrixColumnScores: scores });
+  }
+
   function addMatrixColumn() {
     const columns = question.matrixColumns || [];
     const last = Number(columns[columns.length - 1]);
-    updateQuestion({ matrixColumns: [...columns, isNumericMatrix && Number.isFinite(last) ? String(last + 1) : `列 ${columns.length + 1}`] });
+    updateQuestion({
+      matrixColumns: [...columns, isNumericMatrix && Number.isFinite(last) ? String(last + 1) : `列 ${columns.length + 1}`],
+      matrixColumnScores: question.matrixColumnScores ? [...question.matrixColumnScores, Number.NaN] : undefined,
+    });
   }
 
   function removeMatrixColumn(index: number) {
-    updateQuestion({ matrixColumns: (question.matrixColumns || []).filter((_, columnIndex) => columnIndex !== index) });
+    updateQuestion({
+      matrixColumns: (question.matrixColumns || []).filter((_, columnIndex) => columnIndex !== index),
+      matrixColumnScores: question.matrixColumnScores ? question.matrixColumnScores.filter((_, columnIndex) => columnIndex !== index) : undefined,
+    });
   }
 
   return (
     <div className="preview-backdrop" onMouseDown={onCancel}>
       <section className="component-editor-modal" onMouseDown={(event) => event.stopPropagation()}>
         <header>
-          {view === "edit" && !draft.id && <button className="component-editor-back" onClick={() => setView("pick")} aria-label="返回选择题型">‹</button>}
+          {view === "edit" && <button className="component-editor-back" onClick={() => setView("pick")} aria-label="返回选择题型">‹</button>}
           <strong>{view === "pick" ? "选择组件题型" : draft.id ? "编辑组件" : "编辑新组件"}</strong>
           <button onClick={onCancel}>×</button>
         </header>
@@ -247,6 +261,7 @@ export function ComponentTemplateEditor({
                       {(question.matrixColumns?.length ? question.matrixColumns : ["列 1", "列 2", "列 3"]).map((item, columnIndex) => (
                         <b key={`${item}-${columnIndex}`}>
                           <input type={isNumericMatrix ? "number" : "text"} value={item} onChange={(event) => updateMatrixColumn(columnIndex, event.target.value)} />
+                          {isScorableMatrix && <input className="option-score-input" type="number" placeholder="不计分" value={Number.isNaN(question.matrixColumnScores?.[columnIndex]) || question.matrixColumnScores?.[columnIndex] === undefined ? "" : question.matrixColumnScores[columnIndex]} onChange={(event) => updateMatrixColumnScore(columnIndex, event.target.value)} aria-label={`列 ${columnIndex + 1} 分数`} />}
                           <button disabled={(question.matrixColumns?.length || 0) <= 2} onClick={() => removeMatrixColumn(columnIndex)}>×</button>
                         </b>
                       ))}

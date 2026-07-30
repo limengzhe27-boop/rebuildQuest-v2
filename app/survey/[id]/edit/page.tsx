@@ -80,7 +80,7 @@ const palette: { title: string; items: { type: QuestionType; icon: string }[] }[
 
 const defaultTemplateCategories = ["版本测试", "满意度", "用户洞察", "运营活动", "服务体验", "招募筛选", "其他"];
 const defaultSurveyIntro = "感谢您参与本次调研。请根据实际体验完成以下问题，您的反馈将帮助我们持续优化产品体验。";
-const scorableTypes: QuestionType[] = ["single", "multiple", "dropdown"];
+const scorableTypes: QuestionType[] = ["single", "multiple", "dropdown", "cascade"];
 
 type LogicCondition = NonNullable<Question["displayLogic"]>["conditions"][number];
 
@@ -229,6 +229,7 @@ export default function SurveyEditorPage() {
           referenceImage: undefined,
           options: question.options?.map(() => ""),
           optionScores: undefined,
+          matrixColumnScores: undefined,
         })),
       useCount: 0,
       updatedAt: new Date().toISOString(),
@@ -279,6 +280,7 @@ export default function SurveyEditorPage() {
       optionScores: template.question.optionScores ? [...template.question.optionScores] : undefined,
       matrixRows: template.question.matrixRows ? [...template.question.matrixRows] : undefined,
       matrixColumns: template.question.matrixColumns ? [...template.question.matrixColumns] : undefined,
+      matrixColumnScores: template.question.matrixColumnScores ? [...template.question.matrixColumnScores] : undefined,
       displayLogic: undefined,
     };
     setQuestions((current) => [...current, nextQuestion]);
@@ -296,6 +298,7 @@ export default function SurveyEditorPage() {
         optionScores: question.optionScores ? [...question.optionScores] : undefined,
         matrixRows: question.matrixRows ? [...question.matrixRows] : undefined,
         matrixColumns: question.matrixColumns ? [...question.matrixColumns] : undefined,
+        matrixColumnScores: question.matrixColumnScores ? [...question.matrixColumnScores] : undefined,
         displayLogic: undefined,
       },
     };
@@ -398,6 +401,7 @@ export default function SurveyEditorPage() {
       optionScores: questions[index].optionScores ? [...questions[index].optionScores!] : undefined,
       matrixRows: questions[index].matrixRows ? [...questions[index].matrixRows!] : undefined,
       matrixColumns: questions[index].matrixColumns ? [...questions[index].matrixColumns!] : undefined,
+      matrixColumnScores: questions[index].matrixColumnScores ? [...questions[index].matrixColumnScores!] : undefined,
     };
     setQuestions((current) => [
       ...current.slice(0, index + 1),
@@ -534,6 +538,14 @@ export default function SurveyEditorPage() {
     const next = [...(currentQuestion.optionScores || [])];
     next[index] = raw === "" ? Number.NaN : Number(raw);
     updateSelected({ optionScores: next });
+  }
+
+  function updateMatrixColumnScore(index: number, raw: string) {
+    const currentQuestion = questions.find((question) => question.id === selectedId);
+    if (!currentQuestion?.matrixColumns) return;
+    const next = [...(currentQuestion.matrixColumnScores || [])];
+    next[index] = raw === "" ? Number.NaN : Number(raw);
+    updateSelected({ matrixColumnScores: next });
   }
 
   const logicQuestionIndex = questions.findIndex((item) => item.id === logicQuestionId);
@@ -813,7 +825,7 @@ export default function SurveyEditorPage() {
                             </span>
                             {(question.matrixColumns?.length ? question.matrixColumns : ["列 1", "列 2", "列 3"]).map((item, columnIndex) => (
                               <b key={`${item}-${columnIndex}`}>
-                                {selectedId === question.id ? <><input type={isNumericMatrix(question) ? "number" : "text"} value={item} onChange={(event) => updateQuestion(question.id, { matrixColumns: question.matrixColumns?.map((column, itemIndex) => itemIndex === columnIndex ? event.target.value : column) })} /><button disabled={(question.matrixColumns?.length || 0) <= 2} onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { matrixColumns: question.matrixColumns?.filter((_, itemIndex) => itemIndex !== columnIndex) }); }}>×</button></> : item}
+                                {selectedId === question.id ? <><input type={isNumericMatrix(question) ? "number" : "text"} value={item} onChange={(event) => updateQuestion(question.id, { matrixColumns: question.matrixColumns?.map((column, itemIndex) => itemIndex === columnIndex ? event.target.value : column) })} />{isSelectionMatrix(question) && <input className="option-score-input" type="number" placeholder="不计分" value={Number.isNaN(question.matrixColumnScores?.[columnIndex]) || question.matrixColumnScores?.[columnIndex] === undefined ? "" : question.matrixColumnScores[columnIndex]} onClick={(event) => event.stopPropagation()} onChange={(event) => updateMatrixColumnScore(columnIndex, event.target.value)} aria-label={`列 ${columnIndex + 1} 分数`} />}<button disabled={(question.matrixColumns?.length || 0) <= 2} onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { matrixColumns: question.matrixColumns?.filter((_, itemIndex) => itemIndex !== columnIndex), matrixColumnScores: question.matrixColumnScores ? question.matrixColumnScores.filter((_, itemIndex) => itemIndex !== columnIndex) : undefined }); }}>×</button></> : item}
                               </b>
                             ))}
                             {(question.matrixRows?.length ? question.matrixRows : ["行 1", "行 2", "行 3"]).map((row, rowIndex) => (
