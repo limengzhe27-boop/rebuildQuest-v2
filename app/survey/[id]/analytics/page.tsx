@@ -147,7 +147,12 @@ function VipBreakdownPanel({ rows, mode }: { rows: VipRow[]; mode: "table" | "ba
       {rows.map((row) => (
         <div className={rowClass} key={row.label}>
           <span className="vip-row-label">{row.label}</span>
-          <div className={trackClass}>{row.total ? vipLevels.filter((level) => row.counts[level]).map((level) => <i key={level} style={{ width: `${row.counts[level] / row.total * 100}%`, background: vipColors[level] }} title={`${level} · ${row.counts[level]}`} />) : <i className="vip-track-empty" />}</div>
+          <div className={trackClass}>{row.total ? vipLevels.filter((level) => row.counts[level]).map((level) => (
+            <span className="vip-track-segment" key={level} style={{ width: `${row.counts[level] / row.total * 100}%` }}>
+              <i style={{ background: vipColors[level] }} />
+              <em><strong>{level}</strong><small>{row.counts[level]} 人 · {(row.counts[level] / row.total * 100).toFixed(0)}%</small></em>
+            </span>
+          )) : <i className="vip-track-empty" />}</div>
           <span className="vip-row-total">{row.total}</span>
         </div>
       ))}
@@ -217,6 +222,13 @@ export default function AnalyticsPage() {
     return liveResponses.map((response) => response.answers[question.id]).filter((value) => value !== undefined && value !== null && value !== "");
   }
 
+  function answeredResponses(question: Question) {
+    return liveResponses.filter((response) => {
+      const value = response.answers[question.id];
+      return value !== undefined && value !== null && value !== "";
+    });
+  }
+
   function renderAdditionalQuestion(question: Question, index: number) {
     const values = answerValues(question);
     const choiceTypes = ["single", "multiple", "dropdown", "image", "cascade", "tableSelect", "sort", "product"];
@@ -235,9 +247,17 @@ export default function AnalyticsPage() {
       numbers.forEach((number) => counts.set(number, (counts.get(number) || 0) + 1));
       body = <table><thead><tr><th>分值</th><th>回答人数</th><th>占本题回答</th></tr></thead><tbody>{Array.from(counts.entries()).sort((a, b) => a[0] - b[0]).map(([value, count]) => <tr key={value}><td>{value}</td><td>{count}</td><td>{numbers.length ? `${(count / numbers.length * 100).toFixed(1)}%` : "0%"}</td></tr>)}</tbody></table>;
     } else if (textTypes.includes(question.type)) {
-      body = <table><thead><tr><th>答卷编号</th><th>文本回答</th><th>提交时间</th></tr></thead><tbody>{values.slice(0, 20).map((value, valueIndex) => <tr key={valueIndex}><td>{liveResponses[valueIndex]?.id || `RSP-${String(valueIndex + 1).padStart(6, "0")}`}</td><td>{String(value)}</td><td>{liveResponses[valueIndex] ? new Date(liveResponses[valueIndex].submittedAt).toLocaleString("zh-CN") : "—"}</td></tr>)}{!values.length && <tr><td colSpan={3}>暂无文本回答</td></tr>}</tbody></table>;
+      const answered = answeredResponses(question);
+      body = <>
+        <table><thead><tr><th>答卷编号</th><th>文本回答</th><th>提交时间</th></tr></thead><tbody>{answered.slice(0, 20).map((response) => <tr key={response.id}><td>{response.id}</td><td>{String(response.answers[question.id])}</td><td>{new Date(response.submittedAt).toLocaleString("zh-CN")}</td></tr>)}{!answered.length && <tr><td colSpan={3}>暂无文本回答</td></tr>}</tbody></table>
+        {answered.length > 20 && <small className="answer-sample-note">填空题展示前 20 条样本回答，完整内容请到答卷明细查看。</small>}
+      </>;
     } else if (["file", "imageUpload"].includes(question.type)) {
-      body = <table><thead><tr><th>答卷编号</th><th>文件/图片</th><th>提交时间</th></tr></thead><tbody>{values.slice(0, 20).map((value, valueIndex) => <tr key={valueIndex}><td>{liveResponses[valueIndex]?.id || "—"}</td><td>{String(value)}</td><td>{liveResponses[valueIndex] ? new Date(liveResponses[valueIndex].submittedAt).toLocaleString("zh-CN") : "—"}</td></tr>)}{!values.length && <tr><td colSpan={3}>暂无上传记录</td></tr>}</tbody></table>;
+      const answered = answeredResponses(question);
+      body = <>
+        <table><thead><tr><th>答卷编号</th><th>文件/图片</th><th>提交时间</th></tr></thead><tbody>{answered.slice(0, 20).map((response) => <tr key={response.id}><td>{response.id}</td><td>{String(response.answers[question.id])}</td><td>{new Date(response.submittedAt).toLocaleString("zh-CN")}</td></tr>)}{!answered.length && <tr><td colSpan={3}>暂无上传记录</td></tr>}</tbody></table>
+        {answered.length > 20 && <small className="answer-sample-note">展示前 20 条样本记录，完整内容请到答卷明细查看。</small>}
+      </>;
     } else {
       const counts = new Map<string, number>();
       values.forEach((value) => counts.set(String(value), (counts.get(String(value)) || 0) + 1));
@@ -250,9 +270,15 @@ export default function AnalyticsPage() {
           <div><span>第 {index + 1} 题　{questionLabels[question.type]}</span><h2>{question.title}</h2></div>
           <dl><div><dt>回答</dt><dd>{values.length}</dd></div><div><dt>未回答</dt><dd>{Math.max(0, liveResponses.length - values.length)}</dd></div></dl>
         </header>
-        {body}
-        {supportsVip && <VipModeToggle mode={vipMode} onChange={(mode) => updateVipViewMode(question.id, mode)} />}
-        {supportsVip && vipMode !== "none" && <VipBreakdownPanel rows={vipRowsFromResponses(question, liveResponses)} mode={vipMode} />}
+        <div className={`answer-report-body ${supportsVip && vipMode !== "none" ? "with-vip-sidebar" : ""}`}>
+          <div className="answer-report-main">{body}</div>
+          {supportsVip && (
+            <div className="answer-report-vip-sidebar">
+              <VipModeToggle mode={vipMode} onChange={(mode) => updateVipViewMode(question.id, mode)} />
+              {vipMode !== "none" && <VipBreakdownPanel rows={vipRowsFromResponses(question, liveResponses)} mode={vipMode} />}
+            </div>
+          )}
+        </div>
       </article>
     );
   }
@@ -328,25 +354,37 @@ export default function AnalyticsPage() {
         {tab === "answers" ? <div className="answer-report-list">
           <article className="answer-report-section">
             <header><div><span>第 1 题　单选题</span><h2>您对本次先锋测试的整体体验如何？</h2></div><dl><div><dt>回答</dt><dd>{totalResponses.toLocaleString()}</dd></div><div><dt>未回答</dt><dd>0</dd></div></dl></header>
-            <table>
-              <thead><tr><th>选项</th><th>回答人数</th><th>占本题回答</th></tr></thead>
-              <tbody>{satisfaction.map(([label, count]) => {
-                const percent = count / totalResponses * 100;
-                return <tr key={label}><td>{label}</td><td>{count.toLocaleString()}</td><td><strong>{percent.toFixed(1)}%</strong></td></tr>;
-              })}</tbody>
-            </table>
-            <VipModeToggle mode={vipViewMode["demo-satisfaction"] || "none"} onChange={(mode) => updateVipViewMode("demo-satisfaction", mode)} />
-            {(vipViewMode["demo-satisfaction"] || "none") !== "none" && <VipBreakdownPanel rows={vipRowsFromLabelCounts("demo-satisfaction", satisfaction)} mode={vipViewMode["demo-satisfaction"] as "table" | "bar" | "stacked"} />}
+            <div className={`answer-report-body ${(vipViewMode["demo-satisfaction"] || "none") !== "none" ? "with-vip-sidebar" : ""}`}>
+              <div className="answer-report-main">
+                <table>
+                  <thead><tr><th>选项</th><th>回答人数</th><th>占本题回答</th></tr></thead>
+                  <tbody>{satisfaction.map(([label, count]) => {
+                    const percent = count / totalResponses * 100;
+                    return <tr key={label}><td>{label}</td><td>{count.toLocaleString()}</td><td><strong>{percent.toFixed(1)}%</strong></td></tr>;
+                  })}</tbody>
+                </table>
+              </div>
+              <div className="answer-report-vip-sidebar">
+                <VipModeToggle mode={vipViewMode["demo-satisfaction"] || "none"} onChange={(mode) => updateVipViewMode("demo-satisfaction", mode)} />
+                {(vipViewMode["demo-satisfaction"] || "none") !== "none" && <VipBreakdownPanel rows={vipRowsFromLabelCounts("demo-satisfaction", satisfaction)} mode={vipViewMode["demo-satisfaction"] as "table" | "bar" | "stacked"} />}
+              </div>
+            </div>
           </article>
 
           <article className="answer-report-section">
             <header><div><span>第 2 题　NPS</span><h2>您有多大可能向朋友推荐这款游戏？</h2></div><dl><div><dt>回答</dt><dd>8,379</dd></div><div><dt>未回答</dt><dd>42</dd></div><div><dt>平均分</dt><dd>7.4</dd></div><div><dt>NPS</dt><dd>42</dd></div></dl></header>
-            <table>
-              <thead><tr><th>分组</th><th>回答人数</th><th>占本题回答</th></tr></thead>
-              <tbody>{npsGroups.map(([label, count]) => <tr key={label}><td>{label}</td><td>{count.toLocaleString()}</td><td>{(count / 8379 * 100).toFixed(1)}%</td></tr>)}</tbody>
-            </table>
-            <VipModeToggle mode={vipViewMode["demo-nps"] || "none"} onChange={(mode) => updateVipViewMode("demo-nps", mode)} />
-            {(vipViewMode["demo-nps"] || "none") !== "none" && <VipBreakdownPanel rows={vipRowsFromLabelCounts("demo-nps", npsGroups)} mode={vipViewMode["demo-nps"] as "table" | "bar" | "stacked"} />}
+            <div className={`answer-report-body ${(vipViewMode["demo-nps"] || "none") !== "none" ? "with-vip-sidebar" : ""}`}>
+              <div className="answer-report-main">
+                <table>
+                  <thead><tr><th>分组</th><th>回答人数</th><th>占本题回答</th></tr></thead>
+                  <tbody>{npsGroups.map(([label, count]) => <tr key={label}><td>{label}</td><td>{count.toLocaleString()}</td><td>{(count / 8379 * 100).toFixed(1)}%</td></tr>)}</tbody>
+                </table>
+              </div>
+              <div className="answer-report-vip-sidebar">
+                <VipModeToggle mode={vipViewMode["demo-nps"] || "none"} onChange={(mode) => updateVipViewMode("demo-nps", mode)} />
+                {(vipViewMode["demo-nps"] || "none") !== "none" && <VipBreakdownPanel rows={vipRowsFromLabelCounts("demo-nps", npsGroups)} mode={vipViewMode["demo-nps"] as "table" | "bar" | "stacked"} />}
+              </div>
+            </div>
           </article>
 
           <article className="answer-report-section">
@@ -363,7 +401,17 @@ export default function AnalyticsPage() {
           {matrixReports.map((report) => (
             <article className="answer-report-section matrix-answer-report" key={report.question.id}>
               <header>
-                <div><span>矩阵题　{questionLabels[report.question.type]}</span><h2>{report.question.title}</h2></div>
+                <div>
+                  <span>矩阵题　{questionLabels[report.question.type]}</span>
+                  <h2>{report.question.title}</h2>
+                  <small className="matrix-report-hint">
+                    {report.question.type === "matrixFill"
+                      ? "矩阵填空题为自由文本作答，统计仅按行展示已填写人数，不做选项归类。"
+                      : report.numericColumns
+                        ? "按行计算平均分，并汇总每份答卷所有行的总分求平均。"
+                        : "按行统计各列被选中的人数及占该行回答的比例。"}
+                  </small>
+                </div>
                 <dl>
                   <div><dt>回答</dt><dd>{report.answers.toLocaleString()}</dd></div>
                   {report.numericColumns && <div><dt>平均总分</dt><dd>{report.averageTotal === null ? "—" : report.averageTotal.toFixed(1)}</dd></div>}

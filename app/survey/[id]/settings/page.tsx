@@ -526,7 +526,7 @@ export default function SurveySettingsPage() {
               {renderClosedPageEditor()}
 
               <section className="config-card">
-                <header><div><strong>提交次数限制</strong><small>按用户、IP 或设备分别设置最多可成功提交的次数</small></div></header>
+                <header><div><strong>答题限制</strong><small>按用户、IP 或设备分别设置最多可成功提交的次数</small></div></header>
                 <div className="setting-switch-list">
                   <div className="setting-with-input"><p><strong>每个 JoyaMaker / JoyID 用户最多提交</strong><small>需要登录后按用户唯一标识统计</small></p><div className="submission-limit-input"><input disabled={!selected.accountLimitEnabled} type="number" min={1} value={selected.perAccountLimit} onChange={(event) => updateSelected({ perAccountLimit: Math.max(1, Number(event.target.value)) })} /><span>次</span></div><button className={`mini-switch ${selected.accountLimitEnabled ? "on" : ""}`} onClick={() => updateSelected({ accountLimitEnabled: !selected.accountLimitEnabled, joymakerUniqueSubmission: false, joymakerLogin: true })}><i /></button></div>
                   <div className="setting-with-input"><p><strong>每个 LINE 用户最多提交</strong><small>需要开启 LINE 登录，按 LINE 用户唯一标识统计</small></p><div className="submission-limit-input"><input disabled={!selected.lineLimitEnabled} type="number" min={1} value={selected.perLineLimit} onChange={(event) => updateSelected({ perLineLimit: Math.max(1, Number(event.target.value)) })} /><span>次</span></div><button className={`mini-switch ${selected.lineLimitEnabled ? "on" : ""}`} onClick={() => updateSelected({ lineLimitEnabled: !selected.lineLimitEnabled, lineLogin: true })}><i /></button></div>

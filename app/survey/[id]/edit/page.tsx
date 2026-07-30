@@ -80,6 +80,7 @@ const palette: { title: string; items: { type: QuestionType; icon: string }[] }[
 
 const defaultTemplateCategories = ["版本测试", "满意度", "用户洞察", "运营活动", "服务体验", "招募筛选", "其他"];
 const defaultSurveyIntro = "感谢您参与本次调研。请根据实际体验完成以下问题，您的反馈将帮助我们持续优化产品体验。";
+const scorableTypes: QuestionType[] = ["single", "multiple", "dropdown"];
 
 type LogicCondition = NonNullable<Question["displayLogic"]>["conditions"][number];
 
@@ -227,6 +228,7 @@ export default function SurveyEditorPage() {
           helpText: undefined,
           referenceImage: undefined,
           options: question.options?.map(() => ""),
+          optionScores: undefined,
         })),
       useCount: 0,
       updatedAt: new Date().toISOString(),
@@ -274,6 +276,7 @@ export default function SurveyEditorPage() {
       ...template.question,
       id: `${template.question.type}-${Date.now()}`,
       options: template.question.options ? [...template.question.options] : undefined,
+      optionScores: template.question.optionScores ? [...template.question.optionScores] : undefined,
       matrixRows: template.question.matrixRows ? [...template.question.matrixRows] : undefined,
       matrixColumns: template.question.matrixColumns ? [...template.question.matrixColumns] : undefined,
       displayLogic: undefined,
@@ -290,6 +293,7 @@ export default function SurveyEditorPage() {
       question: {
         ...question,
         options: question.options ? [...question.options] : undefined,
+        optionScores: question.optionScores ? [...question.optionScores] : undefined,
         matrixRows: question.matrixRows ? [...question.matrixRows] : undefined,
         matrixColumns: question.matrixColumns ? [...question.matrixColumns] : undefined,
         displayLogic: undefined,
@@ -391,6 +395,7 @@ export default function SurveyEditorPage() {
       id: `${questions[index].type}-${Date.now()}`,
       title: `${questions[index].title}（副本）`,
       options: questions[index].options ? [...questions[index].options!] : undefined,
+      optionScores: questions[index].optionScores ? [...questions[index].optionScores!] : undefined,
       matrixRows: questions[index].matrixRows ? [...questions[index].matrixRows!] : undefined,
       matrixColumns: questions[index].matrixColumns ? [...questions[index].matrixColumns!] : undefined,
     };
@@ -521,6 +526,14 @@ export default function SurveyEditorPage() {
     const next = [...currentQuestion.options];
     next[index] = value;
     updateSelected({ options: next });
+  }
+
+  function updateOptionScore(index: number, raw: string) {
+    const currentQuestion = questions.find((question) => question.id === selectedId);
+    if (!currentQuestion?.options) return;
+    const next = [...(currentQuestion.optionScores || [])];
+    next[index] = raw === "" ? Number.NaN : Number(raw);
+    updateSelected({ optionScores: next });
   }
 
   const logicQuestionIndex = questions.findIndex((item) => item.id === logicQuestionId);
@@ -742,11 +755,11 @@ export default function SurveyEditorPage() {
                         </div>
                       )}
                       {(["single", "multiple", "dropdown", "cascade"] as QuestionType[]).includes(question.type) && (
-                        <div className={`choice-preview ${selectedId === question.id ? "editing" : ""}`}>
+                        <div className={`choice-preview ${selectedId === question.id ? "editing" : ""} ${selectedId === question.id && scorableTypes.includes(question.type) ? "scorable" : ""}`}>
                           {question.options?.map((option, optionIndex) => (
-                            <span key={`${question.id}-${optionIndex}`}><i>{question.type === "multiple" ? "□" : "○"}</i>{selectedId === question.id ? <><input value={option} onChange={(event) => updateOption(optionIndex, event.target.value)} /><button disabled={(question.options?.length || 0) <= 2} onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { options: question.options?.filter((_, itemIndex) => itemIndex !== optionIndex) }); }}>×</button></> : option}</span>
+                            <span key={`${question.id}-${optionIndex}`}><i>{question.type === "multiple" ? "□" : "○"}</i>{selectedId === question.id ? <><input value={option} onChange={(event) => updateOption(optionIndex, event.target.value)} />{scorableTypes.includes(question.type) && <input className="option-score-input" type="number" placeholder="不计分" value={Number.isNaN(question.optionScores?.[optionIndex]) || question.optionScores?.[optionIndex] === undefined ? "" : question.optionScores[optionIndex]} onClick={(event) => event.stopPropagation()} onChange={(event) => updateOptionScore(optionIndex, event.target.value)} aria-label={`选项 ${optionIndex + 1} 分数`} />}<button disabled={(question.options?.length || 0) <= 2} onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { options: question.options?.filter((_, itemIndex) => itemIndex !== optionIndex), optionScores: question.optionScores ? question.optionScores.filter((_, itemIndex) => itemIndex !== optionIndex) : undefined }); }}>×</button></> : option}</span>
                           ))}
-                          {selectedId === question.id && <button className="inline-add-option" onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { options: [...(question.options || []), `选项 ${(question.options?.length || 0) + 1}`] }); }}>＋ 添加选项</button>}
+                          {selectedId === question.id && <button className="inline-add-option" onClick={(event) => { event.stopPropagation(); updateQuestion(question.id, { options: [...(question.options || []), `选项 ${(question.options?.length || 0) + 1}`], optionScores: question.optionScores ? [...question.optionScores, Number.NaN] : undefined }); }}>＋ 添加选项</button>}
                           {question.type === "multiple" && selectedId === question.id && (
                             <label className="multiple-limit-setting">
                               <span>最多可选</span>
@@ -760,6 +773,7 @@ export default function SurveyEditorPage() {
                               <small>玩家达到上限后需取消已选项，才能继续选择。</small>
                             </label>
                           )}
+                          {selectedId === question.id && scorableTypes.includes(question.type) && <small className="option-score-hint">可为部分选项设置分数，用于问卷明细中的选项总分判定；留空表示该选项不计分。</small>}
                         </div>
                       )}
                       {(["text", "textarea", "date", "file", "imageUpload", "city", "provinceCity", "globalProvinceCity", "location", "phone", "ocr", "random", "product", "appointmentDate", "appointmentSlot"] as QuestionType[]).includes(question.type) && <div className="text-preview">{question.type === "date" || question.type === "appointmentDate" ? "请选择日期" : question.type === "appointmentSlot" ? "请选择预约时段" : question.type === "phone" ? "请输入手机号并完成验证" : "请输入您的回答"}</div>}

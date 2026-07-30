@@ -68,12 +68,26 @@ const defaultVisibleBaseColumns = [
   "id", "submittedAt", "playerId", "country", "status",
 ];
 
+const searchFieldOptions: { key: string; label: string }[] = [
+  { key: "id", label: "答卷编号" },
+  { key: "playerId", label: "玩家标识" },
+  { key: "country", label: "国家/地区" },
+  { key: "channel", label: "来源" },
+  { key: "sourceParameter", label: "来源参数" },
+  { key: "submitIp", label: "提交 IP" },
+  { key: "qualityReason", label: "判定原因" },
+  { key: "answers", label: "题目答案" },
+];
+const defaultSearchFields = searchFieldOptions.map((item) => item.key);
+
 export default function ResponsesPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const surveyId = params.id;
   const surveyTitle = useSurveyTitle(surveyId);
   const [query, setQuery] = useState("");
+  const [searchFields, setSearchFields] = useState<string[]>(defaultSearchFields);
+  const [showSearchFields, setShowSearchFields] = useState(false);
   const [locale, setLocale] = useState("all");
   const [status, setStatus] = useState("all");
   const [notice, setNotice] = useState("");
@@ -88,6 +102,10 @@ export default function ResponsesPage() {
   const [scoreComparator, setScoreComparator] = useState<"lt" | "gt">("lt");
   const [scoreOutcome, setScoreOutcome] = useState<"valid" | "invalid">("invalid");
   const [minimumScore, setMinimumScore] = useState(60);
+  const [optionScoreEnabled, setOptionScoreEnabled] = useState(false);
+  const [optionScoreComparator, setOptionScoreComparator] = useState<"lt" | "gt">("lt");
+  const [optionScoreThreshold, setOptionScoreThreshold] = useState(60);
+  const [optionScoreOutcome, setOptionScoreOutcome] = useState<"valid" | "invalid">("invalid");
   const [validityGroups, setValidityGroups] = useState<ValidityRuleGroup[]>([
     { id: "contradiction", name: "矛盾答案检查", relation: "all", mode: "status", outcome: "invalid", conditions: [{ questionId: "welcome", operator: "等于", value: "非常满意", score: 0 }, { questionId: "feedback", operator: "包含", value: "无法游玩", score: 0 }] },
     { id: "quality-score", name: "答案质量评分", relation: "any", mode: "score", outcome: "invalid", conditions: [{ questionId: "nps", operator: "大于等于", value: "8", score: 30 }] },
@@ -113,6 +131,10 @@ export default function ResponsesPage() {
         setScoreComparator(storedRules.scoreComparator || "lt");
         setScoreOutcome(storedRules.scoreOutcome || "invalid");
         setMinimumScore(Number(storedRules.minimumScore) || 60);
+        setOptionScoreEnabled(Boolean(storedRules.optionScoreEnabled));
+        setOptionScoreComparator(storedRules.optionScoreComparator || "lt");
+        setOptionScoreThreshold(Number(storedRules.optionScoreThreshold) || 60);
+        setOptionScoreOutcome(storedRules.optionScoreOutcome || "invalid");
         if (Array.isArray(storedRules.groups)) {
           setValidityGroups(storedRules.groups.map((group: ValidityRuleGroup & { mode?: string }) => ({
             ...group,
@@ -197,9 +219,17 @@ export default function ResponsesPage() {
     })),
   ], [liveResponses]);
   const rows = useMemo(() => allResponses.filter((item) => {
-    const content = `${item.id}${item.playerId}${item.country}${item.channel}${item.sourceParameter}${item.submitIp}${item.satisfaction}${item.feedback}${item.qualityReason}`.toLowerCase();
+    const fieldValues = searchFields.filter((field) => field !== "answers").map((field) => String((item as unknown as Record<string, unknown>)[field] ?? ""));
+    if (searchFields.includes("answers")) {
+      Object.values(item.answers).forEach((value) => {
+        if (Array.isArray(value)) fieldValues.push(value.join(" "));
+        else if (value && typeof value === "object") fieldValues.push(Object.values(value).map((cell) => Array.isArray(cell) ? cell.join(" ") : String(cell)).join(" "));
+        else if (value !== undefined && value !== null) fieldValues.push(String(value));
+      });
+    }
+    const content = fieldValues.join("").toLowerCase();
     return content.includes(query.toLowerCase()) && (locale === "all" || item.locale === locale) && (status === "all" || item.status === status);
-  }), [allResponses, locale, query, status]);
+  }), [allResponses, locale, query, searchFields, status]);
   const selectedColumns = allColumns.filter((column) => visibleColumns.includes(column.key));
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const safePage = Math.min(currentPage, totalPages);
@@ -273,6 +303,10 @@ export default function ResponsesPage() {
       scoreComparator,
       scoreOutcome,
       minimumScore,
+      optionScoreEnabled,
+      optionScoreComparator,
+      optionScoreThreshold,
+      optionScoreOutcome,
       groups: validityGroups,
     }));
     setShowValidityRules(false);
@@ -378,7 +412,15 @@ export default function ResponsesPage() {
         </header>
 
         <div className="responses-toolbar response-table-toolbar">
-          <div className="responses-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索答卷、账号、IP、渠道、答案或判定原因" /></div>
+          <div className="responses-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索所选字段" /></div>
+          <div className="column-selector search-field-selector">
+            <button onClick={() => setShowSearchFields(!showSearchFields)}>⌕ 搜索字段 <em>{searchFields.length}/{searchFieldOptions.length}</em></button>
+            {showSearchFields && <div className="column-selector-menu">
+              <header><strong>选择搜索字段</strong><button onClick={() => setSearchFields(searchFieldOptions.map((item) => item.key))}>全选</button></header>
+              <div>{searchFieldOptions.map((item) => <label key={item.key}><input type="checkbox" checked={searchFields.includes(item.key)} onChange={() => setSearchFields((current) => current.includes(item.key) ? (current.length > 1 ? current.filter((key) => key !== item.key) : current) : [...current, item.key])} />{item.label}</label>)}</div>
+              <footer><span>至少保留一个字段</span><button onClick={() => setShowSearchFields(false)}>完成</button></footer>
+            </div>}
+          </div>
           <select value={locale} onChange={(event) => setLocale(event.target.value)} title="按玩家提交答卷时实际使用的问卷语言筛选"><option value="all">全部填写语言</option><option>English</option><option>繁體中文</option><option>ไทย</option></select>
           <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">全部状态</option><option value="valid">有效</option><option value="invalid">无效</option></select>
           <div className="column-selector">
@@ -494,6 +536,22 @@ export default function ResponsesPage() {
               <em>分时</em>
               <select value={scoreOutcome} onChange={(event) => setScoreOutcome(event.target.value as "valid" | "invalid")}><option value="invalid">判为无效</option><option value="valid">判为有效</option></select>
             </div>}
+          </section>
+
+          <section className="validity-section scoring-section">
+            <header>
+              <div><strong>选项总分判定</strong><small>根据题目编辑器中为各选项设置的分数，累加玩家已选选项的分数得到总分，据此判定答卷有效性。</small></div>
+              <button className={`mini-switch ${optionScoreEnabled ? "on" : ""}`} onClick={() => setOptionScoreEnabled(!optionScoreEnabled)} aria-label="开启选项总分判定"><i /></button>
+            </header>
+            {optionScoreEnabled && (
+              <div className="validity-score-threshold">
+                <span><strong>选项总分</strong><small>未设置分数的选项不计分；多选题累加所有已选项的分数。</small></span>
+                <select value={optionScoreComparator} onChange={(event) => setOptionScoreComparator(event.target.value as "lt" | "gt")}><option value="lt">总分小于</option><option value="gt">总分大于</option></select>
+                <input type="number" value={optionScoreThreshold} onChange={(event) => setOptionScoreThreshold(Number(event.target.value))} />
+                <em>分时</em>
+                <select value={optionScoreOutcome} onChange={(event) => setOptionScoreOutcome(event.target.value as "valid" | "invalid")}><option value="invalid">判为无效</option><option value="valid">判为有效</option></select>
+              </div>
+            )}
           </section>
         </div>
         <footer><button className="secondary-button" onClick={() => setShowValidityRules(false)}>取消</button><button className="primary-button" onClick={saveValidityRules}>保存规则</button></footer>

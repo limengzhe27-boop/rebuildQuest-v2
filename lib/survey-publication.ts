@@ -32,6 +32,21 @@ export type PageTemplateType = "limit" | "closed";
 
 export type EndPageTemplate = { id: string; name: string; image: string; content?: LimitPageContent; pageType?: PageTemplateType };
 
+export type InlineTextSegment =
+  | { type: "text"; key: string; value: string }
+  | { type: "link"; key: string; id: string; text: string; url: string };
+
+export function parseInlineLinkSegments(content: LimitPageContent): InlineTextSegment[] {
+  const links = new Map(content.links.map((link) => [link.id, link]));
+  return content.body.split(/(\{\{[^}]+\}\})/g).map((part, index) => {
+    const match = part.match(/^\{\{([^}]+)\}\}$/);
+    const link = match ? links.get(match[1]) : undefined;
+    return link
+      ? { type: "link" as const, key: `${link.id}-${index}`, id: link.id, text: link.text || "链接文字", url: link.url }
+      : { type: "text" as const, key: `${part}-${index}`, value: part };
+  });
+}
+
 const demoPageTemplates: EndPageTemplate[] = [
   {
     id: "demo-limit-thankyou",
@@ -215,9 +230,9 @@ export const defaultPublications: Publication[] = [
     limitPageBackgroundTemplateId: "project-default",
     limitPageBackground: "",
     limitPageContent: {
-      "en-US": { title: "You have completed this survey", body: "Thank you for participating. This account or environment has reached the submission limit.", links: [] },
-      "zh-CN": { title: "您已完成本次问卷", body: "感谢您的参与，当前账号或填写环境已达到提交次数限制。", links: [] },
-      "zh-TW": { title: "您已完成本次問卷", body: "感謝您的參與，目前帳號或填寫環境已達提交次數限制。", links: [] },
+      "en-US": { title: "You have completed this survey", body: "Thank you for participating. This account or environment has reached the answer limit.", links: [] },
+      "zh-CN": { title: "您已完成本次问卷", body: "感谢您的参与，当前账号或填写环境已达到答题限制。", links: [] },
+      "zh-TW": { title: "您已完成本次問卷", body: "感謝您的參與，目前帳號或填寫環境已達答題限制。", links: [] },
       "th-TH": { title: "คุณทำแบบสอบถามนี้เสร็จแล้ว", body: "ขอบคุณที่เข้าร่วม บัญชีหรือสภาพแวดล้อมนี้ถึงขีดจำกัดการส่งแล้ว", links: [] },
     },
     redirectUrl: "",
@@ -296,9 +311,9 @@ export const defaultPublications: Publication[] = [
     limitPageBackgroundTemplateId: "project-default",
     limitPageBackground: "",
     limitPageContent: {
-      "zh-CN": { title: "您已完成本次问卷", body: "感谢您的参与，当前账号或填写环境已达到提交次数限制。", links: [] },
-      "en-US": { title: "You have completed this survey", body: "Thank you for participating. This account or environment has reached the submission limit.", links: [] },
-      "zh-TW": { title: "您已完成本次問卷", body: "感謝您的參與，目前帳號或填寫環境已達提交次數限制。", links: [] },
+      "zh-CN": { title: "您已完成本次问卷", body: "感谢您的参与，当前账号或填写环境已达到答题限制。", links: [] },
+      "en-US": { title: "You have completed this survey", body: "Thank you for participating. This account or environment has reached the answer limit.", links: [] },
+      "zh-TW": { title: "您已完成本次問卷", body: "感謝您的參與，目前帳號或填寫環境已達答題限制。", links: [] },
       "th-TH": { title: "คุณทำแบบสอบถามนี้เสร็จแล้ว", body: "ขอบคุณที่เข้าร่วม บัญชีหรือสภาพแวดล้อมนี้ถึงขีดจำกัดการส่งแล้ว", links: [] },
     },
     redirectUrl: "",

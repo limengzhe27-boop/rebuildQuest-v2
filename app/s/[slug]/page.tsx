@@ -598,7 +598,7 @@ export default function PlayerSurvey() {
   if (limitPage) {
     const baseContent = limitPage.content[locale] || limitPage.content["en-US"] || limitPage.content["zh-CN"] || {
       title: "You have completed this survey",
-      body: "Thank you for participating. The submission limit has been reached.",
+      body: "Thank you for participating. The answer limit has been reached.",
       links: [],
     };
     const translationLocale = translationLocaleKey[locale];

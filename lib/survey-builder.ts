@@ -43,6 +43,7 @@ export type Question = {
   description: string;
   required: boolean;
   options?: string[];
+  optionScores?: number[];
   maxSelections?: number;
   min?: number;
   max?: number;

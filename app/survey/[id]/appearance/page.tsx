@@ -126,7 +126,7 @@ export default function AppearancePage() {
   const previewRuntimeLocale = previewLocale === "EN" ? "en-US" : previewLocale === "繁中" ? "zh-TW" : previewLocale === "ไทย" ? "th-TH" : "zh-CN";
   const limitContent = publication?.limitPageContent?.[previewRuntimeLocale]
     || publication?.limitPageContent?.[publication?.defaultLocale || "zh-CN"]
-    || { title: "", body: "当前账号或填写环境已达到提交次数限制。", links: [] };
+    || { title: "", body: "当前账号或填写环境已达到答题限制。", links: [] };
   const previewLimitContent: LimitPageContent = {
     ...limitContent,
     title: translated("limit:title", limitContent.title),

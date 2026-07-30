@@ -137,7 +137,7 @@ export default function LanguagesPage() {
   }, [publication, questions, surveyTitle]);
 
   const sourceLimitContent = publication?.limitPageContent?.[publication?.defaultLocale || "zh-CN"]
-    || { title: "", body: "当前账号或填写环境已达到提交次数限制。", links: [] };
+    || { title: "", body: "当前账号或填写环境已达到答题限制。", links: [] };
   const sourceLimitPlainText = sourceLimitContent.links.reduce(
     (text, link) => text.replaceAll(`{{${link.id}}}`, link.text),
     sourceLimitContent.body,
