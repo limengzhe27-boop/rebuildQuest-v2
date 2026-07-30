@@ -348,7 +348,6 @@ export default function AnalyticsPage() {
         <div className="analytics-simple-filters">
           <label>语言<select value={locale} onChange={(event) => setLocale(event.target.value)}><option>全部语言</option><option>English</option><option>繁體中文</option><option>ไทย</option></select></label>
           <label>提交时间<select value={range} onChange={(event) => setRange(event.target.value)}><option>全部时间</option><option>今日</option><option>近 7 天</option><option>近 30 天</option></select></label>
-          <span>当前口径：{tab === "answers" ? "有效答卷（无效答卷不计入）" : "全部已提交答卷的用户属性"}</span>
         </div>
 
         {tab === "answers" ? <div className="answer-report-list">
