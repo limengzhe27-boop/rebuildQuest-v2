@@ -497,6 +497,13 @@
   font-weight: 700;
 }
 
+.lottery-claim-type-block select:disabled {
+  border-color: #e4e8ef;
+  background: #f7f8fa;
+  color: #b7c0cd;
+  cursor: not-allowed;
+}
+
 
 .lottery-image-upload-empty {
   display: flex;

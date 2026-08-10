@@ -656,6 +656,7 @@ export default function SurveySettingsPage() {
             <div className="lottery-claim-type-list">
               {activeLotteryPrizeTypes.map((type) => {
                 const typeSettings = lottery.claimSettingsByType[type];
+                const needsClaimInfo = typeSettings.claimFields.length > 0;
                 return (
                   <div className="lottery-claim-type-block" key={type}>
                     <h4>{lotteryPrizeTypeLabels[type]}</h4>
@@ -680,12 +681,17 @@ export default function SurveySettingsPage() {
                       <span>领奖时间限制</span>
                       <select
                         value={typeSettings.claimWindowMinutes}
+                        disabled={!needsClaimInfo}
                         onChange={(event) => updateClaimTypeSettings(type, { claimWindowMinutes: Number(event.target.value) })}
                       >
                         {claimWindowOptions.map((option) => <option key={option.minutes} value={option.minutes}>{option.label}</option>)}
                       </select>
                     </label>
-                    <small>中奖用户须在此时限内完成领奖信息填写，超时后奖品库存自动释放，可再次被抽中。</small>
+                    <small>
+                      {needsClaimInfo
+                        ? "中奖用户须在此时限内完成领奖信息填写，超时后奖品库存自动释放，可再次被抽中。"
+                        : "未选择需要用户填写的信息时无需领奖时限，中奖后奖品直接发放。"}
+                    </small>
                   </div>
                 );
               })}

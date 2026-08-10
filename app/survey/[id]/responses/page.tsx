@@ -46,7 +46,7 @@ const claimStatusLabel: Record<LotteryClaimStatus, string> = {
   none: "未中奖",
   pending: "待领取",
   claimed: "已领取",
-  expired: "已过期作废",
+  expired: "已过期",
 };
 
 type ValidityCondition = {
@@ -663,7 +663,7 @@ export default function ResponsesPage() {
               <option value="all">全部领奖状态</option>
               <option value="pending">待领取</option>
               <option value="claimed">已领取</option>
-              <option value="expired">已过期作废</option>
+              <option value="expired">已过期</option>
             </select>
             <div className="column-selector">
               <button onClick={() => setShowLotteryColumns(!showLotteryColumns)}>☷ 显示字段 <em>{lotteryVisibleColumns.length}/{lotteryAllColumns.length}</em></button>
