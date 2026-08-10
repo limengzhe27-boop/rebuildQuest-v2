@@ -1,0 +1,787 @@
+.lottery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.lottery-cell {
+  position: relative;
+  display: flex;
+  aspect-ratio: 1 / 1;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e3e8ef;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.lottery-cell.active {
+  border-color: #f5a623;
+  background: #fff8ec;
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, .35);
+}
+
+.lottery-pool {
+  flex-direction: column;
+  gap: 4px;
+  border-style: dashed;
+  background: #f4f8ff;
+  color: #246bfd;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lottery-cell-button {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 6px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.lottery-cell-button.empty {
+  color: #b7bfcc;
+}
+
+.lottery-cell-button .lottery-cell-thanks {
+  color: #9aa3b1;
+  font-size: 10px;
+}
+
+.lottery-cell-button .lottery-cell-add {
+  display: none;
+  color: #246bfd;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.lottery-cell-button.empty:hover .lottery-cell-thanks {
+  display: none;
+}
+
+.lottery-cell-button.empty:hover .lottery-cell-add {
+  display: inline;
+}
+
+.lottery-cell-button.filled strong {
+  overflow: hidden;
+  max-width: 100%;
+  color: #26334c;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lottery-cell-button.filled small {
+  color: #8b95a7;
+  font-size: 9px;
+}
+
+.lottery-cell-image {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  background: #f4f6fa;
+  font-size: 18px;
+  overflow: hidden;
+}
+
+.lottery-cell-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lottery-win-rate-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 160px;
+}
+
+.lottery-win-rate-input input {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  padding: 0 9px;
+  color: #3c4960;
+  font-size: 10px;
+}
+
+.lottery-prize-modal .component-editor-body {
+  gap: 12px;
+}
+
+.lottery-image-upload {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lottery-image-upload img {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.lottery-image-upload div {
+  display: flex;
+  gap: 8px;
+}
+
+.lottery-image-upload button {
+  height: 30px;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  background: #fff;
+  padding: 0 10px;
+  color: #4e5c74;
+  font-size: 9px;
+}
+
+.lottery-prize-modal select {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  padding: 0 9px;
+  color: #3c4960;
+  font-size: 10px;
+}
+
+.lottery-codes-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.lottery-codes-actions button {
+  height: 30px;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  background: #fff;
+  padding: 0 10px;
+  color: #4e5c74;
+  font-size: 9px;
+}
+
+.lottery-stock-readout {
+  color: #46536a;
+  font-size: 10px;
+}
+
+.lottery-claim-field-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.lottery-claim-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #45536b;
+  font-size: 10px;
+}
+
+.lottery-custom-fields {
+  display: grid;
+  gap: 6px;
+}
+
+.lottery-custom-fields > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #edf0f3;
+  border-radius: 5px;
+  padding: 6px 10px;
+  color: #46536a;
+  font-size: 10px;
+}
+
+.lottery-custom-fields button {
+  border: 0;
+  background: transparent;
+  color: #9aa3b1;
+  font-size: 14px;
+}
+
+.lottery-add-custom-field {
+  display: flex;
+  gap: 8px;
+}
+
+.lottery-add-custom-field input {
+  flex: 1;
+  height: 34px;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  padding: 0 9px;
+  font-size: 10px;
+}
+
+.lottery-add-custom-field button {
+  height: 34px;
+  border: 1px solid #cbd9f2;
+  border-radius: 5px;
+  background: #f4f8ff;
+  padding: 0 11px;
+  color: #246bfd;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lottery-identity-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #5c687d;
+  font-size: 10px;
+}
+
+.lottery-prize-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  border: 1px dashed #cfd9e8;
+  border-radius: 8px;
+  background: #fafcff;
+  padding: 16px;
+}
+
+.lottery-prize-preview .lottery-prize-preview-image {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 10px;
+  background: #f4f6fa;
+  font-size: 22px;
+  overflow: hidden;
+}
+
+.lottery-prize-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lottery-runtime-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.lottery-spin-stage h2 {
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.lottery-spin-stage .lottery-cell-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.lottery-spin-stage .lottery-cell-display strong {
+  overflow: hidden;
+  max-width: 100%;
+  color: #26334c;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lottery-result-stage,
+.lottery-claim-stage {
+  display: flex;
+  width: min(420px, 100%);
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.lottery-result-stage.custom {
+  border-radius: 12px;
+  background-position: center;
+  background-size: cover;
+  padding: 24px;
+}
+
+.lottery-claim-submitted {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border: 1px dashed #cfd9e8;
+  border-radius: 8px;
+  background: #fafcff;
+  padding: 16px;
+  color: #46536a;
+  font-size: 12px;
+  text-align: center;
+}
+
+.lottery-claim-submitted h1 {
+  margin: 0;
+  font-size: 16px;
+  color: #26334c;
+}
+
+.lottery-claim-submitted p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.lottery-claim-expired {
+  border: 1px dashed #e3b6ae;
+  border-radius: 8px;
+  background: #fff6f5;
+  padding: 16px;
+  color: #b34437;
+  font-size: 12px;
+  text-align: center;
+}
+
+.lottery-claim-countdown {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #f0c584;
+  border-radius: 8px;
+  background: #fff9ef;
+  padding: 10px 14px;
+  color: #a5690c;
+  font-size: 11px;
+  text-align: center;
+}
+
+.lottery-claim-countdown strong {
+  margin: 0 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lottery-claim-complete-button {
+  margin-top: 4px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--player, #246bfd);
+  padding: 0 22px;
+  height: 36px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.lottery-won-prize {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.lottery-won-prize .lottery-cell-image {
+  width: 64px;
+  height: 64px;
+  font-size: 30px;
+}
+
+.lottery-code-display,
+.lottery-claim-instructions {
+  border: 1px dashed #cfd9e8;
+  border-radius: 8px;
+  background: #fafcff;
+  padding: 10px 14px;
+  color: #46536a;
+  font-size: 12px;
+}
+
+.lottery-claim-stage {
+  align-items: stretch;
+}
+
+.lottery-claim-stage label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.lottery-claim-stage input {
+  height: 36px;
+  border: 1px solid #d8dee8;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.lottery-contact-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  background: #f8faff;
+  padding: 12px 16px;
+  width: 100%;
+}
+
+.lottery-contact-card > div {
+  display: flex;
+  justify-content: space-between;
+  color: #46536a;
+  font-size: 12px;
+}
+
+.lottery-config-section {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid #edf0f3;
+}
+
+.lottery-config-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.lottery-config-section h4 {
+  margin: 0;
+  color: #8b95a7;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.lottery-claim-type-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.lottery-claim-type-block {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  background: #fafcff;
+  padding: 14px;
+}
+
+.lottery-claim-type-block h4 {
+  margin: 0;
+  color: #26334c;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+
+.lottery-image-upload-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lottery-image-upload-empty button {
+  align-self: flex-start;
+  height: 30px;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  background: #fff;
+  padding: 0 10px;
+  color: #4e5c74;
+  font-size: 9px;
+}
+
+.lottery-image-upload-empty small {
+  color: #9aa3b1;
+  font-size: 9px;
+}
+
+.lottery-background-upload img {
+  width: 96px;
+  height: 54px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.lottery-type-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+
+.lottery-type-cards button {
+  height: 39px;
+  border: 1px solid #dae0e9;
+  border-radius: 6px;
+  background: #fff;
+  color: #667187;
+  font-size: 10px;
+}
+
+.lottery-type-cards button.active {
+  border-color: #6e9eff;
+  background: #f4f8ff;
+  color: #246bfd;
+  box-shadow: inset 0 0 0 1px #6e9eff;
+}
+
+.lottery-claim-multiselect {
+  position: relative;
+}
+
+.lottery-claim-multiselect > summary {
+  display: flex;
+  min-height: 40px;
+  cursor: pointer;
+  list-style: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #d8dfe9;
+  border-radius: 7px;
+  background: #fff;
+  padding: 6px 12px;
+  color: #526077;
+}
+
+.lottery-claim-multiselect > summary::-webkit-details-marker {
+  display: none;
+}
+
+.lottery-claim-multiselect > summary em {
+  flex: 0 0 auto;
+  color: #9aa3b1;
+  font-style: normal;
+}
+
+.lottery-claim-multiselect[open] > summary {
+  border-color: #7da5f0;
+}
+
+.lottery-claim-multiselect-placeholder {
+  color: #b7bfcc;
+  font-size: 10px;
+}
+
+.lottery-claim-multiselect-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lottery-claim-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 4px;
+  background: #f1f6ff;
+  padding: 3px 6px;
+  color: #2467e8;
+  font-size: 9px;
+}
+
+.lottery-claim-chip i {
+  cursor: pointer;
+  color: #7da5f0;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.lottery-claim-multiselect-panel {
+  display: flex;
+  z-index: 5;
+  flex-direction: column;
+  gap: 8px;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  border: 1px solid #dfe4eb;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+  box-shadow: 0 12px 32px rgba(34, 45, 64, .17);
+}
+
+.lottery-claim-multiselect-panel > button {
+  display: flex;
+  min-height: 32px;
+  cursor: pointer;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #dbe2ec;
+  border-radius: 7px;
+  background: #fff;
+  padding: 0 10px;
+  color: #526077;
+  font-size: 10px;
+  text-align: left;
+}
+
+.lottery-claim-multiselect-panel > button i {
+  display: grid;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  border: 1px solid #cad3e1;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 9px;
+  font-style: normal;
+}
+
+.lottery-claim-multiselect-panel > button.selected {
+  border-color: #7da5f0;
+  background: #f1f6ff;
+  color: #2467e8;
+}
+
+.lottery-claim-multiselect-panel > button.selected i {
+  border-color: #2f73f5;
+  background: #2f73f5;
+}
+
+.lottery-page-copy-tabs {
+  margin: 0 0 14px;
+}
+
+.lottery-page-copy-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.lottery-page-copy-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #5c687d;
+  font-size: 10px;
+}
+
+.lottery-page-copy-fields input,
+.lottery-page-copy-fields textarea {
+  width: 100%;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  padding: 0 9px;
+  outline: 0;
+  color: #3c4960;
+  font-size: 10px;
+}
+
+.lottery-page-copy-fields input {
+  height: 34px;
+}
+
+.lottery-page-copy-fields textarea {
+  height: 68px;
+  padding: 9px;
+  resize: vertical;
+}
+
+.detail-section-tabs {
+  margin: 0 24px;
+}
+
+.lottery-stat-summary {
+  margin: 18px 0;
+}
+
+.lottery-prize-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.lottery-prize-progress-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px 14px;
+}
+
+.lottery-prize-progress-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lottery-prize-progress-info strong {
+  overflow: hidden;
+  color: #26334c;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lottery-prize-progress-info small {
+  color: #8b95a7;
+  font-size: 9px;
+}
+
+.lottery-prize-progress-bar {
+  position: static;
+  height: 4px;
+  margin-top: 2px;
+}
+
+.lottery-prize-sold-out {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border-radius: 4px;
+  background: #fff0ef;
+  padding: 2px 6px;
+  color: #c94e49;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.lottery-claim-status-pending {
+  background: #fff2dc;
+  color: #c47a22;
+}
+
+.lottery-claim-status-claimed {
+  background: #e9f7ef;
+  color: #21965e;
+}
+
+.lottery-claim-status-expired {
+  background: #fff0ef;
+  color: #c94e49;
+}
+
+

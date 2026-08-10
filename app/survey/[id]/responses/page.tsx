@@ -5,6 +5,20 @@ import { useParams, useRouter } from "next/navigation";
 import { responseStatusLabel, SurveyResponse, surveyResponses } from "@/lib/survey-responses";
 import { LiveSurveyResponse, runtimeLocales, SurveyAnswer } from "@/lib/survey-runtime";
 import { loadQuestions, Question } from "@/lib/survey-builder";
+import { loadPublications, Publication } from "@/lib/survey-publication";
+import {
+  defaultLotteryConfig,
+  LotteryClaimStatus,
+  LotteryConfig,
+  LotteryDrawRecord,
+  LotteryPrize,
+  LotteryPrizeType,
+  loadLotteryDraws,
+  lotteryPrizeTypeLabels,
+  remainingStock,
+  saveLotteryDraws,
+  settleExpiredLotteryDraws,
+} from "@/lib/survey-lottery";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
@@ -18,6 +32,21 @@ type ResponseColumn = {
   width: number;
   kind?: "answer" | "status" | "code";
   getter: (item: ResponseRow) => string | number;
+};
+
+type LotteryDrawColumn = {
+  key: string;
+  label: string;
+  width: number;
+  kind?: "claimStatus" | "code";
+  getter: (item: LotteryDrawRecord) => string;
+};
+
+const claimStatusLabel: Record<LotteryClaimStatus, string> = {
+  none: "未中奖",
+  pending: "待领取",
+  claimed: "已领取",
+  expired: "已过期作废",
 };
 
 type ValidityCondition = {
@@ -115,6 +144,38 @@ export default function ResponsesPage() {
   const [liveResponses, setLiveResponses] = useState<ResponseRow[]>([]);
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(1);
+  const [detailSection, setDetailSection] = useState<"responses" | "lottery">("responses");
+  const [publication, setPublication] = useState<Publication | null>(null);
+  const [lotteryConfig, setLotteryConfig] = useState<LotteryConfig>(defaultLotteryConfig);
+  const [lotteryDraws, setLotteryDraws] = useState<LotteryDrawRecord[]>([]);
+  const [lotteryQuery, setLotteryQuery] = useState("");
+  const [lotterySearchFields, setLotterySearchFields] = useState<string[]>(["responseId", "identityCode", "prizeName"]);
+  const [showLotterySearchFields, setShowLotterySearchFields] = useState(false);
+  const [lotteryStatusFilter, setLotteryStatusFilter] = useState<"all" | LotteryClaimStatus>("all");
+  const [lotteryVisibleColumns, setLotteryVisibleColumns] = useState<string[]>([
+    "drawId", "responseId", "prizeType", "prizeName", "claimStatus", "drawnAt", "claimedAt",
+  ]);
+  const [showLotteryColumns, setShowLotteryColumns] = useState(false);
+  const [lotteryPageSize, setLotteryPageSize] = useState(50);
+  const [lotteryCurrentPage, setLotteryCurrentPage] = useState(1);
+
+  useEffect(() => {
+    const loadedPublication = loadPublications(surveyId)[0] || null;
+    setPublication(loadedPublication);
+    if (loadedPublication?.completionMode === "lottery") {
+      const settled = settleExpiredLotteryDraws(loadedPublication.lotteryConfig, loadLotteryDraws(surveyId));
+      if (settled.changed) {
+        saveLotteryDraws(surveyId, settled.draws);
+        const publications = JSON.parse(window.localStorage.getItem(`joydata-survey-publications-${surveyId}`) || "[]");
+        const updatedPublications = publications.map((item: Publication) =>
+          item.id === loadedPublication.id ? { ...item, lotteryConfig: settled.config } : item,
+        );
+        window.localStorage.setItem(`joydata-survey-publications-${surveyId}`, JSON.stringify(updatedPublications));
+      }
+      setLotteryConfig(settled.config);
+      setLotteryDraws(settled.draws);
+    }
+  }, [surveyId]);
 
   useEffect(() => {
     const surveyQuestions = loadQuestions(surveyId).filter((question) =>
@@ -240,6 +301,89 @@ export default function ResponsesPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [locale, pageSize, query, status]);
+
+  const lotteryWinnerDraws = useMemo(() => lotteryDraws.filter((draw) => draw.prizeId), [lotteryDraws]);
+
+  const lotteryClaimFieldColumns = useMemo<LotteryDrawColumn[]>(() => {
+    const seen = new Map<string, string>();
+    lotteryWinnerDraws.forEach((draw) => {
+      const prize = lotteryConfig.prizes.find((item) => item.id === draw.prizeId);
+      const typeSettings = prize ? lotteryConfig.claimSettingsByType[prize.type] : undefined;
+      typeSettings?.claimFields.forEach((field) => {
+        if (!seen.has(field.key)) seen.set(field.key, field.label);
+      });
+    });
+    return Array.from(seen.entries()).map(([key, label]) => ({
+      key: `claim:${key}`,
+      label,
+      width: 160,
+      getter: (item) => item.claim?.[key] || "—",
+    }));
+  }, [lotteryWinnerDraws, lotteryConfig]);
+
+  useEffect(() => {
+    if (!lotteryClaimFieldColumns.length) return;
+    setLotteryVisibleColumns((current) => Array.from(new Set([
+      ...current,
+      ...lotteryClaimFieldColumns.map((column) => column.key),
+    ])));
+  }, [lotteryClaimFieldColumns]);
+
+  const lotteryBaseColumns = useMemo<LotteryDrawColumn[]>(() => [
+    { key: "drawId", label: "中奖编号", width: 160, kind: "code", getter: (item) => item.id },
+    { key: "responseId", label: "答卷编号", width: 140, kind: "code", getter: (item) => item.responseId },
+    { key: "identityCode", label: "身份码", width: 140, kind: "code", getter: (item) => item.identityCode || "—" },
+    { key: "prizeType", label: "奖品类型", width: 100, getter: (item) => {
+      const prize = lotteryConfig.prizes.find((prizeItem) => prizeItem.id === item.prizeId);
+      return prize ? lotteryPrizeTypeLabels[prize.type] : "—";
+    } },
+    { key: "prizeName", label: "奖品名称", width: 160, getter: (item) => lotteryConfig.prizes.find((prizeItem) => prizeItem.id === item.prizeId)?.name || "—" },
+    { key: "claimStatus", label: "领奖状态", width: 100, kind: "claimStatus", getter: (item) => claimStatusLabel[item.claimStatus] },
+    { key: "drawnAt", label: "中奖时间", width: 170, getter: (item) => new Date(item.drawnAt).toLocaleString("zh-CN", { hour12: false }) },
+    { key: "claimedAt", label: "领奖时间", width: 170, getter: (item) => item.claimedAt ? new Date(item.claimedAt).toLocaleString("zh-CN", { hour12: false }) : "—" },
+  ], [lotteryConfig]);
+
+  const lotteryAllColumns = useMemo(() => [...lotteryBaseColumns, ...lotteryClaimFieldColumns], [lotteryBaseColumns, lotteryClaimFieldColumns]);
+
+  const lotterySearchFieldOptions = useMemo(() => [
+    { key: "responseId", label: "答卷编号" },
+    { key: "identityCode", label: "身份码" },
+    { key: "prizeName", label: "奖品名称" },
+    ...lotteryClaimFieldColumns.map((column) => ({ key: column.key, label: column.label })),
+  ], [lotteryClaimFieldColumns]);
+
+  const lotteryRows = useMemo(() => lotteryWinnerDraws.filter((draw) => {
+    if (lotteryStatusFilter !== "all" && draw.claimStatus !== lotteryStatusFilter) return false;
+    if (!lotteryQuery.trim()) return true;
+    const prize = lotteryConfig.prizes.find((item) => item.id === draw.prizeId);
+    const fieldValues = lotterySearchFields.map((field) => {
+      if (field === "responseId") return draw.responseId;
+      if (field === "identityCode") return draw.identityCode || "";
+      if (field === "prizeName") return prize?.name || "";
+      if (field.startsWith("claim:")) return draw.claim?.[field.slice(6)] || "";
+      return "";
+    });
+    return fieldValues.join("").toLowerCase().includes(lotteryQuery.toLowerCase());
+  }), [lotteryWinnerDraws, lotteryStatusFilter, lotteryQuery, lotterySearchFields, lotteryConfig]);
+
+  const lotterySelectedColumns = lotteryAllColumns.filter((column) => lotteryVisibleColumns.includes(column.key));
+  const lotteryTotalPages = Math.max(1, Math.ceil(lotteryRows.length / lotteryPageSize));
+  const lotterySafePage = Math.min(lotteryCurrentPage, lotteryTotalPages);
+  const lotteryPageRows = lotteryRows.slice((lotterySafePage - 1) * lotteryPageSize, lotterySafePage * lotteryPageSize);
+  const lotteryPageStart = lotteryRows.length ? (lotterySafePage - 1) * lotteryPageSize + 1 : 0;
+  const lotteryPageEnd = Math.min(lotterySafePage * lotteryPageSize, lotteryRows.length);
+
+  useEffect(() => {
+    setLotteryCurrentPage(1);
+  }, [lotteryQuery, lotteryStatusFilter, lotteryPageSize]);
+
+  function prizeTotalCount(prize: LotteryPrize) {
+    return remainingStock(prize) + lotteryDraws.filter((draw) => draw.prizeId === prize.id && draw.claimStatus !== "expired").length;
+  }
+
+  function prizeClaimedCount(prize: LotteryPrize) {
+    return lotteryDraws.filter((draw) => draw.prizeId === prize.id && draw.claimStatus === "claimed").length;
+  }
 
   function flash(message: string) {
     setNotice(message);
@@ -405,6 +549,14 @@ export default function ResponsesPage() {
         </div>
       </header>
 
+      {publication?.completionMode === "lottery" && (
+        <div className="publish-section-tabs settings-tabs detail-section-tabs">
+          <button className={detailSection === "responses" ? "active" : ""} onClick={() => setDetailSection("responses")}>答卷明细</button>
+          <button className={detailSection === "lottery" ? "active" : ""} onClick={() => setDetailSection("lottery")}>抽奖明细</button>
+        </div>
+      )}
+
+      {detailSection === "responses" && (
       <section className="response-table-shell">
         <header className="response-table-heading">
           <div><span>RESPONSE DATA</span><h1>答卷明细</h1><p>一行代表一份提交，默认展示问卷答案与核心用户信息，其他字段可通过“显示字段”添加。</p></div>
@@ -462,6 +614,97 @@ export default function ResponsesPage() {
           </footer>
         </div>
       </section>
+      )}
+
+      {detailSection === "lottery" && publication?.completionMode === "lottery" && (
+        <section className="response-table-shell lottery-detail-shell">
+          <header className="response-table-heading">
+            <div><span>LOTTERY DATA</span><h1>抽奖明细</h1><p>统计参与抽奖、中奖与领奖情况，下方明细仅展示中奖记录。</p></div>
+            <div><small>共</small><strong>{lotteryWinnerDraws.length.toLocaleString()}</strong><span>条中奖记录</span></div>
+          </header>
+
+          <div className="user-distribution-summary lottery-stat-summary">
+            <span><small>参与抽奖人数</small><strong>{lotteryDraws.length}</strong></span>
+            <span><small>中奖人数</small><strong>{lotteryWinnerDraws.length}</strong></span>
+            <span><small>领取奖品数</small><strong>{lotteryDraws.filter((draw) => draw.claimStatus === "claimed").length}</strong></span>
+          </div>
+
+          <div className="lottery-prize-progress-grid">
+            {lotteryConfig.prizes.map((prize) => {
+              const total = prizeTotalCount(prize);
+              const claimed = prizeClaimedCount(prize);
+              const remaining = remainingStock(prize);
+              const percent = total > 0 ? Math.round(claimed / total * 100) : 0;
+              return (
+                <article className="lottery-prize-progress-card" key={prize.id}>
+                  <span className="lottery-cell-image">{prize.image ? <img src={prize.image} alt="" /> : "🎁"}</span>
+                  <div className="lottery-prize-progress-info">
+                    <strong>{prize.name || "未命名奖品"}</strong>
+                    <small>{lotteryPrizeTypeLabels[prize.type]} · 剩余 {remaining} / 共 {total}</small>
+                    <div className="locale-progress lottery-prize-progress-bar"><i style={{ width: `${percent}%` }} /></div>
+                  </div>
+                  {remaining === 0 && <em className="lottery-prize-sold-out">已抽完</em>}
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="responses-toolbar response-table-toolbar">
+            <div className="responses-search"><span>⌕</span><input value={lotteryQuery} onChange={(event) => setLotteryQuery(event.target.value)} placeholder="搜索所选字段" /></div>
+            <div className="column-selector search-field-selector">
+              <button onClick={() => setShowLotterySearchFields(!showLotterySearchFields)}>⌕ 搜索字段 <em>{lotterySearchFields.length}/{lotterySearchFieldOptions.length}</em></button>
+              {showLotterySearchFields && <div className="column-selector-menu">
+                <header><strong>选择搜索字段</strong><button onClick={() => setLotterySearchFields(lotterySearchFieldOptions.map((item) => item.key))}>全选</button></header>
+                <div>{lotterySearchFieldOptions.map((item) => <label key={item.key}><input type="checkbox" checked={lotterySearchFields.includes(item.key)} onChange={() => setLotterySearchFields((current) => current.includes(item.key) ? (current.length > 1 ? current.filter((key) => key !== item.key) : current) : [...current, item.key])} />{item.label}</label>)}</div>
+                <footer><span>至少保留一个字段</span><button onClick={() => setShowLotterySearchFields(false)}>完成</button></footer>
+              </div>}
+            </div>
+            <select value={lotteryStatusFilter} onChange={(event) => setLotteryStatusFilter(event.target.value as "all" | LotteryClaimStatus)}>
+              <option value="all">全部领奖状态</option>
+              <option value="pending">待领取</option>
+              <option value="claimed">已领取</option>
+              <option value="expired">已过期作废</option>
+            </select>
+            <div className="column-selector">
+              <button onClick={() => setShowLotteryColumns(!showLotteryColumns)}>☷ 显示字段 <em>{lotteryVisibleColumns.length}/{lotteryAllColumns.length}</em></button>
+              {showLotteryColumns && <div className="column-selector-menu">
+                <header><strong>选择表格字段</strong><button onClick={() => setLotteryVisibleColumns(lotteryAllColumns.map((column) => column.key))}>全选</button></header>
+                <div>{lotteryAllColumns.map((column) => <label key={column.key}><input type="checkbox" checked={lotteryVisibleColumns.includes(column.key)} onChange={() => setLotteryVisibleColumns((current) => current.includes(column.key) ? (current.length > 1 ? current.filter((key) => key !== column.key) : current) : [...current, column.key])} />{column.label}</label>)}</div>
+                <footer><span>至少保留一个字段</span><button onClick={() => setShowLotteryColumns(false)}>完成</button></footer>
+              </div>}
+            </div>
+            <span>当前显示 {lotteryRows.length} 条</span>
+          </div>
+
+          <div className="flat-response-table-wrap detailed">
+            <table className="flat-response-table detailed-table" style={{ minWidth: Math.max(1100, lotterySelectedColumns.reduce((sum, column) => sum + column.width, 0)) }}>
+              <colgroup>{lotterySelectedColumns.map((column) => <col key={column.key} style={{ width: column.width }} />)}</colgroup>
+              <thead><tr>{lotterySelectedColumns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead>
+              <tbody>{lotteryPageRows.map((item) => <tr key={item.id}>
+                {lotterySelectedColumns.map((column) => <td key={column.key} title={String(column.getter(item))}>
+                  {column.kind === "claimStatus" ? <span className={`response-status lottery-claim-status-${item.claimStatus}`}>{column.getter(item)}</span> : column.kind === "code" ? <code>{column.getter(item)}</code> : column.getter(item)}
+                </td>)}
+              </tr>)}</tbody>
+            </table>
+            <footer className="table-pagination">
+              <span>第 {lotteryPageStart}–{lotteryPageEnd} 条，共 {lotteryRows.length} 条</span>
+              <div>
+                <button disabled={lotterySafePage === 1} onClick={() => setLotteryCurrentPage(1)}>«</button>
+                <button disabled={lotterySafePage === 1} onClick={() => setLotteryCurrentPage((page) => Math.max(1, page - 1))}>‹</button>
+                {Array.from({ length: Math.min(5, lotteryTotalPages) }, (_, index) => {
+                  const start = Math.min(Math.max(1, lotterySafePage - 2), Math.max(1, lotteryTotalPages - 4));
+                  const page = start + index;
+                  return <button key={page} className={page === lotterySafePage ? "active" : ""} onClick={() => setLotteryCurrentPage(page)}>{page}</button>;
+                })}
+                <button disabled={lotterySafePage === lotteryTotalPages} onClick={() => setLotteryCurrentPage((page) => Math.min(lotteryTotalPages, page + 1))}>›</button>
+                <button disabled={lotterySafePage === lotteryTotalPages} onClick={() => setLotteryCurrentPage(lotteryTotalPages)}>»</button>
+              </div>
+              <label className="page-size-select"><span>每页</span><select value={lotteryPageSize} onChange={(event) => setLotteryPageSize(Number(event.target.value))}><option value={20}>20 条</option><option value={50}>50 条</option><option value={100}>100 条</option></select></label>
+            </footer>
+          </div>
+        </section>
+      )}
+
       {showFeishuExport && <div className="preview-backdrop" onMouseDown={() => setShowFeishuExport(false)}><section className="feishu-export-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
         <header><div><strong>新建飞书多维表格</strong><small>共 {rows.length} 份答卷 · {selectedColumns.length} 个字段</small></div><button onClick={() => setShowFeishuExport(false)}>×</button></header>
         <div className="feishu-export-body">

@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultPublications, EndPageTemplate, LimitPageContent, loadEndPageTemplates, loadPublications, Publication } from "@/lib/survey-publication";
 import { loadQuestions, Question } from "@/lib/survey-builder";
+import { claimWindowOptions, createEmptyPrize, LotteryClaimTypeSettings, LotteryConfig, lotteryPrizeTypeLabels, LotteryPrize, LotteryPrizeType, remainingStock, settleExpiredLotteryDraws, loadLotteryDraws, saveLotteryDraws } from "@/lib/survey-lottery";
+import { LotteryGrid } from "@/components/LotteryGrid";
+import { LotteryPrizeEditor } from "@/components/LotteryPrizeEditor";
+import { LotteryClaimFieldsSelect } from "@/components/LotteryClaimFieldsSelect";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
@@ -26,15 +30,27 @@ export default function SurveySettingsPage() {
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "saving">("saved");
+  const [lotteryDraft, setLotteryDraft] = useState<{ slot: number; prize: LotteryPrize } | null>(null);
+  const [lotteryPageTab, setLotteryPageTab] = useState<"spin" | "win" | "lose" | "complete">("spin");
   const limitBodyRef = useRef<HTMLTextAreaElement>(null);
   const closedBodyRef = useRef<HTMLTextAreaElement>(null);
+  const winBodyRef = useRef<HTMLTextAreaElement>(null);
+  const loseBodyRef = useRef<HTMLTextAreaElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
   const closedBackgroundInputRef = useRef<HTMLInputElement>(null);
+  const lotteryBackgroundInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const loadedPublications = loadPublications(surveyId);
-    setPublications(loadedPublications);
     const current = loadedPublications[0];
+    if (current?.completionMode === "lottery") {
+      const settled = settleExpiredLotteryDraws(current.lotteryConfig, loadLotteryDraws(surveyId));
+      if (settled.changed) {
+        loadedPublications[0] = { ...current, lotteryConfig: settled.config };
+        saveLotteryDraws(surveyId, settled.draws);
+      }
+    }
+    setPublications(loadedPublications);
     if (current?.limitPageBackgroundTemplateId === "custom-upload") setEndBackgroundSource("upload");
     if (current?.closedPageBackgroundTemplateId === "custom-upload") setClosedBackgroundSource("upload");
     setQuestions(loadQuestions(surveyId));
@@ -77,6 +93,35 @@ export default function SurveySettingsPage() {
     setPublications((current) =>
       current.map((item, index) => index === 0 ? { ...item, ...patch } : item),
     );
+  }
+
+  function updateLotteryConfig(patch: Partial<LotteryConfig>) {
+    updateSelected({ lotteryConfig: { ...selected.lotteryConfig, ...patch } });
+  }
+
+  function updateClaimTypeSettings(type: LotteryPrizeType, patch: Partial<LotteryClaimTypeSettings>) {
+    updateLotteryConfig({
+      claimSettingsByType: {
+        ...selected.lotteryConfig.claimSettingsByType,
+        [type]: { ...selected.lotteryConfig.claimSettingsByType[type], ...patch },
+      },
+    });
+  }
+
+  function openLotterySlot(slot: number) {
+    const existing = selected.lotteryConfig.prizes.find((prize) => prize.slot === slot);
+    setLotteryDraft({ slot, prize: existing || createEmptyPrize(slot) });
+  }
+
+  function saveLotteryPrize(prize: LotteryPrize) {
+    const others = selected.lotteryConfig.prizes.filter((item) => item.slot !== prize.slot);
+    updateLotteryConfig({ prizes: [...others, prize] });
+    setLotteryDraft(null);
+  }
+
+  function deleteLotteryPrize(slot: number) {
+    updateLotteryConfig({ prizes: selected.lotteryConfig.prizes.filter((item) => item.slot !== slot) });
+    setLotteryDraft(null);
   }
 
   function flash(message: string) {
@@ -177,6 +222,134 @@ export default function SurveySettingsPage() {
   function removeClosedLink(linkId: string) {
     const content = currentClosedContent();
     updateClosedContent({ body: content.body.replaceAll(`{{${linkId}}}`, ""), links: content.links.filter((link) => link.id !== linkId) });
+  }
+
+  function currentWinContent(): LimitPageContent {
+    const content = selected.lotteryConfig.winPage.content?.[sourceLocale];
+    return {
+      title: content?.title || "",
+      body: content?.body || "",
+      links: Array.isArray(content?.links) ? content.links : [],
+      buttonText: content?.buttonText || "",
+    };
+  }
+
+  function updateWinContent(patch: Partial<LimitPageContent>) {
+    updateLotteryConfig({
+      winPage: {
+        ...selected.lotteryConfig.winPage,
+        content: { ...selected.lotteryConfig.winPage.content, [sourceLocale]: { ...currentWinContent(), ...patch } },
+      },
+    });
+  }
+
+  function insertWinLink() {
+    const content = currentWinContent();
+    const id = `win-link-${Date.now()}`;
+    const token = `{{${id}}}`;
+    const start = winBodyRef.current?.selectionStart ?? content.body.length;
+    const end = winBodyRef.current?.selectionEnd ?? start;
+    updateWinContent({ body: `${content.body.slice(0, start)}${token}${content.body.slice(end)}`, links: [...content.links, { id, text: "链接文字", url: "" }] });
+    window.requestAnimationFrame(() => {
+      winBodyRef.current?.focus();
+      winBodyRef.current?.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
+
+  function updateWinLink(linkId: string, patch: Partial<LimitPageContent["links"][number]>) {
+    const content = currentWinContent();
+    updateWinContent({ links: content.links.map((link) => link.id === linkId ? { ...link, ...patch } : link) });
+  }
+
+  function removeWinLink(linkId: string) {
+    const content = currentWinContent();
+    updateWinContent({ body: content.body.replaceAll(`{{${linkId}}}`, ""), links: content.links.filter((link) => link.id !== linkId) });
+  }
+
+  function currentLoseContent(): LimitPageContent {
+    const content = selected.lotteryConfig.losePage.content?.[sourceLocale];
+    return {
+      title: content?.title || "",
+      body: content?.body || "",
+      links: Array.isArray(content?.links) ? content.links : [],
+      buttonText: content?.buttonText || "",
+    };
+  }
+
+  function updateLoseContent(patch: Partial<LimitPageContent>) {
+    updateLotteryConfig({
+      losePage: {
+        ...selected.lotteryConfig.losePage,
+        content: { ...selected.lotteryConfig.losePage.content, [sourceLocale]: { ...currentLoseContent(), ...patch } },
+      },
+    });
+  }
+
+  function insertLoseLink() {
+    const content = currentLoseContent();
+    const id = `lose-link-${Date.now()}`;
+    const token = `{{${id}}}`;
+    const start = loseBodyRef.current?.selectionStart ?? content.body.length;
+    const end = loseBodyRef.current?.selectionEnd ?? start;
+    updateLoseContent({ body: `${content.body.slice(0, start)}${token}${content.body.slice(end)}`, links: [...content.links, { id, text: "链接文字", url: "" }] });
+    window.requestAnimationFrame(() => {
+      loseBodyRef.current?.focus();
+      loseBodyRef.current?.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
+
+  function updateLoseLink(linkId: string, patch: Partial<LimitPageContent["links"][number]>) {
+    const content = currentLoseContent();
+    updateLoseContent({ links: content.links.map((link) => link.id === linkId ? { ...link, ...patch } : link) });
+  }
+
+  function removeLoseLink(linkId: string) {
+    const content = currentLoseContent();
+    updateLoseContent({ body: content.body.replaceAll(`{{${linkId}}}`, ""), links: content.links.filter((link) => link.id !== linkId) });
+  }
+
+  function uploadLotteryBackground(file?: File) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      flash("请选择图片文件");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      flash("图片不能超过 5MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      updateLotteryConfig({ background: String(reader.result || "") });
+      flash("抽奖背景已上传");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function currentSpinContent() {
+    const content = selected.lotteryConfig.spinPage.content?.[sourceLocale];
+    return { title: content?.title || "", body: content?.body || "", buttonText: content?.buttonText || "" };
+  }
+
+  function updateSpinContent(patch: Partial<{ title: string; body: string; buttonText: string }>) {
+    updateLotteryConfig({
+      spinPage: {
+        content: { ...selected.lotteryConfig.spinPage.content, [sourceLocale]: { ...currentSpinContent(), ...patch } },
+      },
+    });
+  }
+
+  function currentCompleteContent() {
+    const content = selected.lotteryConfig.completePage.content?.[sourceLocale];
+    return { title: content?.title || "", body: content?.body || "", buttonText: content?.buttonText || "" };
+  }
+
+  function updateCompleteContent(patch: Partial<{ title: string; body: string; buttonText: string }>) {
+    updateLotteryConfig({
+      completePage: {
+        content: { ...selected.lotteryConfig.completePage.content, [sourceLocale]: { ...currentCompleteContent(), ...patch } },
+      },
+    });
   }
 
   function uploadLimitBackground(file?: File) {
@@ -391,6 +564,173 @@ export default function SurveySettingsPage() {
     );
   }
 
+  function renderLotteryPageCopyTab() {
+    if (lotteryPageTab === "spin") {
+      const content = currentSpinContent();
+      return (
+        <div className="lottery-page-copy-fields">
+          <label><span>标题</span><input value={content.title} onChange={(event) => updateSpinContent({ title: event.target.value })} placeholder="例如：抽奖进行中…" /></label>
+          <label><span>正文</span><textarea value={content.body} onChange={(event) => updateSpinContent({ body: event.target.value })} /></label>
+          <label><span>按钮文字</span><input value={content.buttonText} onChange={(event) => updateSpinContent({ buttonText: event.target.value })} placeholder="例如：立即抽奖" /></label>
+        </div>
+      );
+    }
+    if (lotteryPageTab === "complete") {
+      const content = currentCompleteContent();
+      return (
+        <div className="lottery-page-copy-fields">
+          <label><span>标题</span><input value={content.title} onChange={(event) => updateCompleteContent({ title: event.target.value })} placeholder="例如：抽奖已完成" /></label>
+          <label><span>正文</span><textarea value={content.body} onChange={(event) => updateCompleteContent({ body: event.target.value })} /></label>
+          <label><span>按钮文字</span><input value={content.buttonText} onChange={(event) => updateCompleteContent({ buttonText: event.target.value })} placeholder="例如：完成" /></label>
+        </div>
+      );
+    }
+    if (lotteryPageTab === "win") {
+      const content = currentWinContent();
+      return (
+        <div className="lottery-page-copy-fields">
+          <label><span>标题</span><input value={content.title} onChange={(event) => updateWinContent({ title: event.target.value })} placeholder="例如：🎉 恭喜中奖！" /></label>
+          <label><span>正文</span><textarea ref={winBodyRef} value={content.body} onChange={(event) => updateWinContent({ body: event.target.value })} /><small>将光标放在正文任意位置，可插入多个链接。</small></label>
+          <button className="insert-inline-link" type="button" onClick={insertWinLink}>＋ 在正文光标处插入链接</button>
+          {content.links.length > 0 && <div className="limit-inline-links">{content.links.map((link, index) => <div key={link.id}><span>链接 {index + 1}</span><input value={link.text} onChange={(event) => updateWinLink(link.id, { text: event.target.value })} placeholder="链接文字" /><input value={link.url} onChange={(event) => updateWinLink(link.id, { url: event.target.value })} placeholder="https://" /><button type="button" onClick={() => removeWinLink(link.id)} aria-label={`删除链接 ${index + 1}`}>×</button></div>)}</div>}
+          <label><span>按钮文字</span><input value={content.buttonText} onChange={(event) => updateWinContent({ buttonText: event.target.value })} placeholder="例如：好的" /></label>
+        </div>
+      );
+    }
+    const content = currentLoseContent();
+    return (
+      <div className="lottery-page-copy-fields">
+        <label><span>标题</span><input value={content.title} onChange={(event) => updateLoseContent({ title: event.target.value })} placeholder="例如：感谢参与" /></label>
+        <label><span>正文</span><textarea ref={loseBodyRef} value={content.body} onChange={(event) => updateLoseContent({ body: event.target.value })} /><small>将光标放在正文任意位置，可插入多个链接。</small></label>
+        <button className="insert-inline-link" type="button" onClick={insertLoseLink}>＋ 在正文光标处插入链接</button>
+        {content.links.length > 0 && <div className="limit-inline-links">{content.links.map((link, index) => <div key={link.id}><span>链接 {index + 1}</span><input value={link.text} onChange={(event) => updateLoseLink(link.id, { text: event.target.value })} placeholder="链接文字" /><input value={link.url} onChange={(event) => updateLoseLink(link.id, { url: event.target.value })} placeholder="https://" /><button type="button" onClick={() => removeLoseLink(link.id)} aria-label={`删除链接 ${index + 1}`}>×</button></div>)}</div>}
+        <label><span>按钮文字</span><input value={content.buttonText} onChange={(event) => updateLoseContent({ buttonText: event.target.value })} placeholder="例如：好的" /></label>
+      </div>
+    );
+  }
+
+  function renderLotteryEditor() {
+    const lottery = selected.lotteryConfig;
+    const activeLotteryPrizeTypes = (["virtual", "physical", "code"] as LotteryPrizeType[])
+      .filter((type) => lottery.prizes.some((prize) => prize.type === type));
+    return (
+      <>
+        <section className="config-card">
+          <header><div><strong>奖品池</strong><small>九宫格奖品配置，鼠标悬停格子可添加或编辑奖品</small></div></header>
+          <LotteryGrid
+            renderCell={(slot) => {
+              const prize = lottery.prizes.find((item) => item.slot === slot);
+              return (
+                <button type="button" className={`lottery-cell-button ${prize ? "filled" : "empty"}`} onClick={() => openLotterySlot(slot)}>
+                  {prize ? (
+                    <>
+                      <span className="lottery-cell-image">{prize.image ? <img src={prize.image} alt="" /> : "🎁"}</span>
+                      <strong>{prize.name || "未命名奖品"}</strong>
+                      <small>数量：{remainingStock(prize)}</small>
+                    </>
+                  ) : (
+                    <>
+                      <span className="lottery-cell-thanks">谢谢参与</span>
+                      <em className="lottery-cell-add">＋ 添加奖品</em>
+                    </>
+                  )}
+                </button>
+              );
+            }}
+          />
+        </section>
+
+        <section className="config-card">
+          <header><div><strong>抽奖规则</strong><small>用户抽中任意奖品的概率；中奖后系统根据奖品池剩余库存随机分配奖品，库存越多概率越高</small></div></header>
+          <label className="large-config-field lottery-win-rate">
+            <span>中奖概率</span>
+            <div className="lottery-win-rate-input"><input type="number" min={0} max={100} value={lottery.winRate} onChange={(event) => updateLotteryConfig({ winRate: Math.min(100, Math.max(0, Number(event.target.value))) })} /><span>%</span></div>
+          </label>
+          <small>系统默认每账号只能抽奖一次，且不允许重复中奖，无需额外配置。</small>
+        </section>
+
+        <section className="config-card">
+          <header><div><strong>领奖设置</strong><small>用于用户领奖咨询</small></div></header>
+
+          {activeLotteryPrizeTypes.length ? (
+            <div className="lottery-claim-type-list">
+              {activeLotteryPrizeTypes.map((type) => {
+                const typeSettings = lottery.claimSettingsByType[type];
+                return (
+                  <div className="lottery-claim-type-block" key={type}>
+                    <h4>{lotteryPrizeTypeLabels[type]}</h4>
+                    <label className="large-config-field">
+                      <span>请选择用户填写的信息</span>
+                      <LotteryClaimFieldsSelect
+                        value={typeSettings.claimFields}
+                        onChange={(claimFields) => updateClaimTypeSettings(type, { claimFields })}
+                      />
+                    </label>
+                    <div className="lottery-identity-toggle">
+                      <span>生成随机身份码</span>
+                      <button
+                        type="button"
+                        className={`mini-switch ${typeSettings.identityCodeEnabled ? "on" : ""}`}
+                        onClick={() => updateClaimTypeSettings(type, { identityCodeEnabled: !typeSettings.identityCodeEnabled })}
+                      ><i /></button>
+                    </div>
+                    <small>开启后，中奖用户将获得一个领奖身份码，用于客服核验。</small>
+
+                    <label className="large-config-field">
+                      <span>领奖时间限制</span>
+                      <select
+                        value={typeSettings.claimWindowMinutes}
+                        onChange={(event) => updateClaimTypeSettings(type, { claimWindowMinutes: Number(event.target.value) })}
+                      >
+                        {claimWindowOptions.map((option) => <option key={option.minutes} value={option.minutes}>{option.label}</option>)}
+                      </select>
+                    </label>
+                    <small>中奖用户须在此时限内完成领奖信息填写，超时后奖品库存自动释放，可再次被抽中。</small>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="config-empty-state"><span>🎁</span><p><strong>暂无可配置的领奖信息</strong><small>请先在奖品池中添加奖品，再回来配置对应类型需要用户填写的领奖信息。</small></p></div>
+          )}
+        </section>
+
+        <section className="config-card">
+          <header><div><strong>背景设置</strong><small>用于抽奖页面的背景展示</small></div></header>
+          <div className="lottery-image-upload lottery-background-upload">
+            <input ref={lotteryBackgroundInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => uploadLotteryBackground(event.target.files?.[0])} />
+            {lottery.background ? (
+              <>
+                <img src={lottery.background} alt="" />
+                <div>
+                  <button type="button" onClick={() => lotteryBackgroundInputRef.current?.click()}>更换图片</button>
+                  <button type="button" className="text-danger" onClick={() => updateLotteryConfig({ background: "" })}>删除图片</button>
+                </div>
+              </>
+            ) : (
+              <div className="lottery-image-upload-empty">
+                <button type="button" onClick={() => lotteryBackgroundInputRef.current?.click()}>上传图片</button>
+                <small>支持 JPG / PNG，最大 5MB</small>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="config-card">
+          <header><div><strong>页面文案设置</strong><small>统一管理抽奖流程中各页面的标题、正文与按钮文字</small></div></header>
+          <div className="publish-section-tabs lottery-page-copy-tabs">
+            <button className={lotteryPageTab === "spin" ? "active" : ""} onClick={() => setLotteryPageTab("spin")}>抽奖页面</button>
+            <button className={lotteryPageTab === "win" ? "active" : ""} onClick={() => setLotteryPageTab("win")}>中奖页面</button>
+            <button className={lotteryPageTab === "lose" ? "active" : ""} onClick={() => setLotteryPageTab("lose")}>未中奖页面</button>
+            <button className={lotteryPageTab === "complete" ? "active" : ""} onClick={() => setLotteryPageTab("complete")}>抽奖完成页面</button>
+          </div>
+          {renderLotteryPageCopyTab()}
+        </section>
+      </>
+    );
+  }
+
+
   function renderIdentityValidation() {
     return (
       <section className="config-card identity-validation-card">
@@ -432,45 +772,52 @@ export default function SurveySettingsPage() {
           {section === "submission" ? (
             <div className="publish-config-stack">
               <section className="config-card">
-                <header><div><strong>提交成功后</strong><small>选择进入统一的问卷结束页，或直接跳转到指定网页</small></div></header>
+                <header><div><strong>提交成功后</strong><small>选择进入统一的问卷结束页、跳转到指定网页，或进入抽奖页面</small></div></header>
                 <div className="completion-mode">
                   <button className={selected.completionMode === "message" ? "active" : ""} onClick={() => updateSelected({ completionMode: "message" })}>✓ 显示完成页</button>
                   <button className={selected.completionMode === "redirect" ? "active" : ""} onClick={() => updateSelected({ completionMode: "redirect" })}>↗ 跳转指定网页</button>
+                  <button className={selected.completionMode === "lottery" ? "active" : ""} onClick={() => updateSelected({ completionMode: "lottery" })}>🎁 进入抽奖页面</button>
                 </div>
                 {selected.completionMode === "redirect" && (
                   <label className="large-config-field"><span>跳转地址</span><input placeholder="https://" value={selected.redirectUrl} onChange={(event) => updateSelected({ redirectUrl: event.target.value })} /></label>
                 )}
               </section>
 
-              {renderEndPageEditor()}
+              {selected.completionMode === "lottery" ? (
+                renderLotteryEditor()
+              ) : (
+                <>
+                  {renderEndPageEditor()}
 
-              <section className="config-card">
-                <header>
-                  <div><strong>按答案跳转</strong><small>满足条件时跳转到指定页面；没有命中时使用默认提交结果</small></div>
-                  <button className="config-add-button" onClick={addRedirectRule}>＋ 添加规则</button>
-                </header>
-                {selected.redirectRules.length ? (
-                  <div className="redirect-rule-list">
-                    {selected.redirectRules.map((rule) => (
-                      <article key={rule.id}>
-                        <span>当</span>
-                        <select value={rule.questionId} onChange={(event) => updateRedirectRule(rule.id, { questionId: event.target.value })}>
-                          {questions.map((question, index) => <option key={question.id} value={question.id}>{index + 1}. {question.title}</option>)}
-                        </select>
-                        <select value={rule.operator} onChange={(event) => updateRedirectRule(rule.id, { operator: event.target.value as typeof rule.operator })}>
-                          <option>等于</option><option>不等于</option><option>包含</option><option>不包含</option>
-                        </select>
-                        <input placeholder="答案或选项" value={rule.value} onChange={(event) => updateRedirectRule(rule.id, { value: event.target.value })} />
-                        <span>跳转至</span>
-                        <input className="redirect-url-input" placeholder="https://" value={rule.url} onChange={(event) => updateRedirectRule(rule.id, { url: event.target.value })} />
-                        <button aria-label="删除跳转规则" onClick={() => updateSelected({ redirectRules: selected.redirectRules.filter((item) => item.id !== rule.id) })}>×</button>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="config-empty-state"><span>↗</span><p><strong>暂无条件跳转</strong><small>适合按满意度、玩家类型等答案进入不同感谢页或招募页。</small></p></div>
-                )}
-              </section>
+                  <section className="config-card">
+                    <header>
+                      <div><strong>按答案跳转</strong><small>满足条件时跳转到指定页面；没有命中时使用默认提交结果</small></div>
+                      <button className="config-add-button" onClick={addRedirectRule}>＋ 添加规则</button>
+                    </header>
+                    {selected.redirectRules.length ? (
+                      <div className="redirect-rule-list">
+                        {selected.redirectRules.map((rule) => (
+                          <article key={rule.id}>
+                            <span>当</span>
+                            <select value={rule.questionId} onChange={(event) => updateRedirectRule(rule.id, { questionId: event.target.value })}>
+                              {questions.map((question, index) => <option key={question.id} value={question.id}>{index + 1}. {question.title}</option>)}
+                            </select>
+                            <select value={rule.operator} onChange={(event) => updateRedirectRule(rule.id, { operator: event.target.value as typeof rule.operator })}>
+                              <option>等于</option><option>不等于</option><option>包含</option><option>不包含</option>
+                            </select>
+                            <input placeholder="答案或选项" value={rule.value} onChange={(event) => updateRedirectRule(rule.id, { value: event.target.value })} />
+                            <span>跳转至</span>
+                            <input className="redirect-url-input" placeholder="https://" value={rule.url} onChange={(event) => updateRedirectRule(rule.id, { url: event.target.value })} />
+                            <button aria-label="删除跳转规则" onClick={() => updateSelected({ redirectRules: selected.redirectRules.filter((item) => item.id !== rule.id) })}>×</button>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="config-empty-state"><span>↗</span><p><strong>暂无条件跳转</strong><small>适合按满意度、玩家类型等答案进入不同感谢页或招募页。</small></p></div>
+                    )}
+                  </section>
+                </>
+              )}
 
             </div>
           ) : (
@@ -542,6 +889,14 @@ export default function SurveySettingsPage() {
       </div>
 
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
+      {lotteryDraft && (
+        <LotteryPrizeEditor
+          prize={lotteryDraft.prize}
+          onCancel={() => setLotteryDraft(null)}
+          onSave={saveLotteryPrize}
+          onDelete={selected.lotteryConfig.prizes.some((item) => item.slot === lotteryDraft.slot) ? () => deleteLotteryPrize(lotteryDraft.slot) : undefined}
+        />
+      )}
     </main>
   );
 }

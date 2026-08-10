@@ -13,6 +13,17 @@ import {
   runtimeLocales,
 } from "@/lib/survey-runtime";
 import { LimitPageContent } from "@/lib/survey-publication";
+import {
+  defaultLotteryConfig,
+  drawLottery,
+  loadLotteryDraws,
+  LotteryClaimField,
+  LotteryConfig,
+  LotteryDrawOutcome,
+  saveLotteryDraws,
+  settleExpiredLotteryDraws,
+} from "@/lib/survey-lottery";
+import { LotteryGrid } from "@/components/LotteryGrid";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
 const uiCopy = {
@@ -166,8 +177,17 @@ export default function PlayerSurvey() {
     desktopOpacity: 90,
   });
   const [surveyDescription, setSurveyDescription] = useState("");
-  const [completionMode, setCompletionMode] = useState<"message" | "redirect">("message");
+  const [completionMode, setCompletionMode] = useState<"message" | "redirect" | "lottery">("message");
   const [completionRedirectUrl, setCompletionRedirectUrl] = useState("");
+  const [lotteryConfig, setLotteryConfig] = useState<LotteryConfig>(defaultLotteryConfig);
+  const [lotteryStage, setLotteryStage] = useState<"spin" | "result">("spin");
+  const [lotteryOutcome, setLotteryOutcome] = useState<LotteryDrawOutcome | null>(null);
+  const [lotterySpinSlot, setLotterySpinSlot] = useState(0);
+  const [lotteryClaimForm, setLotteryClaimForm] = useState<Record<string, string>>({});
+  const [lotteryClaimSubmitted, setLotteryClaimSubmitted] = useState(false);
+  const [lotteryClaimExpired, setLotteryClaimExpired] = useState(false);
+  const [lotteryClaimDeadline, setLotteryClaimDeadline] = useState<string | null>(null);
+  const [lotteryNow, setLotteryNow] = useState(0);
   const [endPage, setEndPage] = useState<{
     backgroundMode: "common" | "custom";
     background: string;
@@ -233,8 +253,9 @@ export default function PlayerSurvey() {
         setAllowLanguageSwitch(publication.allowLanguageSwitch !== false);
       }
       if (publication) {
-        setCompletionMode(publication.completionMode === "redirect" ? "redirect" : "message");
+        setCompletionMode(publication.completionMode === "redirect" ? "redirect" : publication.completionMode === "lottery" ? "lottery" : "message");
         setCompletionRedirectUrl(publication.redirectUrl || "");
+        setLotteryConfig(publication.lotteryConfig || defaultLotteryConfig);
         setEndPage({
           backgroundMode: publication.limitPageBackgroundMode || "common",
           background: publication.limitPageBackground || "",
@@ -347,6 +368,55 @@ export default function PlayerSurvey() {
       setQuestions(defaultQuestions);
     }
   }, [params.slug, searchParams, surveyId]);
+
+  useEffect(() => {
+    if (lotteryStage !== "spin" || !lotteryOutcome) return;
+    let step = 0;
+    const totalSteps = 24;
+    const timeouts: number[] = [];
+    const scheduleNext = () => {
+      const progressRatio = step / totalSteps;
+      const delay = 70 + progressRatio * progressRatio * 260;
+      timeouts.push(window.setTimeout(() => {
+        step += 1;
+        if (step >= totalSteps) {
+          setLotterySpinSlot(lotteryOutcome.landedSlot);
+          timeouts.push(window.setTimeout(() => setLotteryStage("result"), 500));
+          return;
+        }
+        setLotterySpinSlot(step % 8);
+        scheduleNext();
+      }, delay));
+    };
+    scheduleNext();
+    return () => timeouts.forEach((timeout) => window.clearTimeout(timeout));
+  }, [lotteryStage, lotteryOutcome]);
+
+  useEffect(() => {
+    if (!lotteryClaimDeadline || lotteryClaimExpired || lotteryClaimSubmitted) return;
+    const tick = () => {
+      const remaining = new Date(lotteryClaimDeadline).getTime() - Date.now();
+      if (remaining <= 0) {
+        setLotteryClaimExpired(true);
+        return;
+      }
+      setLotteryNow(Date.now());
+    };
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [lotteryClaimDeadline, lotteryClaimExpired, lotteryClaimSubmitted]);
+
+  const lotteryClaimRemainingMs = lotteryClaimDeadline ? Math.max(0, new Date(lotteryClaimDeadline).getTime() - lotteryNow) : 0;
+
+  function formatCountdown(ms: number) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0) return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
 
   function changeLocale(next: RuntimeLocale) {
     setLocale(next);
@@ -520,11 +590,81 @@ export default function PlayerSurvey() {
     const existing = JSON.parse(window.localStorage.getItem(key) || "[]");
     window.localStorage.setItem(key, JSON.stringify([response, ...existing]));
     setResponseId(id);
+    if (completionMode === "lottery") {
+      runLottery(id, response.joymakerId || response.lineId || response.clientIp || id);
+      return;
+    }
     if (completionMode === "redirect" && completionRedirectUrl) {
       window.location.assign(completionRedirectUrl);
       return;
     }
     setDone(true);
+  }
+
+  function runLottery(currentResponseId: string, identityKey: string) {
+    const settled = settleExpiredLotteryDraws(lotteryConfig, loadLotteryDraws(surveyId));
+    const draws = settled.draws;
+    let currentLotteryConfig = lotteryConfig;
+    if (settled.changed) {
+      currentLotteryConfig = settled.config;
+      setLotteryConfig(settled.config);
+      const publications = JSON.parse(window.localStorage.getItem(`joydata-survey-publications-${surveyId}`) || "[]");
+      const updatedPublications = publications.map((item: { slug: string; lotteryConfig?: LotteryConfig }) =>
+        item.slug === params.slug ? { ...item, lotteryConfig: settled.config } : item,
+      );
+      window.localStorage.setItem(`joydata-survey-publications-${surveyId}`, JSON.stringify(updatedPublications));
+      saveLotteryDraws(surveyId, draws);
+    }
+    const existingDraw = draws.find((item) => item.identityKey === identityKey);
+    if (existingDraw) {
+      const prize = currentLotteryConfig.prizes.find((item) => item.id === existingDraw.prizeId) || undefined;
+      setLotteryOutcome({
+        won: Boolean(existingDraw.prizeId),
+        landedSlot: prize?.slot ?? 0,
+        prize,
+        dispensedCode: existingDraw.dispensedCode,
+        identityCode: existingDraw.identityCode,
+        updatedPrizes: currentLotteryConfig.prizes,
+      });
+      if (existingDraw.claim) {
+        setLotteryClaimForm(existingDraw.claim);
+        setLotteryClaimSubmitted(true);
+      }
+      setLotteryClaimExpired(existingDraw.claimStatus === "expired");
+      setLotteryClaimDeadline(existingDraw.claimStatus === "pending" ? existingDraw.claimDeadline || null : null);
+      setLotteryStage("spin");
+      return;
+    }
+    const outcome = drawLottery(currentLotteryConfig);
+    setLotteryOutcome(outcome);
+    setLotteryConfig((current) => ({ ...current, prizes: outcome.updatedPrizes }));
+    const publications = JSON.parse(window.localStorage.getItem(`joydata-survey-publications-${surveyId}`) || "[]");
+    const updatedPublications = publications.map((item: { slug: string; lotteryConfig?: LotteryConfig }) =>
+      item.slug === params.slug ? { ...item, lotteryConfig: { ...currentLotteryConfig, prizes: outcome.updatedPrizes } } : item,
+    );
+    window.localStorage.setItem(`joydata-survey-publications-${surveyId}`, JSON.stringify(updatedPublications));
+    const claimFields = outcome.prize ? currentLotteryConfig.claimSettingsByType[outcome.prize.type]?.claimFields || [] : [];
+    const needsClaim = outcome.won && claimFields.length > 0;
+    const drawnAt = new Date();
+    const claimWindowMinutes = outcome.prize ? currentLotteryConfig.claimSettingsByType[outcome.prize.type]?.claimWindowMinutes || 10 : 10;
+    const claimDeadline = needsClaim ? new Date(drawnAt.getTime() + claimWindowMinutes * 60000).toISOString() : undefined;
+    setLotteryClaimDeadline(claimDeadline || null);
+    saveLotteryDraws(surveyId, [
+      ...draws,
+      {
+        id: `draw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        identityKey,
+        responseId: currentResponseId,
+        prizeId: outcome.prize?.id || null,
+        dispensedCode: outcome.dispensedCode,
+        identityCode: outcome.identityCode,
+        drawnAt: drawnAt.toISOString(),
+        claimStatus: !outcome.won ? "none" : needsClaim ? "pending" : "claimed",
+        claimDeadline,
+        claimedAt: outcome.won && !needsClaim ? drawnAt.toISOString() : undefined,
+      },
+    ]);
+    setLotteryStage("spin");
   }
 
   function submitContinuous() {
@@ -619,6 +759,120 @@ export default function PlayerSurvey() {
           {content.title && <h1>{content.title}</h1>}
           <p><InlineLimitText content={content} /></p>
           <small>{limitPage.reason}</small>
+        </section>
+      </main>
+    );
+  }
+
+  if (completionMode === "lottery" && lotteryOutcome) {
+    const translationLocale = translationLocaleKey[locale];
+    const resultTranslations = translations[translationLocale] || {};
+    const claimFields = (lotteryOutcome.prize ? lotteryConfig.claimSettingsByType[lotteryOutcome.prize.type]?.claimFields : []) || [];
+    const resultPage = lotteryOutcome.won ? lotteryConfig.winPage : lotteryConfig.losePage;
+    const resultPageKey = lotteryOutcome.won ? "win" : "lose";
+    const baseResultContent = resultPage.content[locale] || resultPage.content["en-US"] || resultPage.content["zh-CN"];
+    const resultContent = baseResultContent && {
+      ...baseResultContent,
+      title: resultTranslations[`lottery:${resultPageKey}:title`] || baseResultContent.title,
+      body: resultTranslations[`lottery:${resultPageKey}:body`] || baseResultContent.body,
+      buttonText: resultTranslations[`lottery:${resultPageKey}:buttonText`] || baseResultContent.buttonText,
+      links: (baseResultContent.links || []).map((link) => ({ ...link, text: resultTranslations[`lottery:${resultPageKey}:link:${link.id}`] || link.text })),
+    };
+    const baseSpinContent = lotteryConfig.spinPage.content[locale] || lotteryConfig.spinPage.content["en-US"] || lotteryConfig.spinPage.content["zh-CN"];
+    const spinContent = baseSpinContent && {
+      ...baseSpinContent,
+      title: resultTranslations["lottery:spin:title"] || baseSpinContent.title,
+      body: resultTranslations["lottery:spin:body"] || baseSpinContent.body,
+    };
+    const baseCompleteContent = lotteryConfig.completePage.content[locale] || lotteryConfig.completePage.content["en-US"] || lotteryConfig.completePage.content["zh-CN"];
+    const completeContent = baseCompleteContent && {
+      ...baseCompleteContent,
+      title: resultTranslations["lottery:complete:title"] || baseCompleteContent.title,
+      body: resultTranslations["lottery:complete:body"] || baseCompleteContent.body,
+      buttonText: resultTranslations["lottery:complete:buttonText"] || baseCompleteContent.buttonText,
+    };
+    const translatedClaimFieldLabel = (field: LotteryClaimField) =>
+      resultTranslations[field.key.startsWith("custom-") ? `lottery:claim:field:${field.key}` : `lottery:field:${field.key}`] || field.label;
+    const translatedPrizeName = (prize: { id: string; name: string }) =>
+      resultTranslations[`lottery:prize:${prize.id}:name`] || prize.name;
+    const showClaimForm = lotteryOutcome.won && claimFields.length > 0;
+    return (
+      <main className={surveyShellClass} style={surveyShellStyle}>
+        <LanguageBar locale={locale} availableLocales={availableLocales} allowSwitch={allowLanguageSwitch} onChange={changeLocale} />
+        <section className="player-survey-card lottery-runtime-card">
+          {lotteryStage === "spin" && (
+            <div className="lottery-spin-stage">
+              {spinContent?.title && <h2>{spinContent.title}</h2>}
+              {spinContent?.body && <p>{spinContent.body}</p>}
+              <LotteryGrid
+                activeSlot={lotterySpinSlot}
+                renderCell={(slot) => {
+                  const prize = lotteryConfig.prizes.find((item) => item.slot === slot);
+                  return (
+                    <div className="lottery-cell-display">
+                      {prize && <span className="lottery-cell-image">{prize.image ? <img src={prize.image} alt="" /> : "🎁"}</span>}
+                      <strong>{prize ? translatedPrizeName(prize) : "谢谢参与"}</strong>
+                    </div>
+                  );
+                }}
+              />
+            </div>
+          )}
+
+          {lotteryStage === "result" && (
+            <div
+              className={`lottery-result-stage ${resultPage.backgroundMode === "custom" && resultPage.background ? "custom" : ""}`}
+              style={resultPage.backgroundMode === "custom" && resultPage.background ? { backgroundImage: `url(${resultPage.background})` } : undefined}
+            >
+              {resultContent?.title && <h1>{resultContent.title}</h1>}
+              {resultContent && <p><InlineLimitText content={resultContent} /></p>}
+
+              {lotteryOutcome.won && lotteryOutcome.prize && (
+                <>
+                  <div className="lottery-won-prize">
+                    <span className="lottery-cell-image">{lotteryOutcome.prize.image ? <img src={lotteryOutcome.prize.image} alt="" /> : "🎁"}</span>
+                    <strong>{translatedPrizeName(lotteryOutcome.prize)}</strong>
+                  </div>
+                  {lotteryOutcome.dispensedCode && <div className="lottery-code-display">兑换码：<strong>{lotteryOutcome.dispensedCode}</strong></div>}
+                  {lotteryOutcome.identityCode && <div className="lottery-code-display">身份码：<strong>{lotteryOutcome.identityCode}</strong></div>}
+                  {showClaimForm && !lotteryClaimSubmitted && !lotteryClaimExpired && lotteryClaimDeadline && (
+                    <div className="lottery-claim-countdown">
+                      <span>请在 <strong>{formatCountdown(lotteryClaimRemainingMs)}</strong> 内完成领奖信息填写，超时后本次中奖将自动作废</span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {showClaimForm && (
+                lotteryClaimSubmitted ? (
+                  <div className="lottery-claim-submitted">
+                    {completeContent?.title && <h1>{completeContent.title}</h1>}
+                    {completeContent?.body && <p>{completeContent.body}</p>}
+                    {completeContent?.buttonText && <button className="lottery-claim-complete-button">{completeContent.buttonText}</button>}
+                  </div>
+                ) : lotteryClaimExpired ? (
+                  <div className="lottery-claim-expired">已超过领奖时限，本次中奖已作废。</div>
+                ) : (
+                  <div className="lottery-claim-stage">
+                    <h2>请填写领奖信息</h2>
+                    {claimFields.map((field) => (
+                      <label key={field.key}>
+                        <span>{translatedClaimFieldLabel(field)}</span>
+                        <input value={lotteryClaimForm[field.key] || ""} onChange={(event) => setLotteryClaimForm((current) => ({ ...current, [field.key]: event.target.value }))} />
+                      </label>
+                    ))}
+                    <button onClick={() => {
+                      const draws = loadLotteryDraws(surveyId);
+                      saveLotteryDraws(surveyId, draws.map((draw) => draw.responseId === responseId ? { ...draw, claim: lotteryClaimForm, claimStatus: "claimed", claimedAt: new Date().toISOString() } : draw));
+                      setLotteryClaimSubmitted(true);
+                    }}>提交领奖信息</button>
+                  </div>
+                )
+              )}
+
+              <small>提交成功 · Response ID {responseId}</small>
+            </div>
+          )}
         </section>
       </main>
     );

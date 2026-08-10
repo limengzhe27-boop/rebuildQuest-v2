@@ -9,7 +9,7 @@ const tabs = [
   ["appearance", "外观"],
   ["publish", "发布"],
   ["analytics", "统计"],
-  ["responses", "答卷明细"],
+  ["responses", "明细"],
 ] as const;
 
 export function SurveyNav({

@@ -41,3 +41,7 @@ next-env.d.ts
 /outputs/
 /work/
 tsconfig.tsbuildinfo
+
+# claude code local tooling state
+.claude/
+

@@ -4,6 +4,7 @@
 @import "./experience.css";
 @import "./templates.css";
 @import "./collection.css";
+@import "./lottery.css";
 
 :root {
   --blue: #2f73f5;
@@ -1530,6 +1531,47 @@ input:focus-visible {
   border-radius: 12px;
   background: #edf0f5;
   color: #647187;
+}
+
+.appearance-result-preview.lottery {
+  background:
+    radial-gradient(circle at 80% 14%, rgba(245, 166, 35, .18), transparent 24%),
+    linear-gradient(180deg, #fff8ec 0%, #f8fafc 100%);
+}
+
+.appearance-result-preview.lottery > article.appearance-lottery-preview {
+  width: min(100%, 480px);
+}
+
+.appearance-lottery-preview .lottery-grid {
+  margin-top: 16px;
+}
+
+.appearance-lottery-preview-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.appearance-lottery-tabs {
+  margin: 0;
+  padding: 0 4px;
+}
+
+.appearance-lottery-preview-button {
+  margin-top: 6px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--theme);
+  padding: 0 22px;
+  height: 38px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.appearance-lottery-prize-sample {
+  margin: 6px 0;
 }
 
 .appearance-result-preview > article {
@@ -11284,6 +11326,37 @@ input:focus-visible {
   color: #58677e;
   font-size: 10px;
   line-height: 1.7;
+}
+
+.standalone-result-preview.lottery {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.standalone-result-preview.lottery h2 {
+  margin: 0;
+  color: #2b3950;
+  font-size: 16px;
+}
+
+.standalone-result-preview.lottery p {
+  margin: 0;
+  white-space: pre-wrap;
+  color: #58677e;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.standalone-result-preview.lottery.custom {
+  background-position: center;
+  background-size: cover;
+  color: #fff;
+}
+
+.standalone-result-preview.lottery.custom h2,
+.standalone-result-preview.lottery.custom p {
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .45);
 }
 
 .standalone-result-editor {

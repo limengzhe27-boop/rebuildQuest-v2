@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultQuestions, loadQuestions, Question, questionLabels } from "@/lib/survey-builder";
 import { LimitPageContent, loadPublications, Publication } from "@/lib/survey-publication";
+import { claimWindowOptions, defaultLotteryConfig, fixedClaimFieldLabels, LotteryConfig } from "@/lib/survey-lottery";
+import { LotteryGrid } from "@/components/LotteryGrid";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
@@ -76,7 +78,8 @@ export default function AppearancePage() {
   const [config, setConfig] = useState<Appearance>(defaults);
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
-  const [previewState, setPreviewState] = useState<"form" | "end" | "closed">("form");
+  const [previewState, setPreviewState] = useState<"form" | "end" | "closed" | "lottery">("form");
+  const [lotteryPreviewTab, setLotteryPreviewTab] = useState<"spin" | "win" | "claim" | "lose" | "complete">("spin");
   const [pageIndex, setPageIndex] = useState(0);
   const [previewLocale, setPreviewLocale] = useState("简中");
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
@@ -145,6 +148,29 @@ export default function AppearancePage() {
     body: translated("closed:body", closedContent.body, "form:closed"),
     links: (closedContent.links || []).map((link) => ({ ...link, text: translated(`closed:link:${link.id}`, link.text) })),
   };
+  const lotteryConfig: LotteryConfig = publication?.lotteryConfig || defaultLotteryConfig;
+  const lotterySpinContent = lotteryConfig.spinPage.content[previewRuntimeLocale]
+    || lotteryConfig.spinPage.content[publication?.defaultLocale || "zh-CN"]
+    || defaultLotteryConfig.spinPage.content["zh-CN"];
+  const lotteryCompleteContent = lotteryConfig.completePage.content[previewRuntimeLocale]
+    || lotteryConfig.completePage.content[publication?.defaultLocale || "zh-CN"]
+    || defaultLotteryConfig.completePage.content["zh-CN"];
+  const lotteryWinContent = lotteryConfig.winPage.content[previewRuntimeLocale]
+    || lotteryConfig.winPage.content[publication?.defaultLocale || "zh-CN"]
+    || defaultLotteryConfig.winPage.content["zh-CN"];
+  const lotteryLoseContent = lotteryConfig.losePage.content[previewRuntimeLocale]
+    || lotteryConfig.losePage.content[publication?.defaultLocale || "zh-CN"]
+    || defaultLotteryConfig.losePage.content["zh-CN"];
+  const lotterySampleClaimType = (["physical", "virtual", "code"] as const)
+    .find((type) => (lotteryConfig.claimSettingsByType[type]?.claimFields || []).length);
+  const lotterySampleClaimFields = lotterySampleClaimType
+    ? lotteryConfig.claimSettingsByType[lotterySampleClaimType].claimFields
+    : (["name", "phone", "address"] as const).map((key) => ({ key, label: fixedClaimFieldLabels[key] }));
+  const lotterySampleClaimWindowMinutes = lotterySampleClaimType
+    ? lotteryConfig.claimSettingsByType[lotterySampleClaimType].claimWindowMinutes
+    : 10;
+  const lotterySampleClaimWindowLabel = claimWindowOptions.find((option) => option.minutes === lotterySampleClaimWindowMinutes)?.label
+    || `${lotterySampleClaimWindowMinutes} 分钟`;
 
   function translated(fieldId: string, fallback: string, legacyId?: string) {
     if (previewLocale === "简中") return fallback;
@@ -290,6 +316,9 @@ export default function AppearancePage() {
               <button className={previewState === "form" ? "active" : ""} onClick={() => setPreviewState("form")}>填写页</button>
               <button className={previewState === "end" ? "active" : ""} onClick={() => setPreviewState("end")}>问卷结束页</button>
               <button className={previewState === "closed" ? "active" : ""} onClick={() => setPreviewState("closed")}>停止收集页</button>
+              {publication?.completionMode === "lottery" && (
+                <button className={previewState === "lottery" ? "active" : ""} onClick={() => setPreviewState("lottery")}>抽奖页</button>
+              )}
             </div>
             <label className="appearance-language-preview"><span>预览语言</span><select value={previewLocale} onChange={(event) => { setPreviewLocale(event.target.value); setPageIndex(0); }}>{availablePreviewLocales.map((locale) => <option key={locale} value={locale}>{previewLocaleNames[locale] || locale}</option>)}</select></label>
           </div>
@@ -339,6 +368,104 @@ export default function AppearancePage() {
                   <p><InlinePreviewContent content={previewClosedContent} /></p>
                   <small>手动结束、定时结束、达到数量上限或当前不在允许访问时段时展示</small>
                 </article>
+              </div>
+            ) : previewState === "lottery" ? (
+              <div className="appearance-lottery-preview-wrap">
+                <div className="publish-section-tabs lottery-page-copy-tabs appearance-lottery-tabs">
+                  <button className={lotteryPreviewTab === "spin" ? "active" : ""} onClick={() => setLotteryPreviewTab("spin")}>抽奖页面</button>
+                  <button className={lotteryPreviewTab === "win" ? "active" : ""} onClick={() => setLotteryPreviewTab("win")}>中奖页面</button>
+                  <button className={lotteryPreviewTab === "claim" ? "active" : ""} onClick={() => setLotteryPreviewTab("claim")}>填写领奖信息</button>
+                  <button className={lotteryPreviewTab === "lose" ? "active" : ""} onClick={() => setLotteryPreviewTab("lose")}>未中奖页面</button>
+                  <button className={lotteryPreviewTab === "complete" ? "active" : ""} onClick={() => setLotteryPreviewTab("complete")}>抽奖完成页面</button>
+                </div>
+
+                {lotteryPreviewTab === "spin" && (
+                  <div className={`appearance-result-preview lottery ${lotteryConfig.background ? "custom" : ""}`} style={lotteryConfig.background ? { backgroundImage: `url(${lotteryConfig.background})` } : undefined}>
+                    {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
+                    <article className="appearance-lottery-preview">
+                      {lotterySpinContent?.title && <h1>{lotterySpinContent.title}</h1>}
+                      {lotterySpinContent?.body && <p>{lotterySpinContent.body}</p>}
+                      <LotteryGrid
+                        renderCell={(slot) => {
+                          const prize = lotteryConfig.prizes.find((item) => item.slot === slot);
+                          return (
+                            <div className="lottery-cell-display">
+                              {prize && <span className="lottery-cell-image">{prize.image ? <img src={prize.image} alt="" /> : "🎁"}</span>}
+                              <strong>{prize ? translated(`lottery:prize:${prize.id}:name`, prize.name) : "谢谢参与"}</strong>
+                            </div>
+                          );
+                        }}
+                      />
+                      {lotterySpinContent?.buttonText && <button className="appearance-lottery-preview-button">{lotterySpinContent.buttonText}</button>}
+                      <small>抽奖页面预览（应用当前主题样式）</small>
+                    </article>
+                  </div>
+                )}
+
+                {lotteryPreviewTab === "win" && (
+                  <div className={`appearance-result-preview lottery ${lotteryConfig.winPage.backgroundMode === "custom" && lotteryConfig.winPage.background ? "custom" : ""}`} style={lotteryConfig.winPage.backgroundMode === "custom" && lotteryConfig.winPage.background ? { backgroundImage: `url(${lotteryConfig.winPage.background})` } : undefined}>
+                    {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
+                    <article className="appearance-lottery-preview">
+                      {lotteryWinContent?.title && <h1>{lotteryWinContent.title}</h1>}
+                      {lotteryWinContent && <p><InlinePreviewContent content={lotteryWinContent} /></p>}
+                      <div className="lottery-won-prize appearance-lottery-prize-sample">
+                        <span className="lottery-cell-image">🎁</span>
+                        <strong>示例奖品</strong>
+                      </div>
+                      {lotterySampleClaimFields.length > 0 && (
+                        <div className="lottery-claim-countdown">
+                          <span>请在 <strong>{lotterySampleClaimWindowLabel}</strong> 内完成领奖信息填写，超时后本次中奖将自动作废</span>
+                        </div>
+                      )}
+                      {lotteryWinContent?.buttonText && <button className="appearance-lottery-preview-button">{lotteryWinContent.buttonText}</button>}
+                      <small>用户中奖时展示</small>
+                    </article>
+                  </div>
+                )}
+
+                {lotteryPreviewTab === "claim" && (
+                  <div className={`appearance-result-preview lottery ${lotteryConfig.winPage.backgroundMode === "custom" && lotteryConfig.winPage.background ? "custom" : ""}`} style={lotteryConfig.winPage.backgroundMode === "custom" && lotteryConfig.winPage.background ? { backgroundImage: `url(${lotteryConfig.winPage.background})` } : undefined}>
+                    {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
+                    <article className="appearance-lottery-preview lottery-claim-stage">
+                      <h2>请填写领奖信息</h2>
+                      <div className="lottery-claim-countdown">
+                        <span>请在 <strong>{lotterySampleClaimWindowLabel}</strong> 内完成填写，超时后本次中奖将自动作废</span>
+                      </div>
+                      {lotterySampleClaimFields.map((field) => (
+                        <label key={field.key}>
+                          <span>{field.label}</span>
+                          <input readOnly value="" placeholder={`请输入${field.label}`} />
+                        </label>
+                      ))}
+                      <button className="appearance-lottery-preview-button">提交领奖信息</button>
+                      <small>中奖用户填写实体奖品/自定义信息时展示（示例字段与倒计时时长来自奖品池中的领奖信息设置）</small>
+                    </article>
+                  </div>
+                )}
+
+                {lotteryPreviewTab === "lose" && (
+                  <div className={`appearance-result-preview lottery ${lotteryConfig.losePage.backgroundMode === "custom" && lotteryConfig.losePage.background ? "custom" : ""}`} style={lotteryConfig.losePage.backgroundMode === "custom" && lotteryConfig.losePage.background ? { backgroundImage: `url(${lotteryConfig.losePage.background})` } : undefined}>
+                    {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
+                    <article className="appearance-lottery-preview">
+                      {lotteryLoseContent?.title && <h1>{lotteryLoseContent.title}</h1>}
+                      {lotteryLoseContent && <p><InlinePreviewContent content={lotteryLoseContent} /></p>}
+                      {lotteryLoseContent?.buttonText && <button className="appearance-lottery-preview-button">{lotteryLoseContent.buttonText}</button>}
+                      <small>用户未中奖时展示</small>
+                    </article>
+                  </div>
+                )}
+
+                {lotteryPreviewTab === "complete" && (
+                  <div className="appearance-result-preview lottery">
+                    {config.languageSwitch && <span className="appearance-result-language">🌐 {previewLocaleNames[previewLocale] || previewLocale}</span>}
+                    <article className="appearance-lottery-preview">
+                      {lotteryCompleteContent?.title && <h1>{lotteryCompleteContent.title}</h1>}
+                      {lotteryCompleteContent?.body && <p>{lotteryCompleteContent.body}</p>}
+                      {lotteryCompleteContent?.buttonText && <button className="appearance-lottery-preview-button">{lotteryCompleteContent.buttonText}</button>}
+                      <small>用户提交领奖信息后展示</small>
+                    </article>
+                  </div>
+                )}
               </div>
             ) : null}
           </div>

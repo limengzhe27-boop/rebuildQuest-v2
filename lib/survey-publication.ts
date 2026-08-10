@@ -1,3 +1,5 @@
+import { defaultLotteryConfig, LotteryClaimSettingsByType, LotteryConfig, LotteryPrizeType } from "./survey-lottery";
+
 export type Region = "global" | "china";
 export type AccessMode = "public" | "channel" | "assigned";
 export type AccessGate = "open" | "password" | "account";
@@ -26,9 +28,10 @@ export type LimitPageContent = {
   }>;
   linkText?: string;
   linkUrl?: string;
+  buttonText?: string;
 };
 
-export type PageTemplateType = "limit" | "closed";
+export type PageTemplateType = "limit" | "closed" | "lottery-win" | "lottery-lose";
 
 export type EndPageTemplate = { id: string; name: string; image: string; content?: LimitPageContent; pageType?: PageTemplateType };
 
@@ -137,9 +140,10 @@ export type Publication = {
   lineLogin: boolean;
   privacyConsent: boolean;
   ageConsent: boolean;
-  completionMode: "message" | "redirect";
+  completionMode: "message" | "redirect" | "lottery";
   completionMessage: string;
   completionImage: string;
+  lotteryConfig: LotteryConfig;
   closedMessage: string;
   closedImage: string;
   closedPageBackgroundMode: "common" | "custom";
@@ -215,6 +219,7 @@ export const defaultPublications: Publication[] = [
     completionMode: "message",
     completionMessage: "Thank you! Your feedback has been submitted.",
     completionImage: "",
+    lotteryConfig: defaultLotteryConfig,
     closedMessage: "This survey has ended. Thank you for your interest.",
     closedImage: "",
     closedPageBackgroundMode: "common",
@@ -296,6 +301,7 @@ export const defaultPublications: Publication[] = [
     completionMode: "message",
     completionMessage: "提交成功，感谢您的反馈。",
     completionImage: "",
+    lotteryConfig: defaultLotteryConfig,
     closedMessage: "本次问卷收集已结束，感谢您的关注。",
     closedImage: "",
     closedPageBackgroundMode: "common",
@@ -346,12 +352,73 @@ function normalizeLimitContent(content: Record<string, LimitPageContent> = {}) {
   ) as Record<string, LimitPageContent>;
 }
 
+type LegacyLotteryPrize = {
+  type?: LotteryPrizeType;
+  claimFields?: LotteryClaimSettingsByType[LotteryPrizeType]["claimFields"];
+  identityCodeEnabled?: boolean;
+  claimInstructions?: string;
+};
+
+function migrateClaimSettingsByType(saved?: Partial<LotteryConfig>): LotteryClaimSettingsByType {
+  if (saved?.claimSettingsByType) {
+    const merged = { ...defaultLotteryConfig.claimSettingsByType };
+    (["virtual", "physical", "code"] as LotteryPrizeType[]).forEach((type) => {
+      const existing = saved.claimSettingsByType?.[type];
+      if (existing) merged[type] = { ...defaultLotteryConfig.claimSettingsByType[type], ...existing };
+    });
+    return merged;
+  }
+  const legacyPrizes = (saved?.prizes || []) as LegacyLotteryPrize[];
+  const migrated = { ...defaultLotteryConfig.claimSettingsByType };
+  (["virtual", "physical", "code"] as LotteryPrizeType[]).forEach((type) => {
+    const source = legacyPrizes.find((prize) => prize.type === type && (prize.claimFields?.length || prize.identityCodeEnabled));
+    if (source) {
+      migrated[type] = {
+        ...migrated[type],
+        claimFields: source.claimFields || [],
+        identityCodeEnabled: Boolean(source.identityCodeEnabled),
+      };
+    }
+  });
+  return migrated;
+}
+
+function normalizeLotteryConfig(saved?: Partial<LotteryConfig>): LotteryConfig {
+  if (!saved) return defaultLotteryConfig;
+  return {
+    ...defaultLotteryConfig,
+    ...saved,
+    spinPage: {
+      content: { ...defaultLotteryConfig.spinPage.content, ...(saved.spinPage?.content || {}) },
+    },
+    completePage: {
+      content: { ...defaultLotteryConfig.completePage.content, ...(saved.completePage?.content || {}) },
+    },
+    winPage: {
+      ...defaultLotteryConfig.winPage,
+      ...(saved.winPage || {}),
+      content: { ...defaultLotteryConfig.winPage.content, ...(saved.winPage?.content || {}) },
+    },
+    losePage: {
+      ...defaultLotteryConfig.losePage,
+      ...(saved.losePage || {}),
+      content: { ...defaultLotteryConfig.losePage.content, ...(saved.losePage?.content || {}) },
+    },
+    claimSettingsByType: migrateClaimSettingsByType(saved),
+    prizes: (Array.isArray(saved.prizes) ? saved.prizes : []).map((prize) => {
+      const { claimFields, identityCodeEnabled, claimInstructions, ...rest } = prize as typeof prize & LegacyLotteryPrize;
+      return rest;
+    }),
+  };
+}
+
 function normalizePublication(item: Publication): Publication {
   const preset = defaultPublications.find((candidate) => candidate.region === item.region);
   const merged = { ...preset, ...item } as Publication;
   return {
     ...merged,
     identityMismatchAction: merged.identityMismatchAction || "login",
+    lotteryConfig: normalizeLotteryConfig(merged.lotteryConfig),
     limitPageContent: normalizeLimitContent(merged.limitPageContent),
     closedPageContent: normalizeLimitContent(merged.closedPageContent || {
       [merged.defaultLocale || "zh-CN"]: {

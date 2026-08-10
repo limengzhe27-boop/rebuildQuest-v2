@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { defaultQuestions, loadQuestions, Question } from "@/lib/survey-builder";
 import { loadPublications, Publication } from "@/lib/survey-publication";
+import { defaultLotteryConfig, LotteryPrizeType } from "@/lib/survey-lottery";
 import { SurveyNav } from "../survey-nav";
 import { useSurveyTitle } from "@/lib/use-survey-title";
 
@@ -74,6 +75,7 @@ export default function LanguagesPage() {
   const [notice, setNotice] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [aiTranslating, setAiTranslating] = useState(false);
+  const [lotteryPageTab, setLotteryPageTab] = useState<"spin" | "win" | "lose" | "complete">("spin");
   const sourceScrollRef = useRef<HTMLDivElement>(null);
   const targetScrollRef = useRef<HTMLDivElement>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -107,6 +109,40 @@ export default function LanguagesPage() {
     window.localStorage.setItem(`joydata-survey-fallback-language-${surveyId}`, fallbackLanguage);
   }, [translations, verifiedLocales, fallbackLanguage, surveyId, hydrated]);
 
+  const lotteryTranslationSource = useMemo(() => {
+    const lottery = publication?.lotteryConfig || defaultLotteryConfig;
+    const sourceLocale = publication?.defaultLocale || "zh-CN";
+    const spin = lottery.spinPage.content[sourceLocale] || defaultLotteryConfig.spinPage.content["zh-CN"];
+    const complete = lottery.completePage.content[sourceLocale] || defaultLotteryConfig.completePage.content["zh-CN"];
+    const win = lottery.winPage.content[sourceLocale] || defaultLotteryConfig.winPage.content["zh-CN"];
+    const lose = lottery.losePage.content[sourceLocale] || defaultLotteryConfig.losePage.content["zh-CN"];
+    const claimFieldEntries: { id: string; label: string }[] = [];
+    const seen = new Set<string>();
+    (["virtual", "physical", "code"] as LotteryPrizeType[]).forEach((type) => {
+      (lottery.claimSettingsByType[type]?.claimFields || []).forEach((field) => {
+        const id = field.key.startsWith("custom-") ? `lottery:claim:field:${field.key}` : `lottery:field:${field.key}`;
+        if (seen.has(id)) return;
+        seen.add(id);
+        claimFieldEntries.push({ id, label: field.label });
+      });
+    });
+    const prizeEntries = lottery.prizes
+      .filter((prize) => prize.name.trim())
+      .map((prize) => ({ id: `lottery:prize:${prize.id}:name`, label: prize.name }));
+    return {
+      enabled: publication?.completionMode === "lottery",
+      spin,
+      complete,
+      win,
+      lose,
+      claimFieldEntries,
+      prizeEntries,
+      spinBackground: lottery.background,
+      winBackground: lottery.winPage.backgroundMode === "custom" ? lottery.winPage.background : "",
+      loseBackground: lottery.losePage.backgroundMode === "custom" ? lottery.losePage.background : "",
+    };
+  }, [publication]);
+
   const fields = useMemo<TranslationField[]>(() => {
     const result: TranslationField[] = [
       { id: "form:title", source: surveyTitle, location: "问卷 / 标题" },
@@ -133,8 +169,27 @@ export default function LanguagesPage() {
     if (limitContent?.title) result.push({ id: "limit:title", source: limitContent.title, location: "问卷结束页 / 标题" });
     if (limitContent?.body) result.push({ id: "limit:body", source: limitContent.body, location: "问卷结束页 / 正文" });
     limitContent?.links?.forEach((link, index) => result.push({ id: `limit:link:${link.id}`, source: link.text, location: `问卷结束页 / 链接 ${index + 1}` }));
+    if (lotteryTranslationSource.enabled) {
+      const { spin, complete, win, lose, claimFieldEntries, prizeEntries } = lotteryTranslationSource;
+      if (spin.title) result.push({ id: "lottery:spin:title", source: spin.title, location: "抽奖页面 / 标题" });
+      if (spin.body) result.push({ id: "lottery:spin:body", source: spin.body, location: "抽奖页面 / 正文" });
+      if (spin.buttonText) result.push({ id: "lottery:spin:buttonText", source: spin.buttonText, location: "抽奖页面 / 按钮文字" });
+      if (win.title) result.push({ id: "lottery:win:title", source: win.title, location: "中奖页面 / 标题" });
+      if (win.body) result.push({ id: "lottery:win:body", source: win.body, location: "中奖页面 / 正文" });
+      if (win.buttonText) result.push({ id: "lottery:win:buttonText", source: win.buttonText, location: "中奖页面 / 按钮文字" });
+      win.links?.forEach((link, index) => result.push({ id: `lottery:win:link:${link.id}`, source: link.text, location: `中奖页面 / 链接 ${index + 1}` }));
+      if (lose.title) result.push({ id: "lottery:lose:title", source: lose.title, location: "未中奖页面 / 标题" });
+      if (lose.body) result.push({ id: "lottery:lose:body", source: lose.body, location: "未中奖页面 / 正文" });
+      if (lose.buttonText) result.push({ id: "lottery:lose:buttonText", source: lose.buttonText, location: "未中奖页面 / 按钮文字" });
+      lose.links?.forEach((link, index) => result.push({ id: `lottery:lose:link:${link.id}`, source: link.text, location: `未中奖页面 / 链接 ${index + 1}` }));
+      if (complete.title) result.push({ id: "lottery:complete:title", source: complete.title, location: "抽奖完成页面 / 标题" });
+      if (complete.body) result.push({ id: "lottery:complete:body", source: complete.body, location: "抽奖完成页面 / 正文" });
+      if (complete.buttonText) result.push({ id: "lottery:complete:buttonText", source: complete.buttonText, location: "抽奖完成页面 / 按钮文字" });
+      claimFieldEntries.forEach((entry) => result.push({ id: entry.id, source: entry.label, location: "领奖信息填写字段" }));
+      prizeEntries.forEach((entry) => result.push({ id: entry.id, source: entry.label, location: "奖品池 / 奖品名称" }));
+    }
     return result;
-  }, [publication, questions, surveyTitle]);
+  }, [publication, questions, surveyTitle, lotteryTranslationSource]);
 
   const sourceLimitContent = publication?.limitPageContent?.[publication?.defaultLocale || "zh-CN"]
     || { title: "", body: "当前账号或填写环境已达到答题限制。", links: [] };
@@ -147,6 +202,14 @@ export default function LanguagesPage() {
   const sourceClosedPlainText = sourceClosedContent.links.reduce(
     (text, link) => text.replaceAll(`{{${link.id}}}`, link.text),
     sourceClosedContent.body,
+  );
+  const sourceLotteryWinPlainText = lotteryTranslationSource.win.links.reduce(
+    (text, link) => text.replaceAll(`{{${link.id}}}`, link.text),
+    lotteryTranslationSource.win.body,
+  );
+  const sourceLotteryLosePlainText = lotteryTranslationSource.lose.links.reduce(
+    (text, link) => text.replaceAll(`{{${link.id}}}`, link.text),
+    lotteryTranslationSource.lose.body,
   );
 
   function rawTranslation(id: string, legacyId?: string) {
@@ -515,6 +578,128 @@ export default function LanguagesPage() {
                  </article>
                </div>
              </section>
+
+             {lotteryTranslationSource.enabled && (
+               <>
+                 <section className="language-result-workspace">
+                   <header>
+                     <div><strong>抽奖流程页面</strong><small>抽奖页面、中奖页面、未中奖页面、抽奖完成页面的标题、正文与按钮文字。</small></div>
+                     <nav>
+                       <button className={lotteryPageTab === "spin" ? "active" : ""} onClick={() => setLotteryPageTab("spin")}>抽奖页面</button>
+                       <button className={lotteryPageTab === "win" ? "active" : ""} onClick={() => setLotteryPageTab("win")}>中奖页面</button>
+                       <button className={lotteryPageTab === "lose" ? "active" : ""} onClick={() => setLotteryPageTab("lose")}>未中奖页面</button>
+                       <button className={lotteryPageTab === "complete" ? "active" : ""} onClick={() => setLotteryPageTab("complete")}>抽奖完成页面</button>
+                     </nav>
+                   </header>
+                   {lotteryPageTab === "spin" && (
+                     <div className="result-translation-pair">
+                       <article>
+                         <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
+                         <div className={`standalone-result-preview full-page lottery ${lotteryTranslationSource.spinBackground ? "custom" : ""}`} style={lotteryTranslationSource.spinBackground ? { backgroundImage: `url(${lotteryTranslationSource.spinBackground})` } : undefined}>{lotteryTranslationSource.spin.title && <h2>{lotteryTranslationSource.spin.title}</h2>}<p>{lotteryTranslationSource.spin.body}</p></div>
+                       </article>
+                       <article className="translated">
+                         <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
+                         <div className="standalone-result-editor full-page">
+                           {lotteryTranslationSource.spin.title && editableField("lottery:spin:title", lotteryTranslationSource.spin.title, "标题（可留空）")}
+                           {editableField("lottery:spin:body", lotteryTranslationSource.spin.body, "正文")}
+                           {lotteryTranslationSource.spin.buttonText && editableField("lottery:spin:buttonText", lotteryTranslationSource.spin.buttonText, "按钮文字")}
+                         </div>
+                       </article>
+                     </div>
+                   )}
+                   {lotteryPageTab === "win" && (
+                     <div className="result-translation-pair">
+                       <article>
+                         <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
+                         <div className={`standalone-result-preview full-page lottery ${lotteryTranslationSource.winBackground ? "custom" : ""}`} style={lotteryTranslationSource.winBackground ? { backgroundImage: `url(${lotteryTranslationSource.winBackground})` } : undefined}>{lotteryTranslationSource.win.title && <h2>{lotteryTranslationSource.win.title}</h2>}<p>{sourceLotteryWinPlainText}</p></div>
+                       </article>
+                       <article className="translated">
+                         <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
+                         <div className="standalone-result-editor full-page">
+                           {lotteryTranslationSource.win.title && editableField("lottery:win:title", lotteryTranslationSource.win.title, "标题（可留空）")}
+                           {editableField("lottery:win:body", lotteryTranslationSource.win.body, "正文")}
+                           {lotteryTranslationSource.win.links.map((link, index) => editableField(`lottery:win:link:${link.id}`, link.text, `链接 ${index + 1} 文字`))}
+                           {lotteryTranslationSource.win.buttonText && editableField("lottery:win:buttonText", lotteryTranslationSource.win.buttonText, "按钮文字")}
+                         </div>
+                       </article>
+                     </div>
+                   )}
+                   {lotteryPageTab === "lose" && (
+                     <div className="result-translation-pair">
+                       <article>
+                         <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
+                         <div className={`standalone-result-preview full-page lottery ${lotteryTranslationSource.loseBackground ? "custom" : ""}`} style={lotteryTranslationSource.loseBackground ? { backgroundImage: `url(${lotteryTranslationSource.loseBackground})` } : undefined}>{lotteryTranslationSource.lose.title && <h2>{lotteryTranslationSource.lose.title}</h2>}<p>{sourceLotteryLosePlainText}</p></div>
+                       </article>
+                       <article className="translated">
+                         <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
+                         <div className="standalone-result-editor full-page">
+                           {lotteryTranslationSource.lose.title && editableField("lottery:lose:title", lotteryTranslationSource.lose.title, "标题（可留空）")}
+                           {editableField("lottery:lose:body", lotteryTranslationSource.lose.body, "正文")}
+                           {lotteryTranslationSource.lose.links.map((link, index) => editableField(`lottery:lose:link:${link.id}`, link.text, `链接 ${index + 1} 文字`))}
+                           {lotteryTranslationSource.lose.buttonText && editableField("lottery:lose:buttonText", lotteryTranslationSource.lose.buttonText, "按钮文字")}
+                         </div>
+                       </article>
+                     </div>
+                   )}
+                   {lotteryPageTab === "complete" && (
+                     <div className="result-translation-pair">
+                       <article>
+                         <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
+                         <div className="standalone-result-preview full-page lottery">{lotteryTranslationSource.complete.title && <h2>{lotteryTranslationSource.complete.title}</h2>}<p>{lotteryTranslationSource.complete.body}</p></div>
+                       </article>
+                       <article className="translated">
+                         <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
+                         <div className="standalone-result-editor full-page">
+                           {lotteryTranslationSource.complete.title && editableField("lottery:complete:title", lotteryTranslationSource.complete.title, "标题（可留空）")}
+                           {editableField("lottery:complete:body", lotteryTranslationSource.complete.body, "正文")}
+                           {lotteryTranslationSource.complete.buttonText && editableField("lottery:complete:buttonText", lotteryTranslationSource.complete.buttonText, "按钮文字")}
+                         </div>
+                       </article>
+                     </div>
+                   )}
+                 </section>
+
+                 {lotteryTranslationSource.claimFieldEntries.length > 0 && (
+                   <section className="language-result-workspace">
+                     <header><div><strong>领奖信息填写字段</strong><small>中奖用户需要填写的固定字段与自定义字段标签。</small></div></header>
+                     <div className="result-translation-pair">
+                       <article>
+                         <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
+                         <div className="standalone-result-preview full-page lottery">
+                           {lotteryTranslationSource.claimFieldEntries.map((entry) => <p key={entry.id}>{entry.label}</p>)}
+                         </div>
+                       </article>
+                       <article className="translated">
+                         <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
+                         <div className="standalone-result-editor full-page">
+                           {lotteryTranslationSource.claimFieldEntries.map((entry) => editableField(entry.id, entry.label, entry.label))}
+                         </div>
+                       </article>
+                     </div>
+                   </section>
+                 )}
+
+                 {lotteryTranslationSource.prizeEntries.length > 0 && (
+                   <section className="language-result-workspace">
+                     <header><div><strong>奖品池 / 奖品名称</strong><small>九宫格奖品池中每个奖品的名称。</small></div></header>
+                     <div className="result-translation-pair">
+                       <article>
+                         <header><span>原</span><div><strong>简体中文</strong><small>源语言 · 只读</small></div></header>
+                         <div className="standalone-result-preview full-page lottery">
+                           {lotteryTranslationSource.prizeEntries.map((entry) => <p key={entry.id}>{entry.label}</p>)}
+                         </div>
+                       </article>
+                       <article className="translated">
+                         <header><span>译</span><div><strong>{localeMeta.find((locale) => locale.code === activeLocale)?.name}</strong><small>目标语言 · 可编辑</small></div></header>
+                         <div className="standalone-result-editor full-page">
+                           {lotteryTranslationSource.prizeEntries.map((entry) => editableField(entry.id, entry.label, entry.label))}
+                         </div>
+                       </article>
+                     </div>
+                   </section>
+                 )}
+               </>
+             )}
            </div>
          </section>
       </section>
