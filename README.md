@@ -1,98 +1,59 @@
-# vinext-starter
+# JoyData Survey Workspace
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+面向游戏用户研究团队的多语言问卷工作台原型，覆盖问卷创建、逻辑配置、样式设计、发布投放、回复收集和数据分析等环节。
 
-## Prerequisites
+## 主要功能
+
+- 按游戏、地区、项目和状态管理问卷
+- 从模板创建问卷，编辑题目和页面结构
+- 配置跳题逻辑、显示条件和多语言版本
+- 自定义问卷外观、发布设置与公开访问地址
+- 查看回复列表和可视化分析结果
+- 支持国内与海外研究项目的分组管理
+- 示例数据展示玩家体验、满意度和流失原因等研究场景
+
+## 技术栈
+
+- Next.js 16、React 19、TypeScript
+- vinext、Vite、Cloudflare Vite Plugin
+- Tailwind CSS 4
+- Drizzle ORM，可选 Cloudflare D1 数据存储
+
+## 环境要求
 
 - Node.js `>=22.13.0`
 
-## Quick Start
+## 本地运行
 
 ```bash
 npm install
 npm run dev
+```
+
+## 构建与检查
+
+```bash
 npm run build
+npm test
+npm run lint
 ```
 
-This starter does not use `wrangler.jsonc`.
+## 主要页面
 
-## Included Shape
-
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```text
+app/
+├── page.tsx                       # 问卷看板
+├── survey/new/                    # 新建问卷
+├── survey/templates/              # 问卷模板
+├── survey/[id]/edit/              # 内容编辑
+├── survey/[id]/logic/             # 逻辑配置
+├── survey/[id]/languages/         # 多语言管理
+├── survey/[id]/appearance/        # 样式设计
+├── survey/[id]/publish/           # 发布设置
+├── survey/[id]/responses/         # 回复数据
+└── survey/[id]/analytics/         # 数据分析
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+## 当前状态
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+这是用于验证游戏用户研究工作流和交互设计的产品原型。仓库包含示例业务数据；正式上线前需要接入真实数据库、身份认证、权限体系和数据合规策略。
